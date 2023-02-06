@@ -12,7 +12,7 @@ This repository is the implementaion of our framework, made by **Jaehyuk Kwon**,
 - To train the baseline model,
 
 ```
-python main.py -dt ptb #Default KL Div
+python main.py -dt mnist #Default KL Div
 ```
 
 - If you want to change the default parameters(epoch, zdim, .. etc.), see the main.py.
@@ -31,6 +31,6 @@ python main.py -dt ptb #Default KL Div
 - If you test γ-divergence, please keep in mind **df > 2**. (Because the variance of T distribution exists when df > 2)
 
 ```
-python main.py -dt ptb --beta 1.0 --df 3 #Gamma Div
+python main.py -dt mnist --beta 1.0 --df 3 #Gamma Div
 ```
 
