@@ -1,6 +1,61 @@
+import torch
 import torchvision
+import random
+import dataloader
 import matplotlib.pyplot as plt
+import argument
+from sklearn.manifold import TSNE
 from torchmetrics import StructuralSimilarityIndexMeasure
+
+'''
+   Deterministic operations are often slower than nondeterministic operations.
+'''
+
+args = argument.args
+def make_reproducibility(seed):
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    
+    
+    
+'''
+    draw a tsne plot and save it.
+'''
+
+def make_tsne_plot(model, DEVICE):
+
+    if args.dataset == "mnist" :
+        test_class = dataloader.testset.tensors[1]
+        test_z = model.encoder(dataloader.testset.tensors[0].to(DEVICE))[0]
+     
+    else:
+        test_class = dataloader.testset.dataset.tensors[1]
+        test_z = model.encoder(dataloader.testset.datasets[0].dataset.tensors[0].to(DEVICE))[0]
+
+    test_z = test_z.detach().cpu().numpy()
+
+    colors = ["#476A2A", "#7851B8", "#BD3430", "#4A2D4E", "#875525",
+            "#A83683", "#4E655E", "#853541", "#3A3120","#535D8E"]
+
+    plt.rc('axes', unicode_minus=False)
+    tsne = TSNE(random_state = args.seed)
+
+    sample_size = 10000
+
+    tsne_z = tsne.fit_transform(test_z[0:sample_size])
+    plt.figure(figsize=(10,10))
+    plt.xlim(tsne_z[:,0].min(), tsne_z[:,0].max()+1)
+    plt.ylim(tsne_z[:,1].min(), tsne_z[:,1].max()+1)
+    for i in range(sample_size):
+        plt.text(tsne_z[i,0], tsne_z[i,1], str(test_class[i]),
+                color = colors[test_class[i]],
+                fontdict = {'weight':'bold','size':7})
+    plt.xlabel("t-SNE 1st latent variable")
+    plt.ylabel("t-SNE 2nd latent variable")
+    plt.title(f"t-SNE : {args.dataset}, df = {args.df}")
+
+    plt.savefig(f"{args.dataset}_frac{args.frac}_df{args.df}_seed{args.seed}.png")
 
 '''
 Show reconstructed images.

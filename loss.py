@@ -28,19 +28,28 @@ class Gamma_Power_Family():
         self.q = self.post_mu.shape[1]
         self.gamma = - 2 / (self.nu + self.p + self.q) # gamma < 0
         
-    def gamma_norm():
+    def gamma_entropy(p):
         '''
-            Caculate E_p[p(x)^{\gamma}] with Monte Carlo.
+            parameter : p (distribution)
+            Return : H_{\gamma}(p) = -||p||_{1+\gamma}
+        '''
+        p_power = torch.pow(p, 1+self.gamma)
+        norm_value = torch.pow(torch.mean(p_power, dim=1), 1/(1+self.gamma))
+        return - norm_value
+    def gamma_ce(p, q):
+        '''
+            parameter : p, q (distributions)
+            Return : C_{\gamma}(p,q)
+            = - 1/||q||_{1+\gamma} E_p[q^r]
         '''
         
-        return
-    def CE_gamma():
-        return
+        q_negent_pow = torch.pow(- gamma_entropy(q), self.gamma)
+        integrand = p * torch.pow(q,gamma)
+        return - torch.mean(integrand, dim=1) / q_entropy_pow
         
-    def gamma_pow_div(gamma):
+    def gamma_pow_div(p, q):
+        return gamma_ce(p, q) - gamma_entropy(p)
     
-    
-
 
 
 class Gamma_Family():

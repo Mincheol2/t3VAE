@@ -3,11 +3,12 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.nn import functional as F
+import argument
 import random
 import math
 import numpy as np
 from loss import *
-
+args = argument.args
 
 class Encoder(nn.Module):
     def __init__(self, input_dim, z_dim,device, df=0):
@@ -56,20 +57,18 @@ class Encoder(nn.Module):
         logvar = self.latent_var(x)
         z = self.reparameterize(mu, logvar)
 
-        return  z, mu, logvar
+        return z, mu, logvar
 
-    def loss(self, mu, logvar, prior_mu, prior_logvar, alpha, beta, df):
-        # Alpha div
-        if df == 0:
-            Alpha_div = Alpha_Family(mu, logvar, prior_mu, prior_logvar)
-            div_loss = Alpha_div.alpha_divergence(alpha)
-            
-        # Gamma div
+    def loss(self, mu, logvar):
+        if args.df == 0:
+            KL_div = Alpha_Family(mu, logvar,args.prior_mu, args.prior_logvar)
+            div_loss = KL_div.KL_loss()
+
         else:
-            Gamma_div = Gamma_Family(mu, logvar, prior_mu, prior_logvar)
-            div_loss = Gamma_div.gamma_divergence(df)
+            Gamma_div = Gamma_Family(mu, logvar,args.df,args.prior_mu, args.prior_logvar)
+            div_loss = Gamma_div.gamma_divergence(args.df)
         
-        return div_loss * beta
+        return div_loss * args.beta
 
     def log_sum_exp(self, value, dim=None, keepdim=False):
         """Numerically stable implementation of the operation
