@@ -11,12 +11,12 @@ from loss import *
 args = argument.args
 
 class Encoder(nn.Module):
-    def __init__(self, input_dim, z_dim,device, df=0):
+    def __init__(self, input_dim, z_dim,device, nu=0):
         super(Encoder, self).__init__()
 
         self.input_dim = input_dim
         self.z_dim = z_dim
-        self.df = df
+        self.nu = nu
         self.device = device
         
         self.encConv1 = nn.Conv2d(1, 16, 5)
@@ -29,25 +29,24 @@ class Encoder(nn.Module):
 
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
-        if self.df == 0:
-            eps = torch.randn_like(std) # Normal dist
+        if self.nu == 0:
+            eps = torch.randn_like(std) # Normal dist : eps ~ N(0, I)
             return mu + std * eps
         else:
             '''
+            
             Sampling algorithm
-            1. Generate v ~ chiq(df) and eps ~ N(0, I), independently.
-            2. Caculate x = mu + std * eps / (sqrt(v/df)) 
+            1. Generate v ~ chiq(nu) and eps ~ N(0, (nu-2)/nu * var), independently.
+            2. Caculate x = mu + eps / (sqrt(v/nu)) 
+            (Note that the covariance matrix of MVT is nu/(nu-2)*((nu-2)/nu * var) = var)
             '''
             MVN_dist = torch.MultivariateNormal(torch.zeros(self.z_dim), torch.eye(self.z_dim))
-            chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.df]))
-            
-            
-            y = MVNdist.sample(sample_shape = torch.Size(prior_mu.shape)).to(self.device) # Student T dist
+            chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.nu]))
+            eps = MVN_dist.sample(sample_shape = torch.Size(mu.shape)).to(self.device) # Student T dist
+            Sigma = torch.tensor(np.sqrt((self.nu - 2) / self.nu) * std)
             v = chi_dist.sample()
-            return mu + std * eps / torch.sqrt(self.df / v)
-        
-        
-        return mu + std * eps
+            
+            return mu + Sigma * eps / torch.sqrt(self.nu / v)
 
     def forward(self, x):
         x = F.leaky_relu(self.norm1(self.encConv1(x)))
@@ -59,28 +58,12 @@ class Encoder(nn.Module):
 
         return z, mu, logvar
 
-    def loss(self, mu, logvar):
-        if args.df == 0:
-            KL_div = Alpha_Family(mu, logvar,args.prior_mu, args.prior_logvar)
+    def loss(self, mu, logvar, x, input_dim):
+        if args.nu == 0:
+            KL_div = Alpha_Family(mu, logvar)
             div_loss = KL_div.KL_loss()
 
         else:
-            Gamma_div = Gamma_Family(mu, logvar,args.df,args.prior_mu, args.prior_logvar)
-            div_loss = Gamma_div.gamma_divergence(args.df)
+            div_loss = gamma_neg_entropy(x,logvar,input_dim)
         
         return div_loss * args.beta
-
-    def log_sum_exp(self, value, dim=None, keepdim=False):
-        """Numerically stable implementation of the operation
-        value.exp().sum(dim, keepdim).log()
-        """
-        if dim is not None:
-            m, _ = torch.max(value, dim=dim, keepdim=True)
-            value0 = value - m
-            if keepdim is False:
-                m = m.squeeze(dim)
-            return m + torch.log(torch.sum(torch.exp(value0), dim=dim, keepdim=keepdim))
-        else:
-            m = torch.max(value)
-            sum_exp = torch.sum(torch.exp(value - m))
-            return m + torch.log(sum_exp)

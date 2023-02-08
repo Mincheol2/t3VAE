@@ -1,17 +1,8 @@
 import argument
 import gamma_ae
 import torch
-import torch.nn as nn
-import dataloader
-
-from torch.utils.data import DataLoader
-import torchvision
-import torchvision.transforms as transforms
 import os
 from util import *
-import numpy as np
-from encoder import Encoder
-from decoder import Decoder
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
@@ -25,15 +16,15 @@ SEED = args.seed
 make_reproducibility(SEED)
 
 beta = args.beta
-df = args.df
+nu = args.nu
 
 print(f'Current beta : {beta}')
-print(f'Current df : {df}')
+print(f'Current nu : {nu}')
 
-if args.load:
-    model_dir = args.model_dir
-else:
-    model_dir = './'+args.dataset+ f'_model_save_beta{beta}_df{df}/'
+# if args.load:
+#     model_dir = args.model_dir
+# else:
+model_dir = './'+args.dataset+ f'_model_save_beta{beta}_nu{nu}/'
 if not os.path.exists(model_dir):
     os.makedirs(model_dir)
 
@@ -47,6 +38,8 @@ input_dim = 784 # 28**2 : MNIST (I'll generalize this param for any dataset)
 
 
 gammaAE = gamma_ae.gammaAE(input_dim, image_size, DEVICE)
+
+# Currently, we don't use save/load options
 # ============== run ==============
 # if args.load:
 #     state = torch.load(model_dir+'Vanilavae.tch')
@@ -60,8 +53,8 @@ gammaAE = gamma_ae.gammaAE(input_dim, image_size, DEVICE)
 
 # else:
 for epoch in tqdm(range(0, args.epochs)):
-    gammaAE.train(epoch)
-    gammaAE.test(epoch)
+    gammaAE.train(epoch,writer)
+    gammaAE.test(epoch,writer)
     
     writer.close()
 

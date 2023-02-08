@@ -4,7 +4,10 @@ import random
 import dataloader
 import matplotlib.pyplot as plt
 import argument
+import numpy as np
+import cv2
 from sklearn.manifold import TSNE
+from tqdm import tqdm
 from torchmetrics import StructuralSimilarityIndexMeasure
 
 '''
@@ -30,7 +33,7 @@ def make_tsne_plot(model, DEVICE):
         test_z = model.encoder(dataloader.testset.tensors[0].to(DEVICE))[0]
      
     else:
-        test_class = dataloader.testset.dataset.tensors[1]
+        test_class = dataloader.testset.datasets[0].dataset.tensors[1]
         test_z = model.encoder(dataloader.testset.datasets[0].dataset.tensors[0].to(DEVICE))[0]
 
     test_z = test_z.detach().cpu().numpy()
@@ -47,15 +50,15 @@ def make_tsne_plot(model, DEVICE):
     plt.figure(figsize=(10,10))
     plt.xlim(tsne_z[:,0].min(), tsne_z[:,0].max()+1)
     plt.ylim(tsne_z[:,1].min(), tsne_z[:,1].max()+1)
-    for i in range(sample_size):
+    for i in tqdm(range(sample_size)):
         plt.text(tsne_z[i,0], tsne_z[i,1], str(test_class[i]),
                 color = colors[test_class[i]],
                 fontdict = {'weight':'bold','size':7})
     plt.xlabel("t-SNE 1st latent variable")
     plt.ylabel("t-SNE 2nd latent variable")
-    plt.title(f"t-SNE : {args.dataset}, df = {args.df}")
+    plt.title(f"t-SNE : {args.dataset}, nu = {args.nu}")
 
-    plt.savefig(f"{args.dataset}_frac{args.frac}_df{args.df}_seed{args.seed}.png")
+    plt.savefig(f"{args.dataset}_frac{args.frac}_nu{args.nu}_seed{args.seed}.png")
 
 '''
 Show reconstructed images.

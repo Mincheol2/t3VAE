@@ -25,12 +25,12 @@ python main.py --dataset mnist #Default KL Div
 |argument|description|default value|
 |------|---|---|
 |--beta|Weight for divergence loss. |1.0|
-|--df |Paramter for γ-divergence.|0.0 (unused)|
+|--nu |Paramter for γ-divergence.|0.0 (unused)|
 |--epochs| the number of epochs| 100 |
 
-- If you test γ-divergence, please keep in mind **df > 2**. (Because the variance of T distribution exists when df > 2)
+- If you test γ-divergence, please keep in mind **nu > 2**. (Because the variance of T distribution exists when nu > 2)
 
 ```
-python main.py --dataset mnist --beta 1.0 --df 3 #Gamma Div
+python main.py --dataset mnist --beta 1.0 --nu 3 #Gamma Div
 ```
 

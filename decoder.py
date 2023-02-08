@@ -1,11 +1,10 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import DataLoader
 from torch.nn import functional as F
-import random
-import math
-import numpy as np
+import argument
+import loss
+
+args = argument.args
 
 
 
@@ -25,16 +24,20 @@ class Decoder(nn.Module):
         z = F.relu(self.decFC1(enc_z))
         z = z.view(-1, 32, 20, 20)
         z = F.leaky_relu(self.norm1(self.decConv1(z)))
-        prediction = torch.sigmoid(self.decConv2(z))
+        prediction = torch.sigmoid(self.decConv2(z)) # Input data is already transformed, so do reconstrucions.
 
         return prediction
 
 
     def loss(self, recon_x, x, input_dim):
-        recon_loss = F.binary_cross_entropy(recon_x, x, reduction = 'sum')
+        if args.nu == 0:
+            recon_loss = F.binary_cross_entropy(recon_x, x, reduction = 'sum')
         
-        # MSE loss is very high when trianing MNIST Dataset.
-        #recon_loss = F.mse_loss(recon_x, x, reduction = 'mean')
+            # MSE loss is very high when trianing MNIST Dataset.
+            #recon_loss = F.mse_loss(recon_x, x, reduction = 'mean')
+        else:
+            recon_loss = loss.gamma_recon_error(recon_x, x,input_dim)
+
         return recon_loss
 
     
