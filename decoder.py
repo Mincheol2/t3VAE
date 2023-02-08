@@ -24,17 +24,16 @@ class Decoder(nn.Module):
         z = F.relu(self.decFC1(enc_z))
         z = z.view(-1, 32, 20, 20)
         z = F.leaky_relu(self.norm1(self.decConv1(z)))
-        prediction = torch.tanh(self.decConv2(z)) # Input data is already transformed, so do reconstrucions.
+        prediction = torch.sigmoid(self.decConv2(z)) # Input data is already transformed, so do reconstrucions.
 
         return prediction
 
 
-    def loss(self, recon_x, z, x, input_dim):
+    def loss(self, recon_x, z, x, mu, logvar, input_dim):
         if args.nu == 0:
-            # recon_loss = F.binary_cross_entropy(recon_x, x, reduction = 'sum')
-        
-            recon_loss = F.mse_loss(recon_x, x, reduction = 'sum')
+            recon_loss = F.binary_cross_entropy(recon_x, x, reduction = 'sum')
+            # recon_loss = F.mse_loss(recon_x, x, reduction = 'sum')
         else:
-            recon_loss = loss.gamma_recon_error(recon_x, z, x,input_dim)
+            recon_loss = loss.gamma_recon_error(recon_x, z, x,mu, logvar, input_dim)
 
         return recon_loss

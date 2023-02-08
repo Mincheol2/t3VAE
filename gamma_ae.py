@@ -28,18 +28,16 @@ class gammaAE():
             data = data.to(self.DEVICE)
             self.opt.zero_grad()
             z, mu, logvar = self.encoder(data)
-            div_loss = self.encoder.loss(mu, logvar,data, self.input_dim)
+            div_loss = self.encoder.loss(mu, logvar, self.input_dim)
             recon_data = self.decoder(z)
-            recon_loss = self.decoder.loss(recon_data, z, data, self.input_dim)
-            print(f'recon_loss : {recon_loss}')
-            print(f'div_loss : {div_loss}')
+            recon_loss = self.decoder.loss(recon_data, z, data, mu, logvar, self.input_dim)
 
-            ### TEST CODE ###
-            if np.isnan(recon_loss.cpu().detach().numpy()):
-                print("NAN!")
-                exit()
-            ####
-
+            # ### TEST CODE ###
+#            print(f'div_loss : {div_loss}')
+#            print(f'recon_loss : {recon_loss}')
+#            # if np.isnan(recon_loss.cpu().detach().numpy()):
+            #     print("NAN!")
+            # ####
             current_loss = div_loss + recon_loss
             current_loss.backward()
 
@@ -65,9 +63,9 @@ class gammaAE():
                 data = data.to(self.DEVICE)
                 z, mu, logvar = self.encoder(data)
                             
-                div_loss = self.encoder.loss(mu, logvar, data, self.input_dim)
+                div_loss = self.encoder.loss(mu, logvar, self.input_dim)
                 recon_img = self.decoder(z)
-                recon_loss = self.decoder.loss(recon_img, z, data, self.input_dim)
+                recon_loss = self.decoder.loss(recon_img, z, data, mu, logvar, self.input_dim)
                 current_loss = div_loss + recon_loss
 
                 ## Caculate SSIM ##

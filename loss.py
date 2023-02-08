@@ -12,7 +12,7 @@ args = argument.args
     
     For numerical stablity, we use an argument 'logvar' instead of var.
     Note that var is a diagonal matrix.
-    '''
+'''
 
 
 '''
@@ -27,7 +27,7 @@ def log_t_normalizing_const(nu, d):
 '''
     gamma_power divergence : C_1 gamma reconstruction term - C_2 (gamma cross entropy term)
 '''
-def gamma_recon_error(recon_x, z, x, p_dim):
+def gamma_recon_error(recon_x, z, x, mu, logvar, p_dim):
     '''
         parameters
         f_z : reconstructed data
@@ -44,26 +44,22 @@ def gamma_recon_error(recon_x, z, x, p_dim):
     gamma = -2 / (args.nu + p_dim + q_dim)
 
 
-    z_norm = torch.linalg.norm(z, ord=2, dim=1) #ok
-    x_diff_z_norm = torch.linalg.norm(x-f_z, ord=2, dim=1) #ok
+    E_z_norm = args.nu / (args.nu - 2) * torch.sum(logvar.exp(),dim=1) + torch.linalg.norm(mu, ord=2, dim=1).pow(2)
+    x_diff_z_norm_zmean = torch.linalg.norm(x-f_z, ord=2, dim=1) / z.shape[0]
 
-    normalizing_term = log_t_normalizing_const(args.nu, p_dim + q_dim)
-    const_pow_log = - np.log(normalizing_term) +  p_dim/2 * np.log(1+ q_dim/args.nu) + np.log(1+ (p_dim+q_dim)/(args.nu-2))
-    
+    const_pow_log = - log_t_normalizing_const(args.nu, p_dim + q_dim) +  p_dim/2 * np.log(1+ q_dim/args.nu) + np.log(1+ (p_dim+q_dim)/(args.nu-2))
     const = -1/gamma * torch.exp(- gamma / (1+gamma) * const_pow_log)
-    return const * torch.mean(1 + 1/args.nu * z_norm + 1/((args.nu+q_dim) * (args.recon_sigma)**2 * x_diff_z_norm))
+
+    return const * torch.mean(1 + 1/args.nu * E_z_norm + x_diff_z_norm_zmean / ((args.nu+q_dim) * (args.recon_sigma)**2))
 
 def gamma_neg_entropy(logvar, p_dim):
     '''
-
         method 1 : ignoring gamma above p_data(x).
         So, we calculate 1/N sum_{i=1}^{N} |Sigma(X_i)|^{-gamma /2}
 
         method 2 : use convergence of L^{1+u} quasi norm.
         In this case, we can also ignore the global exponent.
-
     '''
-
     q_dim = args.zdim
     gamma = -2 / (args.nu + p_dim + q_dim)
 
@@ -73,20 +69,12 @@ def gamma_neg_entropy(logvar, p_dim):
     const = -1/gamma * torch.exp(const_1_log) * const_2
 
     if args.method == 1:
-        eps = 1e-10
-        # Sigma_X_det = torch.prod(torch.exp(logvar),dim=1) # determinant
-        # det -> 0으로 수렴하는 문제 발생.. why?
-
-        # Sigma_X_pow = torch.pow(Sigma_X_det,-gamma/2)
         Sigma_X_pow = torch.exp(-gamma/2 * torch.sum(logvar, dim=1))
-        return const * torch.pow(torch.mean(Sigma_X_pow), 1 / (1+ gamma))
+        return - const * torch.pow(torch.mean(Sigma_X_pow), 1 / (1+ gamma))
 
     elif args.method == 2:
-        # Sigma_X_det = torch.prod(torch.exp(logvar), dim=1)
-        # Sigma_X_pow = torch.pow(Sigma_X_det,-gamma/2)
-
         Sigma_X_pow = torch.exp(-gamma/2 * torch.sum(logvar,dim=1))
-        return const * torch.mean(Sigma_X_pow)
+        return - const * torch.mean(Sigma_X_pow)
 
     elif args.method == 3:
         pass
