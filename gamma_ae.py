@@ -30,7 +30,7 @@ class gammaAE():
             z, mu, logvar = self.encoder(data)
             div_loss = self.encoder.loss(mu, logvar,data, self.input_dim)
             recon_data = self.decoder(z)
-            recon_loss = self.decoder.loss(recon_data, data, self.input_dim)
+            recon_loss = self.decoder.loss(recon_data, z, data, self.input_dim)
             print(f'recon_loss : {recon_loss}')
             print(f'div_loss : {div_loss}')
 
@@ -67,7 +67,7 @@ class gammaAE():
                             
                 div_loss = self.encoder.loss(mu, logvar, data, self.input_dim)
                 recon_img = self.decoder(z)
-                recon_loss = self.decoder.loss(recon_img, data, self.input_dim)
+                recon_loss = self.decoder.loss(recon_img, z, data, self.input_dim)
                 current_loss = div_loss + recon_loss
 
                 ## Caculate SSIM ##
