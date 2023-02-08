@@ -37,7 +37,7 @@ class Encoder(nn.Module):
             
             Sampling algorithm
             1. Generate v ~ chiq(nu) and eps ~ N(0, (nu-2)/nu * var), independently.
-            2. Caculate x = mu + eps / (sqrt(v/nu)) 
+            2. Caculate x = mu + eps / (sqrt(v/nu))
             (Note that the covariance matrix of MVT is nu/(nu-2)*((nu-2)/nu * var) = var)
             '''
             MVN_dist = torch.MultivariateNormal(torch.zeros(self.z_dim), torch.eye(self.z_dim))
@@ -46,7 +46,7 @@ class Encoder(nn.Module):
             Sigma = torch.tensor(np.sqrt((self.nu - 2) / self.nu) * std)
             v = chi_dist.sample()
             
-            return mu + Sigma * eps / torch.sqrt(self.nu / v)
+            return mu + Sigma * eps * torch.sqrt(self.nu / v)
 
     def forward(self, x):
         x = F.leaky_relu(self.norm1(self.encConv1(x)))
@@ -64,6 +64,6 @@ class Encoder(nn.Module):
             div_loss = KL_div.KL_loss()
 
         else:
-            div_loss = gamma_neg_entropy(x,logvar,input_dim)
+            div_loss = gamma_neg_entropy(logvar,input_dim)
         
         return div_loss * args.beta

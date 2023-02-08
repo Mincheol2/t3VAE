@@ -20,22 +20,24 @@ args = argument.args
 '''
 
 def log_t_normalizing_const(nu, d):
-    nom = torch.lgamma(torch.tensor(nu+d)) 
+    nom = torch.lgamma(torch.tensor(nu+d))
     denom = torch.lgamma(torch.tensor(nu/2)) + d/2 * torch.log(torch.tensor(nu * np.pi))
     return nom - denom
 
 '''
     gamma_power divergence : C_1 gamma reconstruction term - C_2 (gamma cross entropy term)
 '''
-def gamma_recon_error(z, x, p_dim):
+def gamma_recon_error(recon_x, z, x, p_dim):
     '''
         parameters
-        z : reconstructed data
+        f_z : reconstructed data
+        z : latent var
         x : original data
         
         Return : closed form
         E_{X~p_data}E_{Z_q} [ 1 + 1/nu||Z||^2 + 1/(v+q) 1/sigma^2 ||X-f_{theta}(Z)||^2]
     '''
+    f_z = torch.flatten(recon_x, start_dim = 1)
     z = torch.flatten(z, start_dim = 1) # dim : [B, input_dim]
     x = torch.flatten(x, start_dim = 1)
     q_dim = args.zdim
@@ -43,8 +45,6 @@ def gamma_recon_error(z, x, p_dim):
 
 
     z_norm = torch.linalg.norm(z, ord=2, dim=1) #ok
-    
-    f_z = z
     x_diff_z_norm = torch.linalg.norm(x-f_z, ord=2, dim=1) #ok
 
     normalizing_term = log_t_normalizing_const(args.nu, p_dim + q_dim)
@@ -53,11 +53,8 @@ def gamma_recon_error(z, x, p_dim):
     const = -1/gamma * torch.exp(- gamma / (1+gamma) * const_pow_log)
     return const * torch.mean(1 + 1/args.nu * z_norm + 1/((args.nu+q_dim) * (args.recon_sigma)**2 * x_diff_z_norm))
 
-def gamma_neg_entropy(x,logvar, p_dim):
+def gamma_neg_entropy(logvar, p_dim):
     '''
-        parameters
-        Sigma : parameter of posterior t-dist
-        x : original data
 
         method 1 : ignoring gamma above p_data(x).
         So, we calculate 1/N sum_{i=1}^{N} |Sigma(X_i)|^{-gamma /2}
@@ -73,19 +70,22 @@ def gamma_neg_entropy(x,logvar, p_dim):
     const_1_log = log_t_normalizing_const(args.nu + p_dim, q_dim) * (gamma/ (1+gamma))
     const_2 = (1 + q_dim/(args.nu+p_dim-2)) ** (1/(1+gamma)) # almost 1
     
-    const = -1/gamma * torch.exp(const_1_log) * const_2 
+    const = -1/gamma * torch.exp(const_1_log) * const_2
 
     if args.method == 1:
-        Sigma_X_det = torch.prod(torch.exp(logvar),dim=1) # determinant
-        print(Sigma_X_det)
+        eps = 1e-10
+        # Sigma_X_det = torch.prod(torch.exp(logvar),dim=1) # determinant
         # det -> 0으로 수렴하는 문제 발생.. why?
 
-        Sigma_X_pow = torch.pow(Sigma_X_det,-gamma/2)
+        # Sigma_X_pow = torch.pow(Sigma_X_det,-gamma/2)
+        Sigma_X_pow = torch.exp(-gamma/2 * torch.sum(logvar, dim=1))
         return const * torch.pow(torch.mean(Sigma_X_pow), 1 / (1+ gamma))
 
     elif args.method == 2:
-        Sigma_X_det = torch.prod(torch.exp(logvar), dim=1)
-        Sigma_X_pow = torch.pow(Sigma_X_det,-gamma/2)
+        # Sigma_X_det = torch.prod(torch.exp(logvar), dim=1)
+        # Sigma_X_pow = torch.pow(Sigma_X_det,-gamma/2)
+
+        Sigma_X_pow = torch.exp(-gamma/2 * torch.sum(logvar,dim=1))
         return const * torch.mean(Sigma_X_pow)
 
     elif args.method == 3:
@@ -139,7 +139,7 @@ class Alpha_Family():
     def __init__(self, post_mu, post_logvar):
         self.post_mu = post_mu
         self.post_logvar = post_logvar
-        self.prior_mu = torch.zeros_like(post_mu) 
+        self.prior_mu = torch.zeros_like(post_mu)
         self.prior_logvar = torch.zeros_like(post_logvar)
         self.post_var = self.post_logvar.exp()
         self.prior_var = self.prior_logvar.exp()
@@ -183,7 +183,7 @@ class Alpha_Family():
             prod_const = 0.5 * ((1-alpha) * self.post_logvar + alpha * self.prior_logvar - var_denom.log())
             exp_term = -0.5 * alpha * (1-alpha) * (self.prior_mu - self.post_mu).pow(2) / var_denom
             
-            log_prodterm = torch.sum(prod_const + exp_term,dim=1) # 
+            log_prodterm = torch.sum(prod_const + exp_term,dim=1) #
             alpha_div = torch.mean(const_alpha * (1 - log_prodterm.exp())) # batch, sen mean
             
             return alpha_div
