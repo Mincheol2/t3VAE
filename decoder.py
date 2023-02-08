@@ -31,11 +31,10 @@ class Decoder(nn.Module):
 
     def loss(self, recon_x, z, x, input_dim):
         if args.nu == 0:
-            recon_loss = F.binary_cross_entropy(recon_x, x, reduction = 'sum')
+            # recon_loss = F.binary_cross_entropy(recon_x, x, reduction = 'sum')
         
-            # MSE loss is very high when trianing MNIST Dataset.
-            #recon_loss = F.mse_loss(recon_x, x, reduction = 'mean')
+            recon_loss = F.mse_loss(recon_x, x, reduction = 'sum')
         else:
             recon_loss = loss.gamma_recon_error(recon_x, z, x,input_dim)
 
-        return recon_loss    
+        return recon_loss
