@@ -26,11 +26,11 @@ if args.dataset != "mnist":
         
         return indice[mask], indice[~mask]
 
-    I1, I2 = make_masking(train_N,args.frac)
+    I1, I2 = make_masking(train_N,args.train_frac)
     trainset = torch.utils.data.Subset(trainset, indices=I1)
     noise_trainset = torch.utils.data.Subset(noise_trainset, indices=I2)
     
-    i1, i2 = make_masking(test_N,args.frac)
+    i1, i2 = make_masking(test_N,args.test_frac)
     testset = torch.utils.data.Subset(testset, indices=i1)
     noise_testset = torch.utils.data.Subset(noise_testset, indices=i2)
    

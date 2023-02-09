@@ -19,7 +19,9 @@ parser.add_argument('--zdim',  type=int, default=32,
                     help='the z size for training (default: 512)')
 parser.add_argument('--lr', type=float, default=1e-4,
                     help='learning rate')
-parser.add_argument('--frac', type=float, default=0.5,
+parser.add_argument('--train_frac', type=float, default=0.5,
+                    help='fraction of noisy dataset')
+parser.add_argument('--test_frac', type=float, default=0.5,
                     help='fraction of noisy dataset')
 parser.add_argument('--no_cuda', action='store_true',
                     help='enables CUDA training')
