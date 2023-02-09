@@ -32,10 +32,10 @@ class gammaAE():
             recon_data = self.decoder(z)
             recon_loss = self.decoder.loss(recon_data, z, data, mu, logvar, self.input_dim)
 
-            # ### TEST CODE ###
-#            print(f'div_loss : {div_loss}')
-#            print(f'recon_loss : {recon_loss}')
-#            # if np.isnan(recon_loss.cpu().detach().numpy()):
+            # # ### TEST CODE ###
+            # print(f'div_loss : {div_loss}')
+            # print(f'recon_loss : {recon_loss}')
+            # if np.isnan(recon_loss.cpu().detach().numpy()):
             #     print("NAN!")
             # ####
             current_loss = div_loss + recon_loss

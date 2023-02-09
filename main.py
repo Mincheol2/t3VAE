@@ -17,6 +17,7 @@ make_reproducibility(SEED)
 
 beta = args.beta
 nu = args.nu
+method = args.method
 
 print(f'Current beta : {beta}')
 print(f'Current nu : {nu}')
@@ -24,7 +25,7 @@ print(f'Current nu : {nu}')
 # if args.load:
 #     model_dir = args.model_dir
 # else:
-model_dir = './'+args.dataset+ f'_model_save_beta{beta}_nu{nu}/'
+model_dir = './'+args.dataset+ f'_model_save_method{method}_beta{beta}_nu{nu}/'
 if not os.path.exists(model_dir):
     os.makedirs(model_dir)
 

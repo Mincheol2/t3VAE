@@ -37,7 +37,7 @@ class Encoder(nn.Module):
             
             Sampling algorithm
             1. Generate v ~ chiq(nu) and eps ~ N(0, (nu-2)/nu * var), independently.
-            2. Caculate x = mu + eps / (sqrt(v/nu))
+            2. Caculate x = mu + eps / (sqrt(v/nu)) 
             (Note that the covariance matrix of MVT is nu/(nu-2)*((nu-2)/nu * var) = var)
             '''
             MVN_dist = torch.MultivariateNormal(torch.zeros(self.z_dim), torch.eye(self.z_dim))
@@ -58,11 +58,10 @@ class Encoder(nn.Module):
 
         return z, mu, logvar
 
-    def loss(self, mu, logvar, x, input_dim):
+    def loss(self, mu, logvar, input_dim):
         if args.nu == 0:
             KL_div = Alpha_Family(mu, logvar)
             div_loss = KL_div.KL_loss()
-
         else:
             div_loss = gamma_neg_entropy(logvar,input_dim)
         

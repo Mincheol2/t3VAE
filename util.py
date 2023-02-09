@@ -20,8 +20,6 @@ def make_reproducibility(seed):
     torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     
-    
-    
 '''
     draw a tsne plot and save it.
 '''
@@ -58,7 +56,7 @@ def make_tsne_plot(model, DEVICE):
     plt.ylabel("t-SNE 2nd latent variable")
     plt.title(f"t-SNE : {args.dataset}, nu = {args.nu}")
 
-    plt.savefig(f"{args.dataset}_frac{args.frac}_nu{args.nu}_seed{args.seed}.png")
+    plt.savefig(f"{args.dataset}_method{args.method}_frac{args.frac}_nu{args.nu}_seed{args.seed}.png")
 
 '''
 Show reconstructed images.

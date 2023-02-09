@@ -36,4 +36,4 @@ class Decoder(nn.Module):
         else:
             recon_loss = loss.gamma_recon_error(recon_x, z, x,mu, logvar, input_dim)
 
-        return recon_loss
+        return recon_loss    

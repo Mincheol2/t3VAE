@@ -20,7 +20,7 @@ args = argument.args
 '''
 
 def log_t_normalizing_const(nu, d):
-    nom = torch.lgamma(torch.tensor(nu+d))
+    nom = torch.lgamma(torch.tensor(nu+d)) 
     denom = torch.lgamma(torch.tensor(nu/2)) + d/2 * torch.log(torch.tensor(nu * np.pi))
     return nom - denom
 
@@ -45,12 +45,12 @@ def gamma_recon_error(recon_x, z, x, mu, logvar, p_dim):
 
 
     E_z_norm = args.nu / (args.nu - 2) * torch.sum(logvar.exp(),dim=1) + torch.linalg.norm(mu, ord=2, dim=1).pow(2)
-    x_diff_z_norm_zmean = torch.linalg.norm(x-f_z, ord=2, dim=1) / z.shape[0]
+    recon_norm_zmean = torch.linalg.norm(x-f_z, ord=2, dim=1).pow(2) / z.shape[0]
 
-    const_pow_log = - log_t_normalizing_const(args.nu, p_dim + q_dim) +  p_dim/2 * np.log(1+ q_dim/args.nu) + np.log(1+ (p_dim+q_dim)/(args.nu-2))
-    const = -1/gamma * torch.exp(- gamma / (1+gamma) * const_pow_log)
+    const_pow_log = -p_dim * np.log(args.recon_sigma)- log_t_normalizing_const(args.nu, p_dim + q_dim) - p_dim/2 * np.log(1+ q_dim/args.nu) - np.log(1+ (p_dim+q_dim)/(args.nu-2))
+    const = (args.nu + p_dim + q_dim / (2*args.nu)) * (gamma/(1+gamma) * const_pow_log).exp()
 
-    return const * torch.mean(1 + 1/args.nu * E_z_norm + x_diff_z_norm_zmean / ((args.nu+q_dim) * (args.recon_sigma)**2))
+    return const * torch.mean(args.nu / ((args.nu + q_dim) * args.recon_sigma**2) * recon_norm_zmean + E_z_norm )
 
 def gamma_neg_entropy(logvar, p_dim):
     '''
@@ -66,18 +66,24 @@ def gamma_neg_entropy(logvar, p_dim):
     const_1_log = log_t_normalizing_const(args.nu + p_dim, q_dim) * (gamma/ (1+gamma))
     const_2 = (1 + q_dim/(args.nu+p_dim-2)) ** (1/(1+gamma)) # almost 1
     
-    const = -1/gamma * torch.exp(const_1_log) * const_2
+    const_2 = -1/gamma * torch.exp(const_1_log) * const_2 
 
     if args.method == 1:
         Sigma_X_pow = torch.exp(-gamma/2 * torch.sum(logvar, dim=1))
-        return - const * torch.pow(torch.mean(Sigma_X_pow), 1 / (1+ gamma))
+        return - const_2 * torch.pow(torch.mean(Sigma_X_pow), 1 / (1+ gamma))
 
     elif args.method == 2:
         Sigma_X_pow = torch.exp(-gamma/2 * torch.sum(logvar,dim=1))
-        return - const * torch.mean(Sigma_X_pow)
+        return - const_2 * torch.mean(Sigma_X_pow)
 
     elif args.method == 3:
-        pass
+        const_pow_log = - log_t_normalizing_const(args.nu, p_dim + q_dim) +  p_dim/2 * np.log(1+ q_dim/args.nu) + np.log(1+ (p_dim+q_dim)/(args.nu-2))
+        const_1 = -1/gamma * torch.exp(- gamma / (1+gamma) * const_pow_log)
+
+        term_1 = 0.5 * torch.mean((1-gamma) * logvar.sum() - 0.25 * gamma * logvar.sum().pow(2))
+        term_2 = - (const_1 - const_2) # -  (1-gamma) * H_p 
+
+        return gamma * const_2 * (term_1 + term_2)
     else:
         raise Exception('Please choose one of the appropriate methods.')
 
@@ -127,7 +133,7 @@ class Alpha_Family():
     def __init__(self, post_mu, post_logvar):
         self.post_mu = post_mu
         self.post_logvar = post_logvar
-        self.prior_mu = torch.zeros_like(post_mu)
+        self.prior_mu = torch.zeros_like(post_mu) 
         self.prior_logvar = torch.zeros_like(post_logvar)
         self.post_var = self.post_logvar.exp()
         self.prior_var = self.prior_logvar.exp()
@@ -171,7 +177,7 @@ class Alpha_Family():
             prod_const = 0.5 * ((1-alpha) * self.post_logvar + alpha * self.prior_logvar - var_denom.log())
             exp_term = -0.5 * alpha * (1-alpha) * (self.prior_mu - self.post_mu).pow(2) / var_denom
             
-            log_prodterm = torch.sum(prod_const + exp_term,dim=1) #
+            log_prodterm = torch.sum(prod_const + exp_term,dim=1) # 
             alpha_div = torch.mean(const_alpha * (1 - log_prodterm.exp())) # batch, sen mean
             
             return alpha_div
