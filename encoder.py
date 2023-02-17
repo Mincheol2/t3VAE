@@ -51,7 +51,7 @@ class Encoder(nn.Module):
     def forward(self, x):
         x = F.leaky_relu(self.norm1(self.encConv1(x)))
         x = F.leaky_relu(self.norm2(self.encConv2(x)))
-        x = x.view(-1, 32*20*20)
+        x = x.view(-1, args.batch_size//2*20*20)
         mu = self.latent_mu(x)
         logvar = self.latent_var(x)
         z = self.reparameterize(mu, logvar)

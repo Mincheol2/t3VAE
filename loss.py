@@ -44,7 +44,7 @@ def gamma_recon_error(recon_x, z, x, mu, logvar, p_dim):
     gamma = -2 / (args.nu + p_dim + q_dim)
 
 
-    E_z_norm = args.nu / (args.nu - 2) * torch.sum(logvar.exp(),dim=1) + torch.linalg.norm(mu, ord=2, dim=1).pow(2)
+    E_z_norm = (args.nu + p_dim) / (args.nu + p_dim - 2) * torch.sum(logvar.exp(),dim=1) + torch.linalg.norm(mu, ord=2, dim=1).pow(2)
     recon_norm_zmean = torch.linalg.norm(x-f_z, ord=2, dim=1).pow(2) / z.shape[0]
 
     const_pow_log = -p_dim * np.log(args.recon_sigma)- log_t_normalizing_const(args.nu, p_dim + q_dim) - p_dim/2 * np.log(1+ q_dim/args.nu) - np.log(1+ (p_dim+q_dim)/(args.nu-2))

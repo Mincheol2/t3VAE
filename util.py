@@ -25,14 +25,19 @@ def make_reproducibility(seed):
 '''
 
 def make_tsne_plot(model, DEVICE):
+    
+    if args.dataset == "fashion":
+        test_class = dataloader.testloader.dataset.targets.numpy()
+        test_data = dataloader.testloader.dataset.data.unsqueeze(dim=1)
+        test_z = model.encoder(test_data.to(dtype=torch.float32, device=DEVICE))[0]
 
-    if args.dataset == "mnist" :
+    elif args.dataset == "mnist" :
         test_class = dataloader.testset.tensors[1]
         test_z = model.encoder(dataloader.testset.tensors[0].to(DEVICE))[0]
      
     else:
         test_class = dataloader.testset.datasets[0].dataset.tensors[1]
-        test_z = model.encoder(dataloader.testset.datasets[0].dataset.tensors[0].to(DEVICE))[0]
+        test_z = model.encoder(dataloader.testset.datasets[0].dataset.tensors[0])[0]
 
     test_z = test_z.detach().cpu().numpy()
 
@@ -56,7 +61,36 @@ def make_tsne_plot(model, DEVICE):
     plt.ylabel("t-SNE 2nd latent variable")
     plt.title(f"t-SNE : {args.dataset}, nu = {args.nu}")
 
-    plt.savefig(f"{args.dataset}_method{args.method}_frac{args.frac}_nu{args.nu}_seed{args.seed}.png")
+    plt.savefig(f"{args.dataset}_method{args.method}_frac{args.train_frac}_nu{args.nu}_seed{args.seed}.png")
+
+
+
+'''
+    input : imgs [B, C, H, W]
+'''
+def make_masking(imgs, mask_ratio):
+    B, _, H, W = imgs.shape 
+    blocks = []
+    nb_blocks_H = 14
+    nb_blocks_W = 14
+    for i in range(nb_blocks_H):
+        for j in range(nb_blocks_W):
+            block_H = (H * i//nb_blocks_H, H * (i+1) // nb_blocks_H)
+            block_W = (W * j//nb_blocks_W, W * (j+1) // nb_blocks_W)
+            blocks.append((block_H,block_W)) 
+
+    len_blocks = len(blocks)
+    for k in range(B):
+        rand_indices = np.random.choice(len_blocks, int(len_blocks * mask_ratio))
+        mask_blocks = np.array(blocks)[rand_indices]
+        for block in mask_blocks:
+            imgs[k][block[0][0]:block[0][1], block[1][0]:block[1][1]] = 0
+
+    return imgs
+
+
+
+
 
 '''
 Show reconstructed images.

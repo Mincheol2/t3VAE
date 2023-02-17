@@ -25,7 +25,11 @@ class gammaAE():
         self.decoder.train()
         total_loss = []
         for batch_idx, (data, _) in enumerate(dataloader.trainloader):
-            data = data.to(self.DEVICE)
+            if args.dataset == 'fashion':
+                len_data = len(data)
+                rand_indices = np.random.choice(len_data, int(len_data * args.train_frac))
+                data[rand_indices] = make_masking(data[rand_indices], 0.5) # [B, C, H, W]
+            data = data.to(self.DEVICE) 
             self.opt.zero_grad()
             z, mu, logvar = self.encoder(data)
             div_loss = self.encoder.loss(mu, logvar, self.input_dim)
