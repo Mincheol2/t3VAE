@@ -13,12 +13,11 @@ args = argument.args
 class Encoder(nn.Module):
     def __init__(self, input_dim, z_dim,device, nu=0):
         super(Encoder, self).__init__()
-
         self.input_dim = input_dim
         self.z_dim = z_dim
         self.nu = nu
         self.device = device
-        
+
         self.encConv1 = nn.Conv2d(1, 16, 5)
         self.norm1 = nn.BatchNorm2d(16)
         self.encConv2 = nn.Conv2d(16, 32, 5)
@@ -26,7 +25,7 @@ class Encoder(nn.Module):
 
         self.latent_mu = nn.Linear(32*20*20, self.z_dim)
         self.latent_var = nn.Linear(32*20*20, self.z_dim)
-
+        
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
         if self.nu == 0:
@@ -34,19 +33,20 @@ class Encoder(nn.Module):
             return mu + std * eps
         else:
             '''
-            
             Sampling algorithm
-            1. Generate v ~ chiq(nu) and eps ~ N(0, (nu-2)/nu * var), independently.
+            Let nu_prime = nu + p_dim
+            1. Generate v ~ chiq(nu_prime) and eps ~ N(0, (nu_prime-2)/(nu_prime) * var), independently.
             2. Caculate x = mu + eps / (sqrt(v/nu)) 
             (Note that the covariance matrix of MVT is nu/(nu-2)*((nu-2)/nu * var) = var)
             '''
+            nu_prime = self.nu + self.z_dim
             MVN_dist = torch.MultivariateNormal(torch.zeros(self.z_dim), torch.eye(self.z_dim))
-            chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.nu]))
+            chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu_prime]))
             eps = MVN_dist.sample(sample_shape = torch.Size(mu.shape)).to(self.device) # Student T dist
-            Sigma = torch.tensor(np.sqrt((self.nu - 2) / self.nu) * std)
+            Sigma = torch.tensor(np.sqrt((nu_prime - 2) / nu_prime) * std)
             v = chi_dist.sample()
             
-            return mu + Sigma * eps * torch.sqrt(self.nu / v)
+            return mu + Sigma * eps * torch.sqrt(nu_prime / v)
 
     def forward(self, x):
         x = F.leaky_relu(self.norm1(self.encConv1(x)))
@@ -63,6 +63,5 @@ class Encoder(nn.Module):
             KL_div = Alpha_Family(mu, logvar)
             div_loss = KL_div.KL_loss()
         else:
-            div_loss = gamma_neg_entropy(logvar,input_dim)
-        
+            div_loss = gamma_regularizer(mu, logvar, input_dim)
         return div_loss * args.beta

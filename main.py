@@ -17,7 +17,6 @@ make_reproducibility(SEED)
 
 beta = args.beta
 nu = args.nu
-method = args.method
 
 print(f'Current beta : {beta}')
 print(f'Current nu : {nu}')
@@ -25,21 +24,18 @@ print(f'Current nu : {nu}')
 # if args.load:
 #     model_dir = args.model_dir
 # else:
-model_dir = './'+args.dataset+ f'_model_save_method{method}_beta{beta}_nu{nu}/'
+model_dir = './'+args.dataset+ f'_model_save_beta{beta}_nu{nu}/'
 if not os.path.exists(model_dir):
     os.makedirs(model_dir)
-
 
 ## For tensorboard data ##
 writer = SummaryWriter(model_dir + 'Tensorboard_results')
 
 ## INIT ##
 image_size = 28
-input_dim = 784 # 28**2 : MNIST (I'll generalize this param for any dataset)
-
+input_dim = 784 # 28**2
 
 gammaAE = gamma_ae.gammaAE(input_dim, image_size, DEVICE)
-
 # Currently, we don't use save/load options
 # ============== run ==============
 # if args.load:

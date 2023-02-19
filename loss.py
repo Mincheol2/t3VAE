@@ -14,78 +14,37 @@ args = argument.args
     Note that var is a diagonal matrix.
 '''
 
-
 '''
-    log ver of normalizing constant for t-distribution
+    log version of normalizing constant for t-distribution
 '''
 
 def log_t_normalizing_const(nu, d):
-    nom = torch.lgamma(torch.tensor(nu+d)) 
-    denom = torch.lgamma(torch.tensor(nu/2)) + d/2 * torch.log(torch.tensor(nu * np.pi))
+    nom = torch.lgamma(torch.tensor((nu+d)/2)) 
+    denom = torch.lgamma(torch.tensor(nu/2)) + d/2 * (np.log(nu) + np.log(np.pi))
     return nom - denom
 
-'''
-    gamma_power divergence : C_1 gamma reconstruction term - C_2 (gamma cross entropy term)
-'''
-def gamma_recon_error(recon_x, z, x, mu, logvar, p_dim):
+
+def gamma_regularizer(mu, logvar, p_dim):
     '''
-        parameters
-        f_z : reconstructed data
-        z : latent var
-        x : original data
-        
-        Return : closed form
-        E_{X~p_data}E_{Z_q} [ 1 + 1/nu||Z||^2 + 1/(v+q) 1/sigma^2 ||X-f_{theta}(Z)||^2]
-    '''
-    f_z = torch.flatten(recon_x, start_dim = 1)
-    z = torch.flatten(z, start_dim = 1) # dim : [B, input_dim]
-    x = torch.flatten(x, start_dim = 1)
-    q_dim = args.zdim
-    gamma = -2 / (args.nu + p_dim + q_dim)
+        p_dim : data dim
+        q_dim : latent dim
 
-
-    E_z_norm = (args.nu + p_dim) / (args.nu + p_dim - 2) * torch.sum(logvar.exp(),dim=1) + torch.linalg.norm(mu, ord=2, dim=1).pow(2)
-    recon_norm_zmean = torch.linalg.norm(x-f_z, ord=2, dim=1).pow(2) / z.shape[0]
-
-    const_pow_log = -p_dim * np.log(args.recon_sigma)- log_t_normalizing_const(args.nu, p_dim + q_dim) - p_dim/2 * np.log(1+ q_dim/args.nu) - np.log(1+ (p_dim+q_dim)/(args.nu-2))
-    const = (args.nu + p_dim + q_dim / (2*args.nu)) * (gamma/(1+gamma) * const_pow_log).exp()
-
-    return const * torch.mean(args.nu / ((args.nu + q_dim) * args.recon_sigma**2) * recon_norm_zmean + E_z_norm )
-
-def gamma_neg_entropy(logvar, p_dim):
-    '''
-        method 1 : ignoring gamma above p_data(x).
-        So, we calculate 1/N sum_{i=1}^{N} |Sigma(X_i)|^{-gamma /2}
-
-        method 2 : use convergence of L^{1+u} quasi norm.
-        In this case, we can also ignore the global exponent.
+        output : 1/N sum_{i=1}^{N} ||mu(X_i)||^2 + Sigma(X_i)|^{-gamma /2}
     '''
     q_dim = args.zdim
-    gamma = -2 / (args.nu + p_dim + q_dim)
+    nu = args.nu
+    gamma = -2 / (nu + p_dim + q_dim)
 
-    const_1_log = log_t_normalizing_const(args.nu + p_dim, q_dim) * (gamma/ (1+gamma))
-    const_2 = (1 + q_dim/(args.nu+p_dim-2)) ** (1/(1+gamma)) # almost 1
+    mu_norm_sq = torch.linalg.norm(mu, ord=2, dim=1).pow(2)
+    trace_var = args.nu / (nu + p_dim - 2) * torch.sum(logvar.exp(),dim=1)
+    det_var = torch.tensor(torch.sum(logvar,dim=1).exp().pow(-gamma / (2*(1+gamma))))
+
+    const_2bar1_term_1 = (1 + q_dim / (nu + p_dim -2))
+    const_2bar1_term_2_log = -gamma / (1+gamma) * (-p_dim + log_t_normalizing_const(nu, p_dim) - np.log(nu + p_dim - 2) + np.log(nu-2))
+    const_2bar1 = const_2bar1_term_1 * const_2bar1_term_2_log.exp()
     
-    const_2 = -1/gamma * torch.exp(const_1_log) * const_2 
+    return torch.mean(mu_norm_sq + trace_var - args.nu * const_2bar1 * det_var)
 
-    if args.method == 1:
-        Sigma_X_pow = torch.exp(-gamma/2 * torch.sum(logvar, dim=1))
-        return - const_2 * torch.pow(torch.mean(Sigma_X_pow), 1 / (1+ gamma))
-
-    elif args.method == 2:
-        Sigma_X_pow = torch.exp(-gamma/2 * torch.sum(logvar,dim=1))
-        return - const_2 * torch.mean(Sigma_X_pow)
-
-    elif args.method == 3:
-        const_pow_log = - log_t_normalizing_const(args.nu, p_dim + q_dim) +  p_dim/2 * np.log(1+ q_dim/args.nu) + np.log(1+ (p_dim+q_dim)/(args.nu-2))
-        const_1 = -1/gamma * torch.exp(- gamma / (1+gamma) * const_pow_log)
-
-        term_1 = 0.5 * torch.mean((1-gamma) * logvar.sum() - 0.25 * gamma * logvar.sum().pow(2))
-        term_2 = - (const_1 - const_2) # -  (1-gamma) * H_p 
-
-        return gamma * const_2 * (term_1 + term_2)
-    else:
-        raise Exception('Please choose one of the appropriate methods.')
 
 
 

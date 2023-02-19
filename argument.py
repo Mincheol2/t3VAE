@@ -31,8 +31,6 @@ parser.add_argument('--gpu_id', type=str, default='0',
                     help='gpu id')
 parser.add_argument('--tsne', type=int, default=1,
                     help='make tsne plot (1:true, otherwise:false')
-parser.add_argument('--method', type=int, default=1,
-                    help='choice one of method dealing with 2nd loss term')
 
 
 # parser.add_argument('-s', '--save', action='store_true', default=True,

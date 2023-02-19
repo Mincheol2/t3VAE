@@ -19,7 +19,7 @@ class gammaAE():
         self.decoder = Decoder(self.input_dim, args.zdim, args.nu).to(DEVICE)
         self.opt = optim.Adam(list(self.encoder.parameters()) +
                  list(self.decoder.parameters()), lr=args.lr, eps=1e-6, weight_decay=1e-5)
-    
+
     def train(self,epoch,writer):
         self.encoder.train()
         self.decoder.train()
@@ -34,18 +34,12 @@ class gammaAE():
             z, mu, logvar = self.encoder(data)
             div_loss = self.encoder.loss(mu, logvar, self.input_dim)
             recon_data = self.decoder(z)
-            recon_loss = self.decoder.loss(recon_data, z, data, mu, logvar, self.input_dim)
-
-            # # ### TEST CODE ###
-            # print(f'div_loss : {div_loss}')
-            # print(f'recon_loss : {recon_loss}')
-            # if np.isnan(recon_loss.cpu().detach().numpy()):
-            #     print("NAN!")
-            # ####
+            recon_loss = self.decoder.loss(recon_data, data)
             current_loss = div_loss + recon_loss
             current_loss.backward()
 
             total_loss.append(current_loss.item())
+            
             self.opt.step()
 
             if batch_idx % 50 == 0:
@@ -69,7 +63,7 @@ class gammaAE():
                             
                 div_loss = self.encoder.loss(mu, logvar, self.input_dim)
                 recon_img = self.decoder(z)
-                recon_loss = self.decoder.loss(recon_img, z, data, mu, logvar, self.input_dim)
+                recon_loss = self.decoder.loss(recon_img,data)
                 current_loss = div_loss + recon_loss
 
                 ## Caculate SSIM ##
@@ -80,7 +74,7 @@ class gammaAE():
                 ##
                 writer.add_scalar("Test/SSIM", ssim_test.item(), batch_idx + epoch * (len(dataloader.testloader.dataset)/args.batch_size) )
                 writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), batch_idx + epoch * (len(dataloader.testloader.dataset)/args.batch_size) )
-                writer.add_scalar("Test/KL-Divergence", div_loss.item(), batch_idx + epoch * (len(dataloader.testloader.dataset)/args.batch_size) )
+                writer.add_scalar("Test/Divergence", div_loss.item(), batch_idx + epoch * (len(dataloader.testloader.dataset)/args.batch_size) )
                 writer.add_scalar("Test/Total Loss" , current_loss.item(), batch_idx + epoch * (len(dataloader.testloader.dataset)/args.batch_size) )
                 
                 recon_img = recon_img.view(-1, 1, self.image_size, self.image_size)
