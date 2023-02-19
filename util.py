@@ -37,7 +37,7 @@ def make_tsne_plot(model, DEVICE):
      
     else:
         test_class = dataloader.testset.datasets[0].dataset.tensors[1]
-        test_z = model.encoder(dataloader.testset.datasets[0].dataset.tensors[0])[0]
+        test_z = model.encoder(dataloader.testset.datasets[0].dataset.tensors[0].to(DEVICE))[0]
 
     test_z = test_z.detach().cpu().numpy()
 
