@@ -35,18 +35,18 @@ class Encoder(nn.Module):
             '''
             Sampling algorithm
             Let nu_prime = nu + p_dim
-            1. Generate v ~ chiq(nu_prime) and eps ~ N(0, (nu_prime-2)/(nu_prime) * var), independently.
-            2. Caculate x = mu + eps / (sqrt(v/nu)) 
-            (Note that the covariance matrix of MVT is nu/(nu-2)*((nu-2)/nu * var) = var)
+            1. Generate v ~ chiq(nu_prime) and eps ~ N(0, I), independently.
+            2. Caculate x = mu + std * eps / (sqrt(v/nu)), where std = sqrt(nu/(nu_prime) * var)
             '''
             nu_prime = self.nu + self.z_dim
             MVN_dist = torch.MultivariateNormal(torch.zeros(self.z_dim), torch.eye(self.z_dim))
             chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu_prime]))
-            eps = MVN_dist.sample(sample_shape = torch.Size(mu.shape)).to(self.device) # Student T dist
-            Sigma = torch.tensor(np.sqrt((nu_prime - 2) / nu_prime) * std)
+
+            eps = MVN_dist.sample(sample_shape = torch.Size(mu.shape)) # Student T dist
+            std = torch.tensor(np.sqrt((self.nu / nu_prime) * std))
             v = chi_dist.sample()
             
-            return mu + Sigma * eps * torch.sqrt(nu_prime / v)
+            return mu + std * eps * torch.sqrt(nu_prime / v)
 
     def forward(self, x):
         x = F.leaky_relu(self.norm1(self.encConv1(x)))
