@@ -19,7 +19,7 @@ class MYTensorDataset(torch.utils.data.Dataset):
 
 class Noisy_Dataset():
     def __init__(self, path, train=True, transform=None):
-        self.path = "./" + path 
+        self.path = "./datasets/" + path
         
     def get_dataset(self, noise_name):
         try:
