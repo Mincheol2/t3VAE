@@ -2,7 +2,6 @@ import argument
 import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
-from mnistc_dataset import *
 import numpy as np
 ## Load trainset, testset and trainloader, testloader ###
 # transform.Totensor() is used to normalize mnist data. Range : [0, 255] -> [0,1]
@@ -66,6 +65,7 @@ def generate_dataloader(trainset,testset,dataset_name):
     train_N = 60000
     test_N = 10000
     args = argument.args
+    
     noise_dataset = Noisy_Dataset(path=dataset_name)
     noise_trainset, noise_testset = noise_dataset.get_dataset(dataset_name)
 
@@ -88,21 +88,38 @@ def generate_dataloader(trainset,testset,dataset_name):
 
 def load_mnist_dataset(dataset_name):
     args = argument.args
-    
+        
     transform = transforms.Compose([transforms.ToTensor(),
-                               ])
+                                   ])
+    trainset = datasets.MNIST('~/.pytorch/MNIST_data/', download=True, train=True, transform=transform)
 
-    trainset = datasets.MNIST('~/.pytorch/F_MNIST_data/', download=True, train=True, transform=transform)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True)
+    testset = datasets.MNIST('~/.pytorch/MNIST_data/', download=True, train=False, transform=transform)
 
-    testset = datasets.MNIST('~/.pytorch/F_MNIST_data/', download=True, train=False, transform=transform)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size, shuffle=True)
-    
     ## Original data##
     if dataset_name == "mnist_default":
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True)
+        testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size, shuffle=True)
         return trainloader, testloader
-
+        
     ## mix contamination data ##
+    elif dataset_name == "emnist":
+        Etrainset = datasets.EMNIST('~/.pytorch/EMNIST_data/', download=True, split='letters',train=True, transform=transform)
+
+        Etestset = datasets.EMNIST('~/.pytorch/EMNIST_data/', download=True, split='letters', train=False, transform=transform)
+        
+        I1, I2 = make_masking(train_N,args.train_frac)
+        trainset.data[I1] = Etrainset.data[I1]
+        trainset.targets[I1] = -1 # outliers
+        
+        i1, i2 = make_masking(test_N,args.test_frac)
+        testset.data[i1] = Etestset.data[I1]
+        testset.targets[i1] = -1 # outliers
+
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True)
+        testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size, shuffle=True)
+        return generate_dataloader(trainset,testset,dataset_name)
+        
+    
     else:
         return generate_dataloader(trainset,testset,dataset_name)
 
@@ -124,3 +141,10 @@ def load_fashion_dataset(dataset_name):
     else:
         return generate_dataloader(trainset,testset,dataset_name)
 
+def select_dataloader(dataset_name):
+    if 'mnist' in args.dataset:
+        return dataloader.load_mnist_dataset(args.dataset)
+    elif 'fashion' in args.dataset:
+        return dataloader.load_fashion_dataset(args.dataset)
+        
+        

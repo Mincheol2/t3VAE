@@ -21,10 +21,8 @@ class gammaAE():
         self.opt = optim.Adam(list(self.encoder.parameters()) +
                  list(self.decoder.parameters()), lr=args.lr, eps=1e-6, weight_decay=1e-5)
 
-        if 'mnist' in args.dataset:
-            self.trainloader, self.testloader = dataloader.load_mnist_dataset(args.dataset)
-        else:
-            self.trainloader, self.testloader = dataloader.load_fashion_dataset(args.dataset)
+
+        self.trainloader, self.testloader = dataloader.select_dataloader(args.dataset)
 
     def train(self,epoch,writer):
         self.encoder.train()
