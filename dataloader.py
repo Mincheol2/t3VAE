@@ -103,23 +103,24 @@ def load_mnist_dataset(dataset_name):
         
     ## mix contamination data ##
     elif dataset_name == "emnist":
+        train_N = 60000
+        test_N = 10000
         Etrainset = datasets.EMNIST('~/.pytorch/EMNIST_data/', download=True, split='letters',train=True, transform=transform)
 
         Etestset = datasets.EMNIST('~/.pytorch/EMNIST_data/', download=True, split='letters', train=False, transform=transform)
         
-        I1, I2 = make_masking(train_N,args.train_frac)
+        I1, _ = make_masking(train_N,args.train_frac)
         trainset.data[I1] = Etrainset.data[I1]
         trainset.targets[I1] = -1 # outliers
         
-        i1, i2 = make_masking(test_N,args.test_frac)
-        testset.data[i1] = Etestset.data[I1]
+        i1, _ = make_masking(test_N,args.test_frac)
+        testset.data[i1] = Etestset.data[i1]
         testset.targets[i1] = -1 # outliers
 
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True)
         testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size, shuffle=True)
-        return generate_dataloader(trainset,testset,dataset_name)
+        return trainloader, testloader
         
-    
     else:
         return generate_dataloader(trainset,testset,dataset_name)
 
