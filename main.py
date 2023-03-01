@@ -9,7 +9,7 @@ import numpy as np
 
 ## init ##
 USE_CUDA = torch.cuda.is_available()
-DEVICE = torch.device("cuda" if USE_CUDA else "cpu")
+DEVICE = torch.device(f'cuda:{args.gpu_id}' if USE_CUDA else "cpu")
 SEED = args.seed
 make_reproducibility(SEED)
 args = argument.args

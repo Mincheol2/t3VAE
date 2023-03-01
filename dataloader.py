@@ -142,9 +142,10 @@ def load_fashion_dataset(dataset_name):
         return generate_dataloader(trainset,testset,dataset_name)
 
 def select_dataloader(dataset_name):
+    args = argument.args
     if 'mnist' in args.dataset:
-        return dataloader.load_mnist_dataset(args.dataset)
+        return load_mnist_dataset(args.dataset)
     elif 'fashion' in args.dataset:
-        return dataloader.load_fashion_dataset(args.dataset)
+        return load_fashion_dataset(args.dataset)
         
         
