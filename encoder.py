@@ -60,8 +60,10 @@ class Encoder(nn.Module):
 
     def loss(self, mu, logvar, input_dim):
         if args.nu == 0:
+            # Vanila VAE and RVAE
             KL_div = Alpha_Family(mu, logvar)
             div_loss = KL_div.KL_loss()
         else:
+            # gammaAE
             div_loss = gamma_regularizer(mu, logvar, input_dim)
-        return div_loss * args.beta
+        return div_loss * args.reg_weight

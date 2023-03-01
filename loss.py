@@ -5,6 +5,20 @@ from torch.nn import functional as F
 import argument
 
 args = argument.args
+
+'''
+    beta divergence loss (ref to RVAE)
+'''
+def beta_div_loss(recon_x, x, beta, sigma=0.5):
+    p_dim = recon_x.shape[1] # data dim
+    sigma_sq = sigma**2
+    const2 = 1 / pow((2 * np.pi * (sigma**2)), (beta * p_dim / 2))
+    recon_norm = torch.sum((x - recon_x)**2,dim=1)
+    internal_term = torch.exp(-(beta / (2 * sigma_sq )) * recon_norm)
+    loss = torch.sum(-((1 + beta) / beta) * (const2 * internal_term - 1))
+    return loss
+
+
 '''
     Gamma divergence assumes that
     prior p ~ t_q(0,I,nu) and posterior q ~ t_q(mu, Sigma, nu + p_dim).
@@ -17,7 +31,6 @@ args = argument.args
 '''
     log version of normalizing constant for t-distribution
 '''
-
 def log_t_normalizing_const(nu, d):
     nom = torch.lgamma(torch.tensor((nu+d)/2)) 
     denom = torch.lgamma(torch.tensor(nu/2)) + d/2 * (np.log(nu) + np.log(np.pi))
@@ -37,13 +50,12 @@ def gamma_regularizer(mu, logvar, p_dim):
 
     mu_norm_sq = torch.linalg.norm(mu, ord=2, dim=1).pow(2)
     trace_var = args.nu / (nu + p_dim - 2) * torch.sum(logvar.exp(),dim=1)
-    det_var = torch.tensor(torch.sum(logvar,dim=1).exp().pow(-gamma / (2*(1+gamma))))
-
+    log_det_var = -gamma / (2+2*gamma) * torch.sum(logvar,dim=1)
     const_2bar1_term_1 = (1 + q_dim / (nu + p_dim -2))
     const_2bar1_term_2_log = -gamma / (1+gamma) * (-p_dim + log_t_normalizing_const(nu, p_dim) - np.log(nu + p_dim - 2) + np.log(nu-2))
     const_2bar1 = const_2bar1_term_1 * const_2bar1_term_2_log.exp()
     
-    return torch.mean(mu_norm_sq + trace_var - args.nu * const_2bar1 * det_var)
+    return torch.sum(mu_norm_sq + trace_var - args.nu * const_2bar1 * log_det_var.exp())
 
 
 
@@ -76,7 +88,7 @@ class Gamma_Family():
         log_det_ratio = (nu + zdim) / (2*(nu + zdim - 2)) * (torch.sum(self.prior_logvar,dim=1) - torch.sum(self.post_logvar,dim=1))
         log_term = (nu + zdim)/2 * torch.log(1 + 1/(nu-2) * torch.sum( self.post_var / self.prior_var,dim=1) + 1/nu * torch.sum( (self.prior_mu-self.post_mu).pow(2) / self.prior_var,dim=1))
         
-        gamma_div = torch.mean(log_det_ratio + log_term) # Batch mean
+        gamma_div = torch.sum(log_det_ratio + log_term) # Batch mean
         return gamma_div
     
 
@@ -104,10 +116,10 @@ class Alpha_Family():
         mu_square = (self.post_mu - self.prior_mu).pow(2)
         if is_reversed:
             sq_term = (self.prior_var + mu_square) / self.post_var
-            kl_div = -0.5 * torch.mean(- logvar_diff + 1.0 - sq_term)
+            kl_div = -0.5 * torch.sum(- logvar_diff + 1.0 - sq_term)
         else:
             sq_term = (self.post_var + mu_square) / self.prior_var
-            kl_div = -0.5 * torch.mean(logvar_diff + 1.0 - sq_term)
+            kl_div = -0.5 * torch.sum(logvar_diff + 1.0 - sq_term)
         return kl_div
 
 
@@ -137,7 +149,7 @@ class Alpha_Family():
             exp_term = -0.5 * alpha * (1-alpha) * (self.prior_mu - self.post_mu).pow(2) / var_denom
             
             log_prodterm = torch.sum(prod_const + exp_term,dim=1) # 
-            alpha_div = torch.mean(const_alpha * (1 - log_prodterm.exp())) # batch, sen mean
+            alpha_div = torch.sum(const_alpha * (1 - log_prodterm.exp())) # batch, sen mean
             
             return alpha_div
     
