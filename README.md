@@ -7,30 +7,55 @@ Pytorch implementaion of γAE framework, made by **Jaehyuk Kwon**, **Juno Kim**,
 
 ## Basic Usage
 
-### Baseline : Vanila VAE(with KL divergence)
+### Run model
 
-- To train the baseline model,
+- This model covers three types of VAE frameworks : VAE, RVAE(Robust Variational AutoEncoder using beta divergence), and γAE(ours).
+
+- The type of models can be determined by varying arguments. (nu, beta)
+
+
+#### γAE 
+
+- Use 'nu' argument.
+
+- Note that **γ = -2 / (p + q + nu)**, where p = data dimension, q = latent dimesnion.
+
+- If you test γAE, please keep in mind **nu > 2**. (Because the variance of T distribution exists when nu > 2)
+
 
 ```
-python main.py -dt ptb #Default KL Div
+python main.py --dataset mnist --nu 2.5
 ```
 
-- If you want to change the default parameters(epoch, zdim, .. etc.), see the main.py.
+#### RVAE
+
+- Use 'beta' argument. This is the hyperparameter for beta ELBO. For details, see [the original paper](https://www.sciencedirect.com/science/article/abs/pii/S0950705121010534)
+
+- Usually use beta = 0.005
+
+```
+python main.py --dataset mnist --beta 0.005
+```
+
+#### Vanila VAE
+
+- Both types of arguments are not used.
+
+```
+python main.py --dataset mnist
+```
 
 
-### Experiments : γAE(γ-divergence)
+### Arguments description.
 
-- To reproducing our experiments, fine-tune these arguments.
+- To reproducing our experiments, you may fine-tune these arguments.
 
-|argument|description|default value|
+|argument|description|Default|
 |------|---|---|
-|--beta|Weight for divergence loss. |1.0|
-|--nu |Paramter for γ-divergence.|1.0|
-|--epochs| the number of epochs| 100 |
+|--beta|RVAE : hyperparatmer for beta ELBO| |
+|--nu |γAE hyperparatmerfor γ-divergence.||
+|--epoch |γAE hyperparatmerfor γ-divergence.|100|
+|--train_frac |Proportion of contaminated data in the train dataset.(0~1)|0|
+|--test_frac |Proportion of contaminated data in the test dataset.(0~1)|0|
 
-- If you test γ-divergence, please keep in mind **nj > 2**. (Because the variance of T distribution exists when df > 2)
-
-```
-python main.py -dt ptb --beta 1.0 --df 3 #Gamma Div
-```
-
+- If you want to change other parameters(zdim, lr, .. etc.), see the argument.py.
