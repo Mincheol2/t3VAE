@@ -22,14 +22,14 @@ class gammaAE():
                  list(self.decoder.parameters()), lr=args.lr, eps=1e-6, weight_decay=1e-5)
 
 
-        self.trainloader, self.testloader = dataloader.select_dataloader(args.dataset)
-
+        self.trainloader, self.testloader, self.sample_imgs = dataloader.select_dataloader()
+        self.sample_imgs = self.sample_imgs.to(DEVICE)
     def train(self,epoch,writer):
         self.encoder.train()
         self.decoder.train()
         total_loss = []
         for batch_idx, (data, _) in enumerate(self.trainloader):
-            data = data.to(self.DEVICE)
+            data = data.to(self.DEVICE) 
             self.opt.zero_grad()
             z, mu, logvar = self.encoder(data)
             div_loss = self.encoder.loss(mu, logvar, self.input_dim)
@@ -42,16 +42,12 @@ class gammaAE():
             
             self.opt.step()
 
-            if batch_idx % 100 == 0:
-                print('Train Epoch: {} [{}/{} ({:.0f}%)]\t Loss: {:.4f}'.format(
-                    epoch, batch_idx * len(data), len(self.trainloader.dataset),
-                           100. * batch_idx / len(self.trainloader),
-                           current_loss.item() / len(data)))
+            if batch_idx % 200 == 0:
                 denom = len(self.trainloader.dataset)/args.batch_size
-                writer.add_scalar("Train/Reconstruction Error", recon_loss.item(), batch_idx + epoch * denom )
-                writer.add_scalar("Train/Divergence", div_loss.item(), batch_idx + epoch * denom )
-                writer.add_scalar("Train/Total Loss" , current_loss.item(), batch_idx + epoch * denom )
-        return
+                writer.add_scalar("Train/Reconstruction Error", recon_loss.item() / len(data), batch_idx + epoch * denom )
+                writer.add_scalar("Train/Regularizer", div_loss.item() / len(data), batch_idx + epoch * denom )
+                writer.add_scalar("Train/Total Loss" , current_loss.item() / len(data), batch_idx + epoch * denom )
+        return div_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)
 
     def test(self,epoch,writer):
         self.encoder.eval()
@@ -71,14 +67,14 @@ class gammaAE():
                 img1 = data.cpu().squeeze(dim=1).numpy()
                 img2 = recon_img.cpu().view_as(data).squeeze(dim=1).numpy()
                 ssim_test = 0
-                psnr_test = 0
+                psnr_test = 0 
                 N = img1.shape[0]
                 for i in range(N):
                     ssim_test += ssim(img1[i], img2[i])
                     psnr_test += psnr(img1[i], img2[i])
                     rmse_test = mse(img1[i], img2[i]) ** 0.5
                 ssim_test /= N
-                psnr_test /= N
+                psnr_test /= N   
                 rmse_test /= N
                 ## Add metrics to tensorboard ##
                 denom = len(self.testloader.dataset)/args.batch_size
@@ -87,22 +83,15 @@ class gammaAE():
                 writer.add_scalar("Test/RMSE", rmse_test.item(), batch_idx + epoch * denom )
                 
                 writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), batch_idx + epoch * denom )
-                writer.add_scalar("Test/Divergence", div_loss.item(), batch_idx + epoch * denom )
+                writer.add_scalar("Test/Regularizer", div_loss.item(), batch_idx + epoch * denom )
                 writer.add_scalar("Test/Total Loss" , current_loss.item(), batch_idx + epoch * denom)
                 
                 recon_img = recon_img.view(-1, 1, self.image_size, self.image_size)
-
-
-                if batch_idx % 100 == 0:
-                    print('Test Epoch: {} [{}/{} ({:.0f}%)]\t Loss: {:.4f}'.format(
-                        epoch, batch_idx * len(data), len(self.testloader.dataset),
-                               100. * batch_idx / len(self.testloader),
-                               current_loss.item() / len(data)))
-                    
-            if batch_idx == 0:
-                n = min(data.size(0), 32)
-                comparison = torch.cat([data[:n], recon_img.view(args.batch_size, 1, 28, 28)[:n]]) # (16, 1, 28, 28)
-                grid = torchvision.utils.make_grid(comparison.cpu()) # (3, 62, 242)
-                writer.add_image("Test image - Above: Real data, below: reconstruction data", grid, epoch)
-
-        return
+          
+            n = min(self.sample_imgs.shape[0], 32)
+            sample_z, _, _ = self.encoder(self.sample_imgs[:n])
+            recon_imgs = self.decoder(sample_z)
+            comparison = torch.cat([self.sample_imgs[:n], recon_imgs.view(n, 1, 28, 28)[:n]]) # (N, 1, 28, 28)
+            grid = torchvision.utils.make_grid(comparison.cpu()) # (3, 62, 242)
+            writer.add_image("Test image - Above: Real data, below: reconstruction data", grid, epoch)
+        return div_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)

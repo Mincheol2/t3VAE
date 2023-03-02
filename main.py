@@ -18,15 +18,15 @@ nu = args.nu
 model_dir = None
 
 if nu != 0 and beta == 0:
-    print("Current model : gammaAE ")
+    print("Current framework : gammaAE ")
     print(f'nu : {nu}')
     model_dir = './'+args.dataset+ f'_gammaAE_nu:{nu}/'
 elif nu == 0 and beta != 0:
-    print("Current model : RVAE")
+    print("Current framework : RVAE")
     print(f'beta : {beta}')
     model_dir = './'+args.dataset+ f'_RVAE_beta:{beta}/'
 elif nu == 0 and beta == 0:
-    print("Current model : Vanilla VAE ")
+    print("Current framework : Vanilla VAE ")
     model_dir = './'+args.dataset+ f'_VAE/'
 else:
     print("Please define valid parameters. (Either nu or beta must be 0)")
@@ -43,9 +43,13 @@ input_dim = 784 # 28**2
 
 gammaAE = gamma_ae.gammaAE(input_dim, image_size, DEVICE)
 
-for epoch in tqdm(range(0, args.epochs)):
-    gammaAE.train(epoch,writer)
-    gammaAE.test(epoch,writer)
+epoch_tqdm = tqdm(range(0, args.epochs))
+for epoch in epoch_tqdm:
+    print(f'\nEpoch {epoch}')
+    reg_loss, recon_loss, total_loss = gammaAE.train(epoch,writer)
+    epoch_tqdm.write(f'Train) reg_loss={reg_loss:.4f} recon_loss={recon_loss:.4f} total_loss={total_loss:.4f}')
+    reg_loss, recon_loss, total_loss = gammaAE.test(epoch,writer)
+    epoch_tqdm.write(f'Test) reg_loss={reg_loss:.4f} recon_loss={recon_loss:.4f} total_loss={total_loss:.4f}\n')
     writer.close()
 
 ## t-sne ##

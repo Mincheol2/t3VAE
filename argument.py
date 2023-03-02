@@ -14,12 +14,12 @@ parser.add_argument('--seed', type=int, default=999,
 parser.add_argument('--batch_size', type=int, default=64,
                     help='input batch size for training (default: 64)')
 parser.add_argument('--zdim',  type=int, default=32,
-                    help='the z size for training (default: 32)')
+                    help='latent_zdim for training (default: 32)')
 parser.add_argument('--lr', type=float, default=1e-4,
                     help='learning rate')
-parser.add_argument('--train_frac', type=float, default=0.5,
+parser.add_argument('--train_frac', type=float, default=0,
                     help='fraction ratio of noisy data in trainset')
-parser.add_argument('--test_frac', type=float, default=0.5,
+parser.add_argument('--test_frac', type=float, default=0,
                     help='fraction ratio of  noisy data in testset')
 parser.add_argument('--reg_weight', type=float, default=1.0,
                     help='constant weight for regularizer (default: 1.0)')
@@ -31,12 +31,4 @@ parser.add_argument('--gpu_id', type=str, default='0',
                     help='gpu id')
 parser.add_argument('--tsne', type=int, default=1,
                     help='make tsne plot (1:true, otherwise:false')
-
-
-# parser.add_argument('-s', '--save', action='store_true', default=True,
-#                     help='save model every epoch')
-# parser.add_argument('-l', '--load', action='store_true',
-#                     help='load model at the begining')
-# parser.add_argument('--model_dir', type=str, default='',
-#                     help='model storing path')
 args = parser.parse_args()

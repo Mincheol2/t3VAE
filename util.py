@@ -24,24 +24,37 @@ def make_reproducibility(seed):
 '''
 
 def make_tsne_plot(model, DEVICE):
+    args = argument.args
+
+    if args.dataset in ['mnist', 'fashion']:
+        test_data = model.testloader.dataset.data.type(torch.float32)
+        test_class = model.testloader.dataset.targets.tolist()
+    else: 
+        # custom datasets
+        test_data = model.testloader.dataset.tensors[0].type(torch.float32)
+        
+        test_class = model.testloader.dataset.tensors[1].tolist()
+    # convert emnist to alphabets (e.g. -1-> a,  -7 -> g, -23 -> w)
     
-    if args.dataset == "fashion":
-        test_class = dataloader.testloader.dataset.targets.numpy()
-        test_data = dataloader.testloader.dataset.data.unsqueeze(dim=1)
-        test_z = model.encoder(test_data.to(dtype=torch.float32, device=DEVICE))[0]
+    if args.dataset == 'emnist':
+        for i in range(len(test_class)):
+            if test_class[i] < 0:
+                test_class[i] = chr(-test_class[i] + 96)
 
-    elif args.dataset == "mnist" :
-        test_class = dataloader.testset.tensors[1]
-        test_z = model.encoder(dataloader.testset.tensors[0].to(DEVICE))[0]
-     
-    else:
-        test_class = dataloader.testset.datasets[0].dataset.tensors[1]
-        test_z = model.encoder(dataloader.testset.datasets[0].dataset.tensors[0])[0]
-
+    test_z, _, _ = model.encoder(test_data.to(DEVICE))
     test_z = test_z.detach().cpu().numpy()
 
+    colors_map = {}
+    unique_labels = list(set(test_class))
+    for i in range(len(unique_labels)):
+        # outlier check
+        if unique_labels[i] not in range(10):
+            colors_map[unique_labels[i]] = -1
+        else:
+            colors_map[unique_labels[i]] = i
+    
     colors = ["#476A2A", "#7851B8", "#BD3430", "#4A2D4E", "#875525",
-            "#A83683", "#4E655E", "#853541", "#3A3120","#535D8E"]
+            "#A83683", "#4E655E", "#853541", "#3A3120","#535D8E","#000000"]
 
     plt.rc('axes', unicode_minus=False)
     tsne = TSNE(random_state = args.seed)
@@ -52,20 +65,24 @@ def make_tsne_plot(model, DEVICE):
     plt.figure(figsize=(10,10))
     plt.xlim(tsne_z[:,0].min(), tsne_z[:,0].max()+1)
     plt.ylim(tsne_z[:,1].min(), tsne_z[:,1].max()+1)
+
     for i in tqdm(range(sample_size)):
         plt.text(tsne_z[i,0], tsne_z[i,1], str(test_class[i]),
-                color = colors[test_class[i]],
+                color = colors[colors_map[test_class[i]]],
                 fontdict = {'weight':'bold','size':7})
     plt.xlabel("t-SNE 1st latent variable")
     plt.ylabel("t-SNE 2nd latent variable")
-    plt.title(f"t-SNE : {args.dataset}, nu = {args.nu}")
 
     if args.nu != 0 and args.beta == 0:
+        plt.title(f"t-SNE : {args.dataset}, gammaAE nu = {args.nu}")
         filename = f'gammaAE_{args.dataset}_nu:{args.nu}_seed:{args.seed}'
     elif args.nu == 0 and args.beta != 0:
+        plt.title(f"t-SNE : {args.dataset}, RVAE beta = {args.beta}")
         filename = f'RVAE_{args.dataset}_beta:{args.beta}_seed:{args.seed}'
     elif args.nu == 0 and args.beta == 0:
-        filename = f'VAE_{args.dataset}_nu:{args.nu}_seed:{args.seed}'
+        
+        plt.title(f"t-SNE : {args.dataset}, VAE")
+        filename = f'VAE_{args.dataset}_seed:{args.seed}'
 
 
     plt.savefig(f'{filename}.png')
@@ -75,7 +92,7 @@ def make_tsne_plot(model, DEVICE):
 '''
     input : imgs [B, C, H, W]
 '''
-def make_masking(imgs, mask_ratio):
+def make_square_masking(imgs, mask_ratio):
     B, _, H, W = imgs.shape 
     blocks = []
     nb_blocks_H = 14
