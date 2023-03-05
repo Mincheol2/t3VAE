@@ -11,12 +11,12 @@ Pytorch implementaion of γAE framework, made by **Jaehyuk Kwon**, **Juno Kim**,
 
 - This model covers three types of VAE frameworks : VAE, RVAE(Robust Variational AutoEncoder using beta divergence), and γAE(ours).
 
-- The type of models can be determined by varying arguments. (nu, beta)
+- The type of models can be determined by varying argument types. (nu, beta)
 
 
 #### γAE 
 
-- Use 'nu' argument.
+- Use a 'nu' argument.
 
 - Note that **γ = -2 / (p + q + nu)**, where p = data dimension, q = latent dimesnion.
 
@@ -29,7 +29,7 @@ python main.py --dataset mnist --nu 2.5
 
 #### RVAE
 
-- Use 'beta' argument. This is the hyperparameter for beta ELBO. For details, see [the original paper](https://www.sciencedirect.com/science/article/abs/pii/S0950705121010534)
+- Use a 'beta' argument. This is the hyperparameter for beta ELBO. For details, see [the original paper](https://www.sciencedirect.com/science/article/abs/pii/S0950705121010534)
 
 - Usually use beta = 0.005
 
