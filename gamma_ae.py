@@ -53,9 +53,8 @@ class gammaAE():
     def test(self,epoch,writer):
         self.encoder.eval()
         self.decoder.eval()
-
-        for batch_idx, (data, labels) in enumerate(self.testloader):
-            with torch.no_grad():
+        with torch.no_grad():
+            for batch_idx, (data, labels) in enumerate(self.testloader):
                 data = data.to(self.DEVICE)
                 z, mu, logvar = self.encoder(data)
                             
@@ -78,20 +77,20 @@ class gammaAE():
                 psnr_test /= N
                 rmse_test /= N
                 ## Add metrics to tensorboard ##
-            if batch_idx % 200 == 0:
-                denom = len(self.testloader.dataset)/args.batch_size
-                writer.add_scalar("Test/SSIM", ssim_test.item(), batch_idx + epoch * denom )
-                writer.add_scalar("Test/PSNR", psnr_test.item(), batch_idx + epoch * denom )
-                writer.add_scalar("Test/RMSE", rmse_test.item(), batch_idx + epoch * denom )
-                
-                writer.add_scalar("Test/Reconstruction Error", recon_loss.item() /N, batch_idx + epoch * denom )
-                writer.add_scalar("Test/Regularizer", div_loss.item() / N, batch_idx + epoch * denom )
-                writer.add_scalar("Test/Total Loss" , current_loss.item() /N, batch_idx + epoch * denom)
-                
-        n = min(self.sample_imgs.shape[0], 32)
-        sample_z, _, _ = self.encoder(self.sample_imgs[:n])
-        recon_imgs = self.decoder(sample_z)
-        comparison = torch.cat([self.sample_imgs[:n], recon_imgs.view(n, 1, 28, 28)[:n]]) # (N, 1, 28, 28)
-        grid = torchvision.utils.make_grid(comparison.cpu()) # (3, 62, 242)
-        writer.add_image("Test image - Above: Real data, below: reconstruction data", grid, epoch)
-        return div_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)
+                if batch_idx % 200 == 0:
+                    denom = len(self.testloader.dataset)/args.batch_size
+                    writer.add_scalar("Test/SSIM", ssim_test.item(), batch_idx + epoch * denom )
+                    writer.add_scalar("Test/PSNR", psnr_test.item(), batch_idx + epoch * denom )
+                    writer.add_scalar("Test/RMSE", rmse_test.item(), batch_idx + epoch * denom )
+                    
+                    writer.add_scalar("Test/Reconstruction Error", recon_loss.item() /N, batch_idx + epoch * denom )
+                    writer.add_scalar("Test/Regularizer", div_loss.item() / N, batch_idx + epoch * denom )
+                    writer.add_scalar("Test/Total Loss" , current_loss.item() /N, batch_idx + epoch * denom)
+                    
+            n = min(self.sample_imgs.shape[0], 32)
+            sample_z, _, _ = self.encoder(self.sample_imgs[:n])
+            recon_imgs = self.decoder(sample_z)
+            comparison = torch.cat([self.sample_imgs[:n], recon_imgs.view(n, 1, 28, 28)[:n]]) # (N, 1, 28, 28)
+            grid = torchvision.utils.make_grid(comparison.cpu()) # (3, 62, 242)
+            writer.add_image("Test image - Above: Real data, below: reconstruction data", grid, epoch)
+            return div_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)
