@@ -19,17 +19,18 @@ def make_reproducibility(seed):
     torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     
-'''
-    draw a tsne plot and save it.
-'''
+
 
 def make_tsne_plot(model, DEVICE):
+    '''
+        draw a tsne plot and save it.
+    '''
     args = argument.args
 
     if args.dataset in ['mnist', 'fashion']:
         test_data = model.testloader.dataset.data.type(torch.float32)
         test_class = model.testloader.dataset.targets.tolist()
-    else: 
+    else:
         # custom datasets
         test_data = model.testloader.dataset.tensors[0].type(torch.float32)
         
@@ -54,7 +55,8 @@ def make_tsne_plot(model, DEVICE):
             colors_map[unique_labels[i]] = i
     
     colors = ["#476A2A", "#7851B8", "#BD3430", "#4A2D4E", "#875525",
-            "#A83683", "#4E655E", "#853541", "#3A3120","#535D8E","#000000"]
+            "#A83683", "#4E655E", "#853541", "#3A3120","#535D8E","#c7bc22"]
+    # outlier colors
 
     plt.rc('axes', unicode_minus=False)
     tsne = TSNE(random_state = args.seed)
@@ -67,7 +69,10 @@ def make_tsne_plot(model, DEVICE):
     plt.ylim(tsne_z[:,1].min(), tsne_z[:,1].max()+1)
 
     for i in tqdm(range(sample_size)):
-        plt.text(tsne_z[i,0], tsne_z[i,1], str(test_class[i]),
+        class_name = str(test_class[i])
+        if args.dataset == 'mnist_sp':
+            class_name = str(abs(test_class[i]))
+        plt.text(tsne_z[i,0], tsne_z[i,1], class_name,
                 color = colors[colors_map[test_class[i]]],
                 fontdict = {'weight':'bold','size':7})
     plt.xlabel("t-SNE 1st latent variable")
@@ -89,11 +94,11 @@ def make_tsne_plot(model, DEVICE):
 
 
 
-'''
-    input : imgs [B, C, H, W]
-'''
 def make_square_masking(imgs, mask_ratio):
-    B, _, H, W = imgs.shape 
+    '''
+        input : imgs [B, C, H, W]
+    '''
+    B, _, H, W = imgs.shape
     blocks = []
     nb_blocks_H = 14
     nb_blocks_W = 14
@@ -101,7 +106,7 @@ def make_square_masking(imgs, mask_ratio):
         for j in range(nb_blocks_W):
             block_H = (H * i//nb_blocks_H, H * (i+1) // nb_blocks_H)
             block_W = (W * j//nb_blocks_W, W * (j+1) // nb_blocks_W)
-            blocks.append((block_H,block_W)) 
+            blocks.append((block_H,block_W))
 
     len_blocks = len(blocks)
     for k in range(B):
@@ -112,3 +117,16 @@ def make_square_masking(imgs, mask_ratio):
 
     return imgs
 
+
+def sp_noise(image, prob):
+    '''
+        Add salt- pepper noise to image
+        prob: Probability of the noise
+    '''
+    image = np.copy(image)
+    black = 0
+    white = 255
+    rd_p = np.random.random(image.shape[:2])
+    image[rd_p < (prob / 2)] = black
+    image[rd_p > 1 - (prob / 2)] = white
+    return image

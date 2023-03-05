@@ -7,7 +7,7 @@ import numpy as np
 # transform.Totensor() is used to normalize mnist data. Range : [0, 255] -> [0,1]
 
 '''
-    return 
+    return
     ((np_Etrainset, np_Etrainclass), (np_Etestset, np_Etestclass)) -> numpy arrays
 '''
 def get_noise_dataset(path):
@@ -19,7 +19,12 @@ def get_noise_dataset(path):
         test_class = np.load(curr_path + '/test_labels.npy')
     except:
         raise Exception("The dataset is not available.")
-    
+
+    # classify noise dataset label to negative.
+    train_class = - train_class
+    test_class = - test_class
+
+
     train_data = (train_img, train_class)
     test_data = (test_img, test_class)
     return(train_data,test_data)
@@ -28,11 +33,11 @@ def get_noise_dataset(path):
 '''
     split indices for concatenating two datasets
 
-    Input 
+    Input
     N : total number of the concatenated dataset
     frac : fraction ratio of noise dataset
 
-    return 
+    return
     I1 : noise dataset indices , I2 : original dataset indices
 '''
 def make_masking(N,frac):
@@ -65,8 +70,8 @@ def transform_np_to_tensor(train_img,test_img):
     return (train_dataset, test_dataset)
 '''
     Input
-    origin_dataset, noise_dataset : 
-    each argument is structured as 
+    origin_dataset, noise_dataset :
+    each argument is structured as
     (np_trainset, np_trainclass), (np_testset, np_testclass))
 '''
 def generate_dataloader(origin_dataset, noise_dataset):
@@ -135,7 +140,7 @@ def load_mnist_dataset(dataset_name):
             np_Etrainset = np.expand_dims(np.rot90(np.flip(Etrainset.data.numpy(),axis=1),3, axes=(1,2)),3)
             np_Etestset = np.expand_dims(np.rot90(np.flip(Etrainset.data.numpy(),axis=1),3, axes=(1,2)),3)
 
-            # convert positive emnist label to negative 
+            # convert positive emnist label to negative
             np_Etrainclass = np.array(-Etrainset.targets)
             np_Etestclass = np.array(-Etestset.targets)
             noise_dataset = ((np_Etrainset, np_Etrainclass), (np_Etestset, np_Etestclass))

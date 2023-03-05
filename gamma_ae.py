@@ -29,7 +29,7 @@ class gammaAE():
         self.decoder.train()
         total_loss = []
         for batch_idx, (data, _) in enumerate(self.trainloader):
-            data = data.to(self.DEVICE) 
+            data = data.to(self.DEVICE)
             self.opt.zero_grad()
             z, mu, logvar = self.encoder(data)
             div_loss = self.encoder.loss(mu, logvar, self.input_dim)
@@ -43,11 +43,12 @@ class gammaAE():
             self.opt.step()
 
             if batch_idx % 200 == 0:
+                N = data.shape[0]
                 denom = len(self.trainloader.dataset)/args.batch_size
-                writer.add_scalar("Train/Reconstruction Error", recon_loss.item() / len(data), batch_idx + epoch * denom )
-                writer.add_scalar("Train/Regularizer", div_loss.item() / len(data), batch_idx + epoch * denom )
-                writer.add_scalar("Train/Total Loss" , current_loss.item() / len(data), batch_idx + epoch * denom )
-        return div_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)
+                writer.add_scalar("Train/Reconstruction Error", recon_loss.item() / N, batch_idx + epoch * denom )
+                writer.add_scalar("Train/Regularizer", div_loss.item() / N, batch_idx + epoch * denom )
+                writer.add_scalar("Train/Total Loss" , current_loss.item() / N, batch_idx + epoch * denom )
+        return div_loss.item() / N, recon_loss.item() / N, current_loss.item() / N
 
     def test(self,epoch,writer):
         self.encoder.eval()
@@ -67,24 +68,25 @@ class gammaAE():
                 img1 = data.cpu().squeeze(dim=1).numpy()
                 img2 = recon_img.cpu().view_as(data).squeeze(dim=1).numpy()
                 ssim_test = 0
-                psnr_test = 0 
+                psnr_test = 0
                 N = img1.shape[0]
                 for i in range(N):
                     ssim_test += ssim(img1[i], img2[i])
                     psnr_test += psnr(img1[i], img2[i])
                     rmse_test = mse(img1[i], img2[i]) ** 0.5
                 ssim_test /= N
-                psnr_test /= N   
+                psnr_test /= N
                 rmse_test /= N
                 ## Add metrics to tensorboard ##
+            if batch_idx % 200 == 0:
                 denom = len(self.testloader.dataset)/args.batch_size
                 writer.add_scalar("Test/SSIM", ssim_test.item(), batch_idx + epoch * denom )
                 writer.add_scalar("Test/PSNR", psnr_test.item(), batch_idx + epoch * denom )
                 writer.add_scalar("Test/RMSE", rmse_test.item(), batch_idx + epoch * denom )
                 
-                writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), batch_idx + epoch * denom )
-                writer.add_scalar("Test/Regularizer", div_loss.item(), batch_idx + epoch * denom )
-                writer.add_scalar("Test/Total Loss" , current_loss.item(), batch_idx + epoch * denom)
+                writer.add_scalar("Test/Reconstruction Error", recon_loss.item() /N, batch_idx + epoch * denom )
+                writer.add_scalar("Test/Regularizer", div_loss.item() / N, batch_idx + epoch * denom )
+                writer.add_scalar("Test/Total Loss" , current_loss.item() /N, batch_idx + epoch * denom)
                 
                 recon_img = recon_img.view(-1, 1, self.image_size, self.image_size)
           
