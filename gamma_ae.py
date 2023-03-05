@@ -88,12 +88,10 @@ class gammaAE():
                 writer.add_scalar("Test/Regularizer", div_loss.item() / N, batch_idx + epoch * denom )
                 writer.add_scalar("Test/Total Loss" , current_loss.item() /N, batch_idx + epoch * denom)
                 
-                recon_img = recon_img.view(-1, 1, self.image_size, self.image_size)
-          
-            n = min(self.sample_imgs.shape[0], 32)
-            sample_z, _, _ = self.encoder(self.sample_imgs[:n])
-            recon_imgs = self.decoder(sample_z)
-            comparison = torch.cat([self.sample_imgs[:n], recon_imgs.view(n, 1, 28, 28)[:n]]) # (N, 1, 28, 28)
-            grid = torchvision.utils.make_grid(comparison.cpu()) # (3, 62, 242)
-            writer.add_image("Test image - Above: Real data, below: reconstruction data", grid, epoch)
+        n = min(self.sample_imgs.shape[0], 32)
+        sample_z, _, _ = self.encoder(self.sample_imgs[:n])
+        recon_imgs = self.decoder(sample_z)
+        comparison = torch.cat([self.sample_imgs[:n], recon_imgs.view(n, 1, 28, 28)[:n]]) # (N, 1, 28, 28)
+        grid = torchvision.utils.make_grid(comparison.cpu()) # (3, 62, 242)
+        writer.add_image("Test image - Above: Real data, below: reconstruction data", grid, epoch)
         return div_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)
