@@ -9,13 +9,19 @@ args = argument.args
 '''
     beta divergence loss (ref to RVAE)
 '''
-def beta_div_loss(recon_x, x, beta, sigma=0.5):
-    p_dim = recon_x.shape[1] # data dim
-    sigma_sq = sigma**2
-    const2 = 1 / pow((2 * np.pi * (sigma**2)), (beta * p_dim / 2))
-    recon_norm = torch.sum((x - recon_x)**2,dim=1)
-    internal_term = torch.exp(-(beta / (2 * sigma_sq )) * recon_norm)
-    loss = torch.sum(-((1 + beta) / beta) * (const2 * internal_term - 1))
+def beta_div_loss(recon_x, x, beta, sigma=0.2):
+    # p_dim = 28*28 # data dim
+    # sigma_sq = sigma**2
+    # const2 = 1 / pow((2 * np.pi * sigma_sq), (beta * p_dim / 2))
+    # recon_norm = torch.sum((x - recon_x)**2,dim=1)
+    # internal_term = torch.exp(-(beta / (2 * sigma_sq )) * recon_norm)
+    # loss = torch.sum(-((1 + beta) / beta) * (const2 * internal_term - 1))
+    D = 784
+    term1 = -((1 + beta) / beta)
+    K1 = 1 / pow((2 * np.pi * (sigma**2)), (beta * D / 2))
+    term2 = torch.sum((recon_x - x)**2,1)
+    term3 = torch.exp(-(beta / (2 * (sigma**2))) * term2)
+    loss = torch.sum(term1 * (K1 * term3 - 1))    
     return loss
 
 
@@ -109,7 +115,7 @@ class Alpha_Family():
         self.post_var = self.post_logvar.exp()
         self.prior_var = self.prior_logvar.exp()
 
-
+    
     def KL_loss(self, is_reversed=False):
         kl_div = 0
         logvar_diff = self.post_logvar - self.prior_logvar

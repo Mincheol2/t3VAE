@@ -18,13 +18,9 @@ class Encoder(nn.Module):
         self.nu = nu
         self.device = device
 
-        self.encConv1 = nn.Conv2d(1, 16, 5)
-        self.norm1 = nn.BatchNorm2d(16)
-        self.encConv2 = nn.Conv2d(16, 32, 5)
-        self.norm2 = nn.BatchNorm2d(32)
-
-        self.latent_mu = nn.Linear(32*20*20, self.z_dim)
-        self.latent_var = nn.Linear(32*20*20, self.z_dim)
+        self.fc1 = nn.Linear(28*28, 400)
+        self.latent_mu = nn.Linear(400, self.z_dim)
+        self.latent_var = nn.Linear(400, self.z_dim)
         
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
@@ -49,9 +45,8 @@ class Encoder(nn.Module):
             return mu + std * eps * torch.sqrt(nu_prime / v)
 
     def forward(self, x):
-        x = F.leaky_relu(self.norm1(self.encConv1(x)))
-        x = F.leaky_relu(self.norm2(self.encConv2(x)))
-        x = x.view(-1, args.batch_size//2*20*20)
+        x = x.view(-1,784)
+        x = F.relu(self.fc1(x))
         mu = self.latent_mu(x)
         logvar = self.latent_var(x)
         z = self.reparameterize(mu, logvar)
@@ -61,8 +56,9 @@ class Encoder(nn.Module):
     def loss(self, mu, logvar, input_dim):
         if args.nu == 0:
             # Vanila VAE and RVAE
-            KL_div = Alpha_Family(mu, logvar)
-            div_loss = KL_div.KL_loss()
+            # KL_div = Alpha_Family(mu, logvar)
+            # div_loss = KL_div.KL_loss()
+            div_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         else:
             # gammaAE
             div_loss = gamma_regularizer(mu, logvar, input_dim)
