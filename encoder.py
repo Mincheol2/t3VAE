@@ -11,11 +11,10 @@ from loss import *
 args = argument.args
 
 class Encoder(nn.Module):
-    def __init__(self, input_dim, z_dim,nu):
+    def __init__(self, input_dim, z_dim):
         super(Encoder, self).__init__()
         self.input_dim = input_dim
         self.z_dim = z_dim
-        self.nu = nu
 
         self.fc1 = nn.Linear(28*28, 400)
         self.latent_mu = nn.Linear(400, self.z_dim)
@@ -23,7 +22,7 @@ class Encoder(nn.Module):
         
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar)
-        if self.nu == 0:
+        if args.nu == 0:
             eps = torch.randn_like(std) # Normal dist : eps ~ N(0, I)
             return mu + std * eps
         else:
@@ -33,12 +32,12 @@ class Encoder(nn.Module):
             1. Generate v ~ chiq(nu_prime) and eps ~ N(0, I), independently.
             2. Caculate x = mu + std * eps / (sqrt(v/nu)), where std = sqrt(nu/(nu_prime) * var)
             '''
-            nu_prime = self.nu + self.z_dim
+            nu_prime = args.nu + self.z_dim
             MVN_dist = torch.MultivariateNormal(torch.zeros(self.z_dim), torch.eye(self.z_dim))
             chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu_prime]))
 
             eps = MVN_dist.sample(sample_shape = torch.Size(mu.shape)) # Student T dist
-            std = torch.tensor(np.sqrt((self.nu / nu_prime) * std))
+            std = torch.tensor(np.sqrt((args.nu / nu_prime) * std))
             v = chi_dist.sample()
             
             return mu + std * eps * torch.sqrt(nu_prime / v)
