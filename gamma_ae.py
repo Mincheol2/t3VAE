@@ -68,6 +68,7 @@ class gammaAE():
                 img2 = recon_img.cpu().view_as(data).squeeze(dim=1).numpy()
                 ssim_test = 0
                 psnr_test = 0
+                rmse_test = 0
                 N = img1.shape[0]
                 for i in range(N):
                     ssim_test += ssim(img1[i], img2[i])
