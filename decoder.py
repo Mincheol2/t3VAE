@@ -9,18 +9,15 @@ args = argument.args
 
 
 class Decoder(nn.Module):
-    def __init__(self, output_dim, z_dim):
+    def __init__(self, output_dim):
         super(Decoder, self).__init__()
         self.output_dim = output_dim
-        self.z_dim = z_dim
         self.fc3 = nn.Linear(args.zdim, 400)
-        self.fc4 = nn.Linear(400,28*28)
+        self.fc4 = nn.Linear(400,output_dim)
     def forward(self, enc_z):
         z = F.relu(self.fc3(enc_z))
         prediction = torch.sigmoid(self.fc4(z))
-
         return prediction
-
 
     def loss(self, recon_x, x):
         if args.beta == 0:

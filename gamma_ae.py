@@ -12,12 +12,11 @@ from sklearn.metrics import mean_squared_error as mse
 
 args = argument.args
 class gammaAE():
-    def __init__(self, input_dim, image_size, DEVICE):
+    def __init__(self, input_dim, DEVICE):
         self.input_dim = input_dim
-        self.image_size = image_size
         self.DEVICE = DEVICE
-        self.encoder = Encoder(self.input_dim, args.zdim, args.nu).to(DEVICE)
-        self.decoder = Decoder(self.input_dim, args.zdim, args.nu).to(DEVICE)
+        self.encoder = Encoder(self.input_dim).to(DEVICE)
+        self.decoder = Decoder(self.input_dim).to(DEVICE)
         self.opt = optim.Adam(list(self.encoder.parameters()) +
                  list(self.decoder.parameters()), lr=args.lr, eps=1e-6, weight_decay=1e-5)
 
@@ -35,7 +34,7 @@ class gammaAE():
             z, mu, logvar = self.encoder(data)
             div_loss = self.encoder.loss(mu, logvar, self.input_dim)
             recon_data = self.decoder(z)
-            data = data.view(-1,784)
+            data = data.view(-1,self.input_dim)
             recon_loss = self.decoder.loss(recon_data, data)
             current_loss = div_loss + recon_loss
             current_loss.backward()
@@ -87,7 +86,7 @@ class gammaAE():
                     
                     writer.add_scalar("Test/Reconstruction Error", recon_loss.item() / N, batch_idx + epoch * denom )
                     writer.add_scalar("Test/Regularizer", div_loss.item() / N, batch_idx + epoch * denom )
-                    writer.add_scalar("Test/Total Loss" , current_loss.item() /N, batch_idx + epoch * denom)
+                    writer.add_scalar("Test/Total Loss" , current_loss.item() / N, batch_idx + epoch * denom)
                 
             n = min(self.sample_imgs.shape[0], 32)
             sample_z, _, _ = self.encoder(self.sample_imgs[:n])
