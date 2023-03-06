@@ -37,7 +37,7 @@ def log_t_normalizing_const(nu, d):
     return nom - denom
 
 
-def gamma_regularizer(mu, logvar, p_dim):
+def gamma_regularizer(mu, logvar, p_dim, const_2bar1, gamma):
     '''
         p_dim : data dim
         q_dim : latent dim
@@ -45,16 +45,10 @@ def gamma_regularizer(mu, logvar, p_dim):
         output : 1/N sum_{i=1}^{N} ||mu(X_i)||^2 + Sigma(X_i)|^{-gamma /2}
     '''
     q_dim = args.zdim
-    nu = args.nu
-    gamma = -2 / (nu + p_dim + q_dim)
-
     mu_norm_sq = torch.linalg.norm(mu, ord=2, dim=1).pow(2)
-    trace_var = args.nu / (nu + p_dim - 2) * torch.sum(logvar.exp(),dim=1)
+    trace_var = args.nu / (args.nu + p_dim - 2) * torch.sum(logvar.exp(),dim=1)
     log_det_var = -gamma / (2+2*gamma) * torch.sum(logvar,dim=1)
-    const_2bar1_term_1 = (1 + q_dim / (nu + p_dim -2))
-    const_2bar1_term_2_log = -gamma / (1+gamma) * (-p_dim * np.log(args.recon_sigma) + log_t_normalizing_const(nu, p_dim) - np.log(nu + p_dim - 2) + np.log(nu-2))
-    const_2bar1 = const_2bar1_term_1 * const_2bar1_term_2_log.exp()
-    
+
     return torch.sum(mu_norm_sq + trace_var - args.nu * const_2bar1 * log_det_var.exp())
 
 

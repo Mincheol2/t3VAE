@@ -18,9 +18,16 @@ class Encoder(nn.Module):
         self.fc1 = nn.Linear(self.input_dim, 400)
         self.latent_mu = nn.Linear(400, args.zdim)
         self.latent_var = nn.Linear(400, args.zdim)
+            
+        #precomputing constants
+        if args.nu != 0:
+            self.gamma = -2 / (nu + p_dim + q_dim)
         
+            const_2bar1_term_1 = (1 + q_dim / (nu + p_dim -2))
+            const_2bar1_term_2_log = -gamma / (1+gamma) * (-p_dim * np.log(args.recon_sigma) + log_t_normalizing_const(nu, p_dim) - np.log(nu + p_dim - 2) + np.log(nu-2))
+            self.const_2bar1 = const_2bar1_term_1 * const_2bar1_term_2_log.exp()
+    
     def reparameterize(self, mu, logvar):
-        
         if args.nu == 0:
             std = torch.exp(0.5 * logvar) # diagonal mat
             eps = torch.randn_like(std) # Normal dist : eps ~ N(0, I)
@@ -58,6 +65,6 @@ class Encoder(nn.Module):
             div_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         else:
             # gammaAE regularizer
-            div_loss = gamma_regularizer(mu, logvar, input_dim)
+            div_loss = gamma_regularizer(mu, logvar, input_dim, self.const_2bar1, self.gamma)
         
         return div_loss * args.reg_weight
