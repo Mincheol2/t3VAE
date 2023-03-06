@@ -11,12 +11,11 @@ from loss import *
 args = argument.args
 
 class Encoder(nn.Module):
-    def __init__(self, input_dim, z_dim,device, nu=0):
+    def __init__(self, input_dim, z_dim,nu):
         super(Encoder, self).__init__()
         self.input_dim = input_dim
         self.z_dim = z_dim
         self.nu = nu
-        self.device = device
 
         self.fc1 = nn.Linear(28*28, 400)
         self.latent_mu = nn.Linear(400, self.z_dim)

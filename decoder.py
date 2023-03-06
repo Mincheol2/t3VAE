@@ -9,11 +9,10 @@ args = argument.args
 
 
 class Decoder(nn.Module):
-    def __init__(self, output_dim, z_dim, device):
+    def __init__(self, output_dim, z_dim):
         super(Decoder, self).__init__()
         self.output_dim = output_dim
         self.z_dim = z_dim
-        self.device = device
         self.fc3 = nn.Linear(args.zdim, 400)
         self.fc4 = nn.Linear(400,28*28)
     def forward(self, enc_z):
