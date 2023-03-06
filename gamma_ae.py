@@ -72,9 +72,10 @@ class gammaAE():
                 for i in range(N):
                     ssim_test += ssim(img1[i], img2[i])
                     psnr_test += psnr(img1[i], img2[i])
-                    rmse_test = mse(img1[i], img2[i]) ** 0.5
+                    rmse_test += mse(img1[i], img2[i]) ** 0.5
                 ssim_test /= N
                 psnr_test /= N
+                rmse_test /= N
                 ## Add metrics to tensorboard ##
                 if batch_idx % 200 == 0:
                     denom = len(self.testloader.dataset)/args.batch_size
