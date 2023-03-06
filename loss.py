@@ -10,12 +10,6 @@ args = argument.args
     beta divergence loss (ref to RVAE)
 '''
 def beta_div_loss(recon_x, x, beta, sigma=0.2):
-    # p_dim = 28*28 # data dim
-    # sigma_sq = sigma**2
-    # const2 = 1 / pow((2 * np.pi * sigma_sq), (beta * p_dim / 2))
-    # recon_norm = torch.sum((x - recon_x)**2,dim=1)
-    # internal_term = torch.exp(-(beta / (2 * sigma_sq )) * recon_norm)
-    # loss = torch.sum(-((1 + beta) / beta) * (const2 * internal_term - 1))
     D = 784
     term1 = -((1 + beta) / beta)
     K1 = 1 / pow((2 * np.pi * (sigma**2)), (beta * D / 2))
@@ -58,7 +52,7 @@ def gamma_regularizer(mu, logvar, p_dim):
     trace_var = args.nu / (nu + p_dim - 2) * torch.sum(logvar.exp(),dim=1)
     log_det_var = -gamma / (2+2*gamma) * torch.sum(logvar,dim=1)
     const_2bar1_term_1 = (1 + q_dim / (nu + p_dim -2))
-    const_2bar1_term_2_log = -gamma / (1+gamma) * (-p_dim + log_t_normalizing_const(nu, p_dim) - np.log(nu + p_dim - 2) + np.log(nu-2))
+    const_2bar1_term_2_log = -gamma / (1+gamma) * (-p_dim * np.log(args.recon_sigma) + log_t_normalizing_const(nu, p_dim) - np.log(nu + p_dim - 2) + np.log(nu-2))
     const_2bar1 = const_2bar1_term_1 * const_2bar1_term_2_log.exp()
     
     return torch.sum(mu_norm_sq + trace_var - args.nu * const_2bar1 * log_det_var.exp())
