@@ -15,7 +15,7 @@ def beta_div_loss(recon_x, x, beta, sigma=0.2):
     K1 = 1 / pow((2 * np.pi * (sigma**2)), (beta * D / 2))
     term2 = torch.sum((recon_x - x)**2,1)
     term3 = torch.exp(-(beta / (2 * (sigma**2))) * term2)
-    loss = torch.sum(term1 * (K1 * term3 - 1))    
+    loss = torch.sum(term1 * (K1 * term3 - 1))
     return loss
 
 
@@ -32,7 +32,7 @@ def beta_div_loss(recon_x, x, beta, sigma=0.2):
     log version of normalizing constant for t-distribution
 '''
 def log_t_normalizing_const(nu, d):
-    nom = torch.lgamma(torch.tensor((nu+d)/2)) 
+    nom = torch.lgamma(torch.tensor((nu+d)/2))
     denom = torch.lgamma(torch.tensor(nu/2)) + d/2 * (np.log(nu) + np.log(np.pi))
     return nom - denom
 
@@ -104,7 +104,7 @@ class Alpha_Family():
     def __init__(self, post_mu, post_logvar):
         self.post_mu = post_mu
         self.post_logvar = post_logvar
-        self.prior_mu = torch.zeros_like(post_mu) 
+        self.prior_mu = torch.zeros_like(post_mu)
         self.prior_logvar = torch.zeros_like(post_logvar)
         self.post_var = self.post_logvar.exp()
         self.prior_var = self.prior_logvar.exp()
@@ -148,7 +148,7 @@ class Alpha_Family():
             prod_const = 0.5 * ((1-alpha) * self.post_logvar + alpha * self.prior_logvar - var_denom.log())
             exp_term = -0.5 * alpha * (1-alpha) * (self.prior_mu - self.post_mu).pow(2) / var_denom
             
-            log_prodterm = torch.sum(prod_const + exp_term,dim=1) # 
+            log_prodterm = torch.sum(prod_const + exp_term,dim=1) #
             alpha_div = torch.sum(const_alpha * (1 - log_prodterm.exp())) # batch, sen mean
             
             return alpha_div

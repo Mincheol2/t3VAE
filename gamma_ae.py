@@ -15,7 +15,7 @@ class gammaAE():
     def __init__(self, input_dim, DEVICE):
         self.input_dim = input_dim
         self.DEVICE = DEVICE
-        self.encoder = Encoder(self.input_dim).to(DEVICE)
+        self.encoder = Encoder(self.input_dim,DEVICE).to(DEVICE)
         self.decoder = Decoder(self.input_dim).to(DEVICE)
         self.opt = optim.Adam(list(self.encoder.parameters()) +
                  list(self.decoder.parameters()), lr=args.lr, eps=1e-6, weight_decay=1e-5)
@@ -24,7 +24,6 @@ class gammaAE():
         self.trainloader, self.testloader, self.sample_imgs = dataloader.select_dataloader()
         self.sample_imgs = self.sample_imgs.to(DEVICE)
     def train(self,epoch,writer):
-
         self.encoder.train()
         self.decoder.train()
         total_loss = []
@@ -32,11 +31,10 @@ class gammaAE():
             data = data.to(self.DEVICE)
             self.opt.zero_grad()
             z, mu, logvar = self.encoder(data)
-            div_loss = self.encoder.loss(mu, logvar, self.input_dim)
+            reg_loss = self.encoder.loss(mu, logvar, self.input_dim)
             recon_data = self.decoder(z)
-            data = data.view(-1,self.input_dim)
-            recon_loss = self.decoder.loss(recon_data, data)
-            current_loss = div_loss + recon_loss
+            recon_loss = self.decoder.loss(recon_data, data.view(-1,self.input_dim))
+            current_loss = reg_loss + recon_loss
             current_loss.backward()
 
             total_loss.append(current_loss.item())
@@ -47,9 +45,9 @@ class gammaAE():
                 N = data.shape[0]
                 denom = len(self.trainloader.dataset)/args.batch_size
                 writer.add_scalar("Train/Reconstruction Error", recon_loss.item() / N, batch_idx + epoch * denom )
-                writer.add_scalar("Train/Regularizer", div_loss.item() / N, batch_idx + epoch * denom )
+                writer.add_scalar("Train/Regularizer", reg_loss.item() / N, batch_idx + epoch * denom )
                 writer.add_scalar("Train/Total Loss" , current_loss.item() / N, batch_idx + epoch * denom )
-        return div_loss.item() / N, recon_loss.item() / N, current_loss.item() / N
+        return reg_loss.item() / N, recon_loss.item() / N, current_loss.item() / N
 
     def test(self,epoch,writer):
         self.encoder.eval()
@@ -59,11 +57,11 @@ class gammaAE():
                 data = data.to(self.DEVICE)
                 z, mu, logvar = self.encoder(data)
                             
-                div_loss = self.encoder.loss(mu, logvar, self.input_dim)
+                reg_loss = self.encoder.loss(mu, logvar, self.input_dim)
                 recon_img = self.decoder(z)
                 data = data.view(-1,784)
                 recon_loss = self.decoder.loss(recon_img,data)
-                current_loss = div_loss + recon_loss
+                current_loss = reg_loss + recon_loss
 
                 ## Caculate SSIM, PSNR, RMSE ##
                 img1 = data.cpu().squeeze(dim=1).numpy()
@@ -85,13 +83,13 @@ class gammaAE():
                     writer.add_scalar("Test/RMSE", rmse_test.item(), batch_idx + epoch * denom )
                     
                     writer.add_scalar("Test/Reconstruction Error", recon_loss.item() / N, batch_idx + epoch * denom )
-                    writer.add_scalar("Test/Regularizer", div_loss.item() / N, batch_idx + epoch * denom )
+                    writer.add_scalar("Test/Regularizer", reg_loss.item() / N, batch_idx + epoch * denom )
                     writer.add_scalar("Test/Total Loss" , current_loss.item() / N, batch_idx + epoch * denom)
                 
             n = min(self.sample_imgs.shape[0], 32)
             sample_z, _, _ = self.encoder(self.sample_imgs[:n])
             test_imgs = self.decoder(sample_z)
             comparison = torch.cat([self.sample_imgs[:n], test_imgs.view(n, 1, 28, 28)[:n]]) # (N, 1, 28, 28)
-            grid = torchvision.utils.make_grid(comparison.cpu()) # (3, 62, 242)
+            grid = torchvision.utils.make_grid(comparison.cpu())
             writer.add_image("Test image - Above: Real data, below: reconstruction data", grid, epoch)
-        return div_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)
+        return reg_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)

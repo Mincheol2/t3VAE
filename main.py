@@ -18,11 +18,11 @@ model_dir = None
 if args.nu != 0 and args.beta == 0:
     print("Current framework : gammaAE ")
     print(f'nu : {args.nu}')
-    model_dir = './'+args.dataset+ f'_gammaAE_nu:{nu}/'
+    model_dir = './'+args.dataset+ f'_gammaAE_nu:{args.nu}/'
 elif args.nu == 0 and args.beta != 0:
     print("Current framework : RVAE")
     print(f'beta : {args.beta}')
-    model_dir = './'+args.dataset+ f'_RVAE_beta:{beta}/'
+    model_dir = './'+args.dataset+ f'_RVAE_beta:{args.beta}/'
 elif args.nu == 0 and args.beta == 0:
     print("Current framework : Vanilla VAE ")
     model_dir = './'+args.dataset+ f'_VAE/'
@@ -36,7 +36,7 @@ if not os.path.exists(model_dir):
 writer = SummaryWriter(model_dir + 'Tensorboard_results')
 
 ## INIT ##
-input_dim = 28*28
+input_dim = 28*28 #MNIST
 
 gammaAE = gamma_ae.gammaAE(input_dim, DEVICE)
 

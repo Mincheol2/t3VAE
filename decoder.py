@@ -22,9 +22,8 @@ class Decoder(nn.Module):
     def loss(self, recon_x, x):
         if args.beta == 0:
             recon_loss = F.binary_cross_entropy(recon_x, x, reduction = 'sum') / args.recon_sigma**2
-            # recon_loss = F.mse_loss(recon_x, x, reduction = 'mean') / args.recon_sigma**2
         else:
-            # RVAE : According to the original code, the sigma value is 0.5.
+            # RVAE : According to the original code, the sigma value is 0.2.
             recon_loss = loss.beta_div_loss(recon_x, x, args.beta, sigma=0.2)
 
         return recon_loss
