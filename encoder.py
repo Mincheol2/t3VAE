@@ -21,10 +21,13 @@ class Encoder(nn.Module):
             
         #precomputing constants
         if args.nu != 0:
-            self.gamma = -2 / (nu + p_dim + q_dim)
+            self.pdim = input_dim
+            self.qdim = args.zdim
+            
+            self.gamma = -2 / (args.nu + self.pdim + self.qdim)
         
-            const_2bar1_term_1 = (1 + q_dim / (nu + p_dim -2))
-            const_2bar1_term_2_log = -gamma / (1+gamma) * (-p_dim * np.log(args.recon_sigma) + log_t_normalizing_const(nu, p_dim) - np.log(nu + p_dim - 2) + np.log(nu-2))
+            const_2bar1_term_1 = (1 + self.qdim / (args.nu + self.pdim -2))
+            const_2bar1_term_2_log = -self.gamma / (1+self.gamma) * (-self.pdim * np.log(args.recon_sigma) + log_t_normalizing_const(args.nu, self.pdim) - np.log(args.nu + self.pdim - 2) + np.log(args.nu-2))
             self.const_2bar1 = const_2bar1_term_1 * const_2bar1_term_2_log.exp()
     
     def reparameterize(self, mu, logvar):
@@ -65,6 +68,6 @@ class Encoder(nn.Module):
             div_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         else:
             # gammaAE regularizer
-            div_loss = gamma_regularizer(mu, logvar, input_dim, self.const_2bar1, self.gamma)
+            div_loss = gamma_regularizer(mu, logvar, self.pdim, self.const_2bar1, self.gamma)
         
         return div_loss * args.reg_weight

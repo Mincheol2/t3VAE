@@ -44,7 +44,6 @@ def gamma_regularizer(mu, logvar, p_dim, const_2bar1, gamma):
 
         output : 1/N sum_{i=1}^{N} ||mu(X_i)||^2 + Sigma(X_i)|^{-gamma /2}
     '''
-    q_dim = args.zdim
     mu_norm_sq = torch.linalg.norm(mu, ord=2, dim=1).pow(2)
     trace_var = args.nu / (args.nu + p_dim - 2) * torch.sum(logvar.exp(),dim=1)
     log_det_var = -gamma / (2+2*gamma) * torch.sum(logvar,dim=1)
