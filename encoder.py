@@ -65,6 +65,7 @@ class Encoder(nn.Module):
     def loss(self, mu, logvar, input_dim):
         if args.nu == 0:
             # KL divergence
+            
             div_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         else:
             # gammaAE regularizer

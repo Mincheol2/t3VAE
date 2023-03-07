@@ -69,9 +69,7 @@ def make_tsne_plot(model, DEVICE):
     plt.ylim(tsne_z[:,1].min(), tsne_z[:,1].max()+1)
 
     for i in tqdm(range(sample_size)):
-        class_name = str(test_class[i])
-        if args.dataset == 'mnist_sp':
-            class_name = str(abs(test_class[i]))
+        class_name = str(abs(test_class[i]))
         plt.text(tsne_z[i,0], tsne_z[i,1], class_name,
                 color = colors[colors_map[test_class[i]]],
                 fontdict = {'weight':'bold','size':7})
