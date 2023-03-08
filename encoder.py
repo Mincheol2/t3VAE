@@ -11,7 +11,7 @@ from loss import *
 args = argument.args
 
 class Encoder(nn.Module):
-    def __init__(self, input_dim,DEVICE):
+    def __init__(self, input_dim, DEVICE):
         super(Encoder, self).__init__()
         self.input_dim = input_dim
         self.device = DEVICE
@@ -25,10 +25,17 @@ class Encoder(nn.Module):
             self.qdim = args.zdim
             
             self.gamma = -2 / (args.nu + self.pdim + self.qdim)
-        
+            
+            log_tau_base = -self.pdim * np.log(args.recon_sigma) + log_t_normalizing_const(args.nu, self.pdim) - np.log(args.nu + self.pdim - 2) + np.log(args.nu-2)
+            
             const_2bar1_term_1 = (1 + self.qdim / (args.nu + self.pdim -2))
-            const_2bar1_term_2_log = -self.gamma / (1+self.gamma) * (-self.pdim * np.log(args.recon_sigma) + log_t_normalizing_const(args.nu, self.pdim) - np.log(args.nu + self.pdim - 2) + np.log(args.nu-2))
+            const_2bar1_term_2_log = -self.gamma / (1+self.gamma) * log_tau_base
             self.const_2bar1 = const_2bar1_term_1 * const_2bar1_term_2_log.exp()
+            
+            
+            ## 230308 : add new constant nu*tau
+            log_tau = 1 / (args.nu + self.pdim - 2 ) * log_tau_base
+            self.tau = log_tau.exp()
     
     def reparameterize(self, mu, logvar):
         if args.nu == 0:
@@ -62,13 +69,12 @@ class Encoder(nn.Module):
 
         return z, mu, logvar
 
-    def loss(self, mu, logvar, input_dim):
+    def loss(self, mu, logvar):
         if args.nu == 0:
             # KL divergence
-            
-            div_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+            reg_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         else:
             # gammaAE regularizer
-            div_loss = gamma_regularizer(mu, logvar, self.pdim, self.const_2bar1, self.gamma)
+            reg_loss = gamma_regularizer(mu, logvar, self.pdim, self.const_2bar1, self.gamma, self.tau)
         
-        return div_loss * args.reg_weight
+        return reg_loss * args.reg_weight

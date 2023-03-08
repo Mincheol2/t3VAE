@@ -31,7 +31,7 @@ class gammaAE():
             data = data.to(self.DEVICE)
             self.opt.zero_grad()
             z, mu, logvar = self.encoder(data)
-            reg_loss = self.encoder.loss(mu, logvar, self.input_dim)
+            reg_loss = self.encoder.loss(mu, logvar)
             recon_data = self.decoder(z)
             recon_loss = self.decoder.loss(recon_data, data.view(-1,self.input_dim))
             current_loss = reg_loss + recon_loss
@@ -57,7 +57,7 @@ class gammaAE():
                 data = data.to(self.DEVICE)
                 z, mu, logvar = self.encoder(data)
                             
-                reg_loss = self.encoder.loss(mu, logvar, self.input_dim)
+                reg_loss = self.encoder.loss(mu, logvar)
                 recon_img = self.decoder(z)
                 data = data.view(-1,784)
                 recon_loss = self.decoder.loss(recon_img,data)
