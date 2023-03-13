@@ -52,9 +52,10 @@ python main.py --dataset mnist
 
 |argument|description|Default|
 |------|---|---|
-|--beta|RVAE : hyperparatmer for beta ELBO| |
-|--nu |γAE hyperparatmerfor γ-divergence.||
-|--epoch |γAE hyperparatmerfor γ-divergence.|100|
+|--dataset|Dataset type| mnist|
+|--beta|RVAE hyperparatmer for beta ELBO| |
+|--nu |γAE hyperparatmer for γ-divergence.||
+|--epoch |Learning epochs |100|
 |--train_frac |Proportion of contaminated data in the train dataset.(0~1)|0|
 |--test_frac |Proportion of contaminated data in the test dataset.(0~1)|0|
 
