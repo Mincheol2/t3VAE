@@ -71,7 +71,7 @@ class gammaAE():
                 rmse_test = 0
                 N = img1.shape[0]
                 for i in range(N):
-                    ssim_test += ssim(img1[i], img2[i])
+                    ssim_test += ssim(img1[i], img2[i],data_range=1.0)
                     psnr_test += psnr(img1[i], img2[i])
                     rmse_test += mse(img1[i], img2[i]) ** 0.5
                 ssim_test /= N

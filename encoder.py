@@ -55,8 +55,8 @@ class Encoder(nn.Module):
             
             # Student T dist : [B, z_dim]
             eps = MVN_dist.sample(sample_shape=torch.tensor([mu.shape[0]])).to(self.device)
-            
-            std = torch.sqrt((args.nu / nu_prime) * torch.exp(0.5 * logvar))
+            std = torch.exp(0.5 * logvar)
+            std = np.sqrt(args.nu / nu_prime) * std
             v = chi_dist.sample().to(self.device)
             return mu + std * eps * torch.sqrt(nu_prime / v)
 

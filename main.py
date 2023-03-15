@@ -36,9 +36,8 @@ if not os.path.exists(model_dir):
 writer = SummaryWriter(model_dir + 'Tensorboard_results')
 
 ## INIT ##
-input_dim = 28*28 #MNIST
 
-gammaAE = gamma_ae.gammaAE(input_dim, DEVICE)
+gammaAE = gamma_ae.gammaAE(DEVICE)
 
 epoch_tqdm = tqdm(range(0, args.epochs))
 for epoch in epoch_tqdm:

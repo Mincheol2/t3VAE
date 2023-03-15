@@ -50,7 +50,7 @@ def make_masking(N,frac):
 
 def transform_np_to_tensor(train_img,test_img):
     # Transpose numpy array: [B, H, W, C] --> tensor [B, C, H, W]
-    # And, normalize mnist pixel : range [0,255] -> [0,1]
+    # And normalize pixels : range [0,255] -> [0,1]
     train_B = train_img.shape[0]
     test_B = test_img.shape[0]
     train_dataset = torch.zeros((train_B,1,28,28))
@@ -87,7 +87,7 @@ def generate_dataloader(origin_dataset, noise_dataset):
 
     trainset_tensor, testset_tensor = transform_np_to_tensor(trainset,testset)
     noise_trainset_tensor, noise_testset_tensor = transform_np_to_tensor(noise_trainset,noise_testset)
-    sample_N1, sample_N2 = 24, 8
+    sample_N1, sample_N2 = 16,16
     sample_imgs = torch.cat((testset_tensor[:sample_N1], noise_testset_tensor[:sample_N2]),0)
     
     I1, _ = make_masking(train_N,args.train_frac)
