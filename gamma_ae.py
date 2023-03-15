@@ -12,17 +12,21 @@ from sklearn.metrics import mean_squared_error as mse
 
 args = argument.args
 class gammaAE():
-    def __init__(self, input_dim, DEVICE):
-        self.input_dim = input_dim
+    def __init__(self, DEVICE):
+        
         self.DEVICE = DEVICE
+        self.trainloader, self.testloader, self.sample_imgs = dataloader.select_dataloader()
+        self.sample_imgs = self.sample_imgs.to(DEVICE)
+        img_shape = self.sample_imgs.shape # img : [B, C, H, W]
+        self.input_dim = img_shape[2] * img_shape[3]
+        
         self.encoder = Encoder(self.input_dim,DEVICE).to(DEVICE)
         self.decoder = Decoder(self.input_dim).to(DEVICE)
         self.opt = optim.Adam(list(self.encoder.parameters()) +
                  list(self.decoder.parameters()), lr=args.lr, eps=1e-6, weight_decay=1e-5)
 
 
-        self.trainloader, self.testloader, self.sample_imgs = dataloader.select_dataloader()
-        self.sample_imgs = self.sample_imgs.to(DEVICE)
+        
     def train(self,epoch,writer):
         self.encoder.train()
         self.decoder.train()
@@ -59,7 +63,7 @@ class gammaAE():
                             
                 reg_loss = self.encoder.loss(mu, logvar)
                 recon_img = self.decoder(z)
-                data = data.view(-1,784)
+                data = data.view(-1,self.input_dim)
                 recon_loss = self.decoder.loss(recon_img,data)
                 current_loss = reg_loss + recon_loss
 
@@ -71,7 +75,7 @@ class gammaAE():
                 rmse_test = 0
                 N = img1.shape[0]
                 for i in range(N):
-                    ssim_test += ssim(img1[i], img2[i],data_range=1.0)
+                    ssim_test += ssim(img1[i], img2[i])
                     psnr_test += psnr(img1[i], img2[i])
                     rmse_test += mse(img1[i], img2[i]) ** 0.5
                 ssim_test /= N
@@ -91,7 +95,8 @@ class gammaAE():
             n = min(self.sample_imgs.shape[0], 32)
             sample_z, _, _ = self.encoder(self.sample_imgs[:n])
             test_imgs = self.decoder(sample_z)
-            comparison = torch.cat([self.sample_imgs[:n], test_imgs.view(n, 1, 28, 28)[:n]]) # (N, 1, 28, 28)
+            
+            comparison = torch.cat([self.sample_imgs[:n], test_imgs.view(n, 1, self.sample_imgs.shape[2], self.sample_imgs.shape[3])[:n]]) # (N, 1, 28, 28)
             grid = torchvision.utils.make_grid(comparison.cpu())
             writer.add_image("Test image - Above: Real data, below: reconstruction data", grid, epoch)
         return reg_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)
