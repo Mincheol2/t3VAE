@@ -7,8 +7,8 @@ parser.add_argument('--beta', type=float, default=0.0,
                     help='rvae div parameter (default: 0, no-use)')
 parser.add_argument('--dataset', type=str, default="mnist",
                     help='Dataset name')
-parser.add_argument('--epochs', type=int, default=100,
-                    help='number of epochs to train (default: 100)')
+parser.add_argument('--epochs', type=int, default=20,
+                    help='number of epochs to train (default: 20)')
 parser.add_argument('--seed', type=int, default=999,
                     help='set seed number (default: 999)')
 parser.add_argument('--batch_size', type=int, default=64,
@@ -20,12 +20,12 @@ parser.add_argument('--lr', type=float, default=1e-4,
 parser.add_argument('--train_frac', type=float, default=0,
                     help='fraction ratio of noisy data in trainset')
 parser.add_argument('--test_frac', type=float, default=0,
-                    help='fraction ratio of  noisy data in testset')
+                    help='fraction ratio of noisy data in testset')
 parser.add_argument('--reg_weight', type=float, default=1.0,
                     help='constant weight for regularizer (default: 1.0)')
 parser.add_argument('--no_cuda', action='store_true',
                     help='enables CUDA training')
-parser.add_argument('--recon_sigma', type=float, default=0.5,
+parser.add_argument('--recon_sigma', type=float, default=1,
                     help='sigma value in reconstruction term')
 parser.add_argument('--gpu_id', type=str, default='0',
                     help='gpu id')

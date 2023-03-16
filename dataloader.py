@@ -11,7 +11,7 @@ import numpy as np
     ((np_Etrainset, np_Etrainclass), (np_Etestset, np_Etestclass)) -> numpy arrays
 '''
 def get_noise_dataset(path):
-    curr_path = "./datasets/" + path
+    curr_path = "/data_intern/" + path # shared data path.
     try:
         train_img = np.load(curr_path + '/train_images.npy')
         train_class = np.load(curr_path + '/train_labels.npy')
@@ -103,89 +103,119 @@ def generate_dataloader(origin_dataset, noise_dataset):
     # Train with MNISTC, and reconstruct MNIST data
     trainset = torch.utils.data.TensorDataset(trainset_tensor, trainclass)
     testset = torch.utils.data.TensorDataset(testset_tensor, testclass)
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=2)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size, shuffle=True, num_workers=2)
+
+    transform = transforms.Compose([transforms.ToTensor(),
+    # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    ])
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=2,transform=transform)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size, shuffle=True, num_workers=2,transform=transform)
 
     return trainloader, testloader,sample_imgs
 
+class load_dataset():
 
+    def __init__(self):
+        self.args = argument.args
 
-def load_mnist_dataset(dataset_name):
-    args = argument.args
-    transform = transforms.Compose([transforms.ToTensor(),
-                                   ])
-    trainset = datasets.MNIST('~/.pytorch/MNIST_data/', download=True, train=True, transform=transform)
-    testset = datasets.MNIST('~/.pytorch/MNIST_data/', download=True, train=False, transform=transform)
-    ## Original data##
-    if dataset_name == "mnist":
-        trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True)
-        testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size, shuffle=True)
-        
-        for images, _ in trainloader:
-            sample_imgs = images
-            break
-        return trainloader, testloader, sample_imgs
+        # data range : -1 ~ 1
+        self.transform = transforms.Compose([transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        transforms.Resize((32, 32))
+        ]
+        )
 
-    ## Mix with contamination data ##
-    else:
-        np_trainset = (trainset.data.numpy(), trainset.targets.numpy())
-        np_testset = (testset.data.numpy(), testset.targets.numpy())
-        origin_dataset = (np_trainset, np_testset)
-        if dataset_name == "emnist":
-            # Since the letters in the EMNIST data are flipped, we need to rotate and hflip.
-            # Also, we use unified numpy array form : [B, H, W, C]
-            Etrainset = datasets.EMNIST('~/.pytorch/EMNIST_data/', download=True, split='letters',train=True)
-            Etestset = datasets.EMNIST('~/.pytorch/EMNIST_data/', download=True, split='letters', train=False)
+    def load_mnist_dataset(self, dataset_name):
+        trainset = datasets.MNIST('/data_intern/MNIST/', download=True, train=True, transform=self.transform)
+        testset = datasets.MNIST('/data_intern/MNIST/', download=True, train=False, transform=self.transform)
+        ## Original data##
+        if dataset_name == "mnist":
+            trainloader = torch.utils.data.DataLoader(trainset, batch_size=self.args.batch_size, shuffle=True)
+            testloader = torch.utils.data.DataLoader(testset, batch_size=self.args.batch_size, shuffle=True)
             
-            np_Etrainset = np.expand_dims(np.rot90(np.flip(Etrainset.data.numpy(),axis=1),3, axes=(1,2)),3)
-            np_Etestset = np.expand_dims(np.rot90(np.flip(Etrainset.data.numpy(),axis=1),3, axes=(1,2)),3)
+            for images, _ in trainloader:
+                sample_imgs = images
+                break
+            return trainloader, testloader, sample_imgs
 
-            # convert positive emnist label to negative
-            np_Etrainclass = np.array(-Etrainset.targets)
-            np_Etestclass = np.array(-Etestset.targets)
-            noise_dataset = ((np_Etrainset, np_Etrainclass), (np_Etestset, np_Etestclass))
+        ## Mix with contamination data ##
         else:
-            noise_dataset = get_noise_dataset(path=dataset_name)
-        
-        return generate_dataloader(origin_dataset,noise_dataset)
+            np_trainset = (trainset.data.numpy(), trainset.targets.numpy())
+            np_testset = (testset.data.numpy(), testset.targets.numpy())
+            origin_dataset = (np_trainset, np_testset)
+            if dataset_name == "emnist":
+                # Since the letters in the EMNIST data are flipped, we need to rotate and hflip.
+                # Also, we use unified numpy array form : [B, H, W, C]
+                Etrainset = datasets.EMNIST('/data_intern/EMNIST/', download=True, split='letters',train=True, transform=self.transform)
+                Etestset = datasets.EMNIST('/data_intern/EMNIST/', download=True, split='letters', train=False, transform=self.transform)
+                
+                np_Etrainset = np.expand_dims(np.rot90(np.flip(Etrainset.data.numpy(),axis=1),3, axes=(1,2)),3)
+                np_Etestset = np.expand_dims(np.rot90(np.flip(Etrainset.data.numpy(),axis=1),3, axes=(1,2)),3)
 
+                # convert positive emnist label to negative
+                np_Etrainclass = np.array(-Etrainset.targets)
+                np_Etestclass = np.array(-Etestset.targets)
+                noise_dataset = ((np_Etrainset, np_Etrainclass), (np_Etestset, np_Etestclass))
+            else:
+                noise_dataset = get_noise_dataset(path=dataset_name)
+            
+            return generate_dataloader(origin_dataset,noise_dataset)
     
+    def load_fashion_dataset(self, dataset_name):
+        trainset = datasets.FashionMNIST('/data_intern/FashionMNIST/', download=True, train=True, transform=self.transform)
 
-def load_fashion_dataset(dataset_name):
-    args = argument.args
-    transform = transforms.Compose([transforms.ToTensor(),
-                               ])
-    trainset = datasets.FashionMNIST('~/.pytorch/F_MNIST_data/', download=True, train=True, transform=transform)
+        testset = datasets.FashionMNIST('/data_intern/FashionMNIST/', download=True, train=False, transform=self.transform)
 
-    testset = datasets.FashionMNIST('~/.pytorch/F_MNIST_data/', download=True, train=False, transform=transform)
+        ## Original data##
+        if dataset_name == "fashion":
+            trainloader = torch.utils.data.DataLoader(trainset, batch_size=self.args.batch_size, shuffle=True)
+            testloader = torch.utils.data.DataLoader(testset, batch_size=self.args.batch_size, shuffle=True)
+            
+            for images, _ in trainloader:
+                sample_imgs = images
+                break
+            return trainloader, testloader, sample_imgs
 
-    ## Original data##
-    if dataset_name == "fashion":
-        trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True)
-        testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size, shuffle=True)
+        ## Mix with contamination data ##
+        else:
+            np_trainset = (trainset.data.numpy(), trainset.targets.numpy())
+            np_testset = (testset.data.numpy(), testset.targets.numpy())
+            origin_dataset = (np_trainset, np_testset)
+            noise_dataset = get_noise_dataset(path=dataset_name)
+            
+            return generate_dataloader(origin_dataset,noise_dataset)
+
+    def load_cifar_dataset(self, dataset_name):
+        trainset = datasets.CIFAR10('/data_intern/CIFAR10/', download=True, train=True, transform=self.transform)
+        testset = datasets.CIFAR10('/data_intern/CIFAR10/', download=True, train=False, transform=self.transform)
+
+        ## Original data##
+        if dataset_name == "cifar10":
+            trainloader = torch.utils.data.DataLoader(trainset, batch_size=self.args.batch_size, shuffle=True)
+            testloader = torch.utils.data.DataLoader(testset, batch_size=self.args.batch_size, shuffle=True)
+            
+            for images, _ in trainloader:
+                sample_imgs = images
+                break
+            return trainloader, testloader, sample_imgs
+
+        ## Mix with contamination data ##
+        else:
+            np_trainset = (trainset.data.numpy(), trainset.targets.numpy())
+            np_testset = (testset.data.numpy(), testset.targets.numpy())
+            origin_dataset = (np_trainset, np_testset)
+            noise_dataset = get_noise_dataset(path=dataset_name)
+            
+            return generate_dataloader(origin_dataset,noise_dataset)
+
+
+
+    def select_dataloader(self):
+        if 'mnist' in self.args.dataset:
+            trainloader, testloader, tensorboard_imgs = self.load_mnist_dataset(self.args.dataset)
+        elif 'fashion' in self.args.dataset:
+            trainloader, testloader, tensorboard_imgs = self.load_fashion_dataset(self.args.dataset)
+        elif 'cifar' in self.args.dataset:
+            trainloader, testloader, tensorboard_imgs = self.load_cifar_dataset(self.args.dataset)
         
-        for images, _ in trainloader:
-            sample_imgs = images
-            break
-        return trainloader, testloader, sample_imgs
-
-    ## Mix with contamination data ##
-    else:
-        np_trainset = (trainset.data.numpy(), trainset.targets.numpy())
-        np_testset = (testset.data.numpy(), testset.targets.numpy())
-        origin_dataset = (np_trainset, np_testset)
-        noise_dataset = get_noise_dataset(path=dataset_name)
-        
-        return generate_dataloader(origin_dataset,noise_dataset)
-
-
-
-def select_dataloader():
-    args = argument.args
-    if 'mnist' in args.dataset:
-        trainloader, testloader, tensorboard_imgs = load_mnist_dataset(args.dataset)
-    elif 'fashion' in args.dataset:
-        trainloader, testloader, tensorboard_imgs = load_fashion_dataset(args.dataset)
-
-    return trainloader, testloader, tensorboard_imgs
+        return trainloader, testloader, tensorboard_imgs
 

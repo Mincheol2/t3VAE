@@ -15,13 +15,14 @@ class gammaAE():
     def __init__(self, DEVICE):
         
         self.DEVICE = DEVICE
-        self.trainloader, self.testloader, self.sample_imgs = dataloader.select_dataloader()
+        dataloader_setup = dataloader.load_dataset()
+        self.trainloader, self.testloader, self.sample_imgs = dataloader_setup.select_dataloader()
         self.sample_imgs = self.sample_imgs.to(DEVICE)
-        img_shape = self.sample_imgs.shape # img : [B, C, H, W]
-        self.input_dim = img_shape[2] * img_shape[3]
+        self.img_shape = self.sample_imgs.shape # img : [B, C, H, W]
+        # self.input_dim = img_shape[2] * img_shape[3]
         
-        self.encoder = Encoder(self.input_dim,DEVICE).to(DEVICE)
-        self.decoder = Decoder(self.input_dim).to(DEVICE)
+        self.encoder = Encoder(self.img_shape,DEVICE).to(DEVICE)
+        self.decoder = Decoder(self.img_shape).to(DEVICE)
         self.opt = optim.Adam(list(self.encoder.parameters()) +
                  list(self.decoder.parameters()), lr=args.lr, eps=1e-6, weight_decay=1e-5)
 
@@ -37,7 +38,10 @@ class gammaAE():
             z, mu, logvar = self.encoder(data)
             reg_loss = self.encoder.loss(mu, logvar)
             recon_data = self.decoder(z)
-            recon_loss = self.decoder.loss(recon_data, data.view(-1,self.input_dim))
+            B = data.shape[0]
+            data = data.view(B,-1)
+            recon_data = recon_data.view(B,-1)
+            recon_loss = self.decoder.loss(recon_data, data)
             current_loss = reg_loss + recon_loss
             current_loss.backward()
 
@@ -62,20 +66,24 @@ class gammaAE():
                 z, mu, logvar = self.encoder(data)
                             
                 reg_loss = self.encoder.loss(mu, logvar)
-                recon_img = self.decoder(z)
-                data = data.view(-1,self.input_dim)
-                recon_loss = self.decoder.loss(recon_img,data)
+                recon_data = self.decoder(z)
+                B = data.shape[0]
+                data = data.view(B,-1)
+                recon_data = recon_data.view(B,-1)
+                recon_loss = self.decoder.loss(data, recon_data)
                 current_loss = reg_loss + recon_loss
 
                 ## Caculate SSIM, PSNR, RMSE ##
-                img1 = data.cpu().squeeze(dim=1).numpy()
-                img2 = recon_img.cpu().view_as(data).squeeze(dim=1).numpy()
+                img1 = data.cpu().numpy()
+                img2 = recon_data.cpu().numpy()
                 ssim_test = 0
                 psnr_test = 0
                 rmse_test = 0
                 N = img1.shape[0]
                 for i in range(N):
-                    ssim_test += ssim(img1[i], img2[i])
+                
+                    ssim_test += ssim(img1[i], img2[i],data_range=2)
+
                     psnr_test += psnr(img1[i], img2[i])
                     rmse_test += mse(img1[i], img2[i]) ** 0.5
                 ssim_test /= N
@@ -92,11 +100,15 @@ class gammaAE():
                     writer.add_scalar("Test/Regularizer", reg_loss.item() / N, batch_idx + epoch * denom )
                     writer.add_scalar("Test/Total Loss" , current_loss.item() / N, batch_idx + epoch * denom)
                 
-            n = min(self.sample_imgs.shape[0], 32)
-            sample_z, _, _ = self.encoder(self.sample_imgs[:n])
+            n = min(self.img_shape[0], 32)
+            sample_z, _, _ = self.encoder(self.sample_imgs)
             test_imgs = self.decoder(sample_z)
-            
-            comparison = torch.cat([self.sample_imgs[:n], test_imgs.view(n, 1, self.sample_imgs.shape[2], self.sample_imgs.shape[3])[:n]]) # (N, 1, 28, 28)
+
+
+            sample_img_board = self.sample_imgs[:n] *0.5 +0.5
+            test_img_board = test_imgs[:n] *0.5 +0.5
+            comparison = torch.cat([sample_img_board , test_img_board]) 
+
             grid = torchvision.utils.make_grid(comparison.cpu())
             writer.add_image("Test image - Above: Real data, below: reconstruction data", grid, epoch)
         return reg_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)

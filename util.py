@@ -21,20 +21,21 @@ def make_reproducibility(seed):
     
 
 
-def make_tsne_plot(model, DEVICE):
+def make_tsne_plot(model, model_dir, DEVICE):
     '''
         draw a tsne plot and save it.
     '''
     args = argument.args
 
     if args.dataset in ['mnist', 'fashion']:
-        test_data = model.testloader.dataset.data.type(torch.float32)
         test_class = model.testloader.dataset.targets.tolist()
+    elif args.dataset == 'cifar10':
+        test_class = model.testloader.dataset.targets
     else:
         # custom datasets
-        test_data = model.testloader.dataset.tensors[0].type(torch.float32)
-        
         test_class = model.testloader.dataset.tensors[1].tolist()
+    # convert emnist to alphabets (e.g. -1-> a,  -7 -> g, -23 -> w)
+    
     # convert emnist to alphabets (e.g. -1-> a,  -7 -> g, -23 -> w)
     
     if args.dataset == 'emnist':
@@ -42,8 +43,16 @@ def make_tsne_plot(model, DEVICE):
             if test_class[i] < 0:
                 test_class[i] = chr(-test_class[i] + 96)
 
-    test_z, _, _ = model.encoder(test_data.to(DEVICE))
-    test_z = test_z.detach().cpu().numpy()
+    model.encoder.eval()
+    model.decoder.eval()
+    test_z = np.empty((0,args.zdim))
+    with torch.no_grad():
+        for batch_idx, (data, labels) in enumerate(model.testloader):
+            data = data.to(DEVICE)
+            z, _, _ = model.encoder(data)
+            z = z.detach().cpu().numpy()
+            test_z = np.append(test_z,z,axis=0)
+
 
     colors_map = {}
     unique_labels = list(set(test_class))
@@ -62,6 +71,7 @@ def make_tsne_plot(model, DEVICE):
     tsne = TSNE(random_state = args.seed)
 
     sample_size = 10000
+    print(test_z.shape)
 
     tsne_z = tsne.fit_transform(test_z[0:sample_size])
     plt.figure(figsize=(10,10))
@@ -83,12 +93,10 @@ def make_tsne_plot(model, DEVICE):
         plt.title(f"t-SNE : {args.dataset}, RVAE beta = {args.beta}")
         filename = f'RVAE_{args.dataset}_beta:{args.beta}_seed:{args.seed}'
     elif args.nu == 0 and args.beta == 0:
-        
         plt.title(f"t-SNE : {args.dataset}, VAE")
         filename = f'VAE_{args.dataset}_seed:{args.seed}'
 
-
-    plt.savefig(f'{filename}.png')
+    plt.savefig(model_dir + f'/{filename}.png')
 
 
 
