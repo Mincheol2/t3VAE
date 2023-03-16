@@ -11,17 +11,36 @@ from loss import *
 args = argument.args
 
 class Encoder(nn.Module):
-    def __init__(self, input_dim, DEVICE):
+    def __init__(self, img_shape, DEVICE):
         super(Encoder, self).__init__()
-        self.input_dim = input_dim
+        _, self.C, self.H, self.W = img_shape
         self.device = DEVICE
-        self.fc1 = nn.Linear(self.input_dim, 400)
-        self.latent_mu = nn.Linear(400, args.zdim)
-        self.latent_var = nn.Linear(400, args.zdim)
+        hidden_dims = [128, 256, 512]
+        layers = []
+        input_ch = self.C
+        for dim in hidden_dims:
+            layers.append(
+                nn.Sequential(
+                    nn.Conv2d(input_ch, dim,
+                              kernel_size= 3, stride= 2, padding  = 1),
+                    nn.BatchNorm2d(dim),
+                    nn.ReLU())
+            )
+            input_ch = dim
+
+        self.cnn_layers = nn.Sequential(*layers)
+        
+        # Linear Layers
+        # n : nb of cnn layers. If H, W are even numbers,
+        # 2**(2*n) * (self.H // 2**n) * self.W // 2**n = self.H * self.W
+        n = len(hidden_dims)
+        self.pdim = hidden_dims[-1]* math.ceil(self.H / 2**n) * math.ceil(self.W / 2**n)
+        self.mu_layer = nn.Linear(self.pdim , args.zdim) 
+        self.logvar_layer = nn.Linear(self.pdim , args.zdim)
             
         #precomputing constants
         if args.nu != 0:
-            self.pdim = input_dim
+            
             self.qdim = args.zdim
             
             self.gamma = -2 / (args.nu + self.pdim + self.qdim)
@@ -34,7 +53,7 @@ class Encoder(nn.Module):
             
             
             ## 230308 : add new constant nu*tau
-            log_tau = 1 / (args.nu + self.pdim - 2 ) * log_tau_base
+            log_tau = 1 / (args.nu + self.pdim - 2) * log_tau_base
             self.tau = log_tau.exp()
     
     def reparameterize(self, mu, logvar):
@@ -61,11 +80,18 @@ class Encoder(nn.Module):
             return mu + std * eps * torch.sqrt(nu_prime / v)
 
     def forward(self, x):
-        x = x.view(-1,self.input_dim)
-        x = F.relu(self.fc1(x))
-        mu = self.latent_mu(x)
-        logvar = self.latent_var(x)
+        x = self.cnn_layers(x)
+        x = torch.flatten(x, start_dim = 1)
+ 
+        mu = self.mu_layer(x)
+        logvar = self.mu_layer(x)
         z = self.reparameterize(mu, logvar)
+
+        # x = x.view(-1,self.input_dim)
+        # x = F.relu(self.fc1(x))
+        # mu = self.latent_mu(x)
+        # logvar = self.latent_var(x)
+        # z = self.reparameterize(mu, logvar)
 
         return z, mu, logvar
 
