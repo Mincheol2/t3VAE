@@ -81,7 +81,9 @@ class gammaAE():
                 rmse_test = 0
                 N = img1.shape[0]
                 for i in range(N):
-                    ssim_test += ssim(img1[i], img2[i],data_range=1)
+                
+                    ssim_test += ssim(img1[i], img2[i],data_range=2)
+
                     psnr_test += psnr(img1[i], img2[i])
                     rmse_test += mse(img1[i], img2[i]) ** 0.5
                 ssim_test /= N
@@ -102,9 +104,11 @@ class gammaAE():
             sample_z, _, _ = self.encoder(self.sample_imgs)
             test_imgs = self.decoder(sample_z)
 
+
             sample_img_board = self.sample_imgs[:n] *0.5 +0.5
             test_img_board = test_imgs[:n] *0.5 +0.5
             comparison = torch.cat([sample_img_board , test_img_board]) 
+
             grid = torchvision.utils.make_grid(comparison.cpu())
             writer.add_image("Test image - Above: Real data, below: reconstruction data", grid, epoch)
         return reg_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)
