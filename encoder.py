@@ -24,7 +24,7 @@ class Encoder(nn.Module):
                     nn.Conv2d(input_ch, dim,
                               kernel_size= 3, stride= 2, padding  = 1),
                     nn.BatchNorm2d(dim),
-                    nn.ReLU())
+                    nn.LeakyReLU())
             )
             input_ch = dim
 
@@ -96,7 +96,7 @@ class Encoder(nn.Module):
         return z, mu, logvar
 
     def loss(self, mu, logvar):
-        if args.nu == 0:
+        if args.nu == 0 or args.flat != 'y':
             # KL divergence
             reg_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
         else:
