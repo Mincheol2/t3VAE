@@ -29,7 +29,7 @@ class Decoder(nn.Module):
                     nn.ConvTranspose2d(input_ch, dim, 
                     kernel_size = 3, stride = 2, padding=1, output_padding=1),
                     nn.BatchNorm2d(dim),
-                    nn.ReLU())
+                    nn.LeakyReLU())
             )
             input_ch = dim
 
