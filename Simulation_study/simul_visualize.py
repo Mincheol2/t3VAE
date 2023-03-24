@@ -63,7 +63,7 @@ def total_visualize_3D(data, gAE_recon, gAE_gen, VAE_recon, VAE_gen, axis = [0,1
     ax.scatter(VAE_recon[:,axis[0]], 
                VAE_recon[:,axis[1]], 
                VAE_recon[:,axis[2]])
-    plt.title('VAE generation')
+    plt.title('VAE reconstruction')
 
     return fig
     
@@ -93,7 +93,7 @@ def total_visualize_2D(data, gAE_recon, gAE_gen, VAE_recon, VAE_gen, axis = [0,1
     ax = fig.add_subplot(2,3,6)
     ax.scatter(VAE_recon[:,axis[0]], 
                VAE_recon[:,axis[1]])
-    plt.title('VAE generation')
+    plt.title('VAE reconstruction')
 
     return fig
     
