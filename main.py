@@ -10,11 +10,12 @@ import numpy as np
 ## init ##
 USE_CUDA = torch.cuda.is_available()
 DEVICE = torch.device(f'cuda:{args.gpu_id}' if USE_CUDA else "cpu")
+
 make_reproducibility(args.seed)
 args = argument.args
-
 model_dir = None
 
+# for args.nu in [0,2.5,3,4,5]:
 if args.nu != 0 and args.beta == 0:
     print("Current framework : gammaAE ")
     print(f'nu : {args.nu}')
@@ -31,6 +32,10 @@ else:
 
 if not os.path.exists(model_dir):
     os.makedirs(model_dir)
+
+if args.flat != 'y':
+    print("We use KL divergence, despite gammaAE")
+
 
 ## For tensorboard data ##
 writer = SummaryWriter(model_dir + 'Tensorboard_results')
@@ -52,7 +57,7 @@ for epoch in epoch_tqdm:
 
 writer.close()
 ## t-sne ##
-if args.tsne == 1:
-    print("Draw a tsne plot..")
-    make_tsne_plot(gammaAE,model_dir, DEVICE)
-    print("Done!")
+# if args.tsne == 1:
+#     print("Draw a tsne plot..")
+#     make_tsne_plot(gammaAE,model_dir, DEVICE)
+#     print("Done!")

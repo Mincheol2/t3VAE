@@ -55,6 +55,7 @@ class gammaAE():
                 writer.add_scalar("Train/Reconstruction Error", recon_loss.item() / N, batch_idx + epoch * denom )
                 writer.add_scalar("Train/Regularizer", reg_loss.item() / N, batch_idx + epoch * denom )
                 writer.add_scalar("Train/Total Loss" , current_loss.item() / N, batch_idx + epoch * denom )
+        
         return reg_loss.item() / N, recon_loss.item() / N, current_loss.item() / N
 
     def test(self,epoch,writer):
@@ -78,23 +79,21 @@ class gammaAE():
                 img2 = recon_data.cpu().numpy()
                 ssim_test = 0
                 psnr_test = 0
-                rmse_test = 0
+                mse_test = 0
                 N = img1.shape[0]
                 for i in range(N):
-                
                     ssim_test += ssim(img1[i], img2[i],data_range=2)
-
                     psnr_test += psnr(img1[i], img2[i])
-                    rmse_test += mse(img1[i], img2[i]) ** 0.5
+                    mse_test += mse(img1[i], img2[i])
                 ssim_test /= N
                 psnr_test /= N
-                rmse_test /= N
+                mse_test /= N
                 ## Add metrics to tensorboard ##
                 if batch_idx % 200 == 0:
                     denom = len(self.testloader.dataset)/args.batch_size
                     writer.add_scalar("Test/SSIM", ssim_test.item(), batch_idx + epoch * denom )
                     writer.add_scalar("Test/PSNR", psnr_test.item(), batch_idx + epoch * denom )
-                    writer.add_scalar("Test/RMSE", rmse_test.item(), batch_idx + epoch * denom )
+                    writer.add_scalar("Test/MSE", mse_test.item(), batch_idx + epoch * denom )
                     
                     writer.add_scalar("Test/Reconstruction Error", recon_loss.item() / N, batch_idx + epoch * denom )
                     writer.add_scalar("Test/Regularizer", reg_loss.item() / N, batch_idx + epoch * denom )
