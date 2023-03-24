@@ -13,7 +13,7 @@ class Shallow_Encoder(nn.Module):
         self.p_dim = p_dim
         self.q_dim = q_dim
         self.nu = nu
-        self.num_layers = 20
+        self.num_layers = num_layers
         self.device = DEVICE
         self.recon_sigma = recon_sigma
 
