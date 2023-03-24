@@ -7,26 +7,26 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from simul_loss import log_t_normalizing_const, gamma_regularizer
 
-class Shallow_Encoder(nn.Module):
-    def __init__(self, p_dim, q_dim, nu, DEVICE, num_layers = 32, recon_sigma = 0.5):
-        super(Shallow_Encoder, self).__init__()
+def true_var(x, p_dim, q_dim, A, b, nu, recon_sigma) : 
+    term1 = (nu + (x - b).T @ torch.linalg.inv(A @ A.T + recon_sigma**2 * torch.eye(p_dim)) @ (x - b)) / (nu + p_dim)
+    term2 = torch.eye(q_dim) - A.T @ torch.linalg.inv(A @ A.T + recon_sigma**2 * torch.eye(p_dim)) @ A
+    return term1 * term2
+
+class True_Shallow_Encoder(nn.Module):
+    def __init__(self, p_dim, q_dim, nu, DEVICE, A, b, num_layers = 32, recon_sigma = 0.5):
+        super(True_Shallow_Encoder, self).__init__()
         self.p_dim = p_dim
         self.q_dim = q_dim
         self.nu = nu
         self.num_layers = num_layers
         self.device = DEVICE
+
+        self.A = A.to(self.device)
+        self.b = b.to(self.device)
+
         self.recon_sigma = recon_sigma
 
         self.latent_mu = nn.Linear(self.p_dim, self.q_dim)
-        self.latent_var = nn.Sequential(
-            nn.Linear(self.p_dim, self.num_layers), 
-            nn.LeakyReLU(), 
-            # nn.Linear(self.num_layers, 2 * self.num_layers), 
-            # nn.LeakyReLU(), 
-            # nn.Linear(2 * self.num_layers, self.num_layers), 
-            # nn.LeakyReLU(), 
-            nn.Linear(self.num_layers, self.q_dim)
-        )
         
             
         #precomputing constants
@@ -55,7 +55,7 @@ class Shallow_Encoder(nn.Module):
                 1. Generate v ~ chiq(nu_prime) and eps ~ N(0, I), independently.
                 2. Caculate x = mu + std * eps / (sqrt(v/nu_prime)), where std = sqrt(nu/(nu_prime) * var)
             '''
-            nu_prime = self.nu + self.p_dim
+            nu_prime = self.nu + self.q_dim
             MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.q_dim), torch.eye(self.q_dim))
             chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu_prime]))
             
@@ -68,7 +68,7 @@ class Shallow_Encoder(nn.Module):
 
     def forward(self, x):
         mu = self.latent_mu(x)
-        logvar = self.latent_var(x)
+        logvar = torch.cat([true_var(x_stochastic, self.p_dim, self.q_dim, self.A, self.b, self.nu, self.recon_sigma) for x_stochastic in x])
         z = self.reparameterize(mu, logvar)
 
         return z, mu, logvar
@@ -84,13 +84,11 @@ class Shallow_Encoder(nn.Module):
         return reg_loss
 
 
-class Shallow_Decoder(nn.Module):
-    def __init__(self, p_dim, q_dim, nu, device, num_layers = 20, recon_sigma = 0.5):
-        super(Shallow_Decoder, self).__init__()
+class True_Shallow_Decoder(nn.Module):
+    def __init__(self, p_dim, q_dim, num_layers = 20, recon_sigma = 0.5):
+        super(True_Shallow_Decoder, self).__init__()
         self.p_dim = p_dim
         self.q_dim = q_dim
-        self.nu = nu
-        self.device = device
         self.num_layers = num_layers
         self.recon_sigma = 0.5
         self.fc = nn.Linear(self.q_dim, self.p_dim)
@@ -98,24 +96,6 @@ class Shallow_Decoder(nn.Module):
     def forward(self, enc_z):
         x = self.fc(enc_z)
         return x
-    
-    def sampling(self, z) :
-        f_theta = self.forward(z) 
-
-        if self.nu == 0:
-            eps = torch.randn_like(x) # Normal dist : eps ~ N(0, I)
-            return f_theta + self.recon_sigma * eps
-        else:
-            nu_prime = self.nu + self.q_dim
-            MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.p_dim), torch.eye(self.p_dim))
-            chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu_prime]))
-            
-            # Student T dist : [B, z_dim]
-            eps = MVN_dist.sample(sample_shape=torch.tensor([f_theta.shape[0]])).to(self.device)
-            
-            std = torch.sqrt((self.nu + torch.norm(z).pow(2)) / nu_prime ) * self.recon_sigma
-            v = chi_dist.sample().to(self.device)
-            return f_theta + std * (eps * torch.sqrt(nu_prime / v))
 
     def loss(self, recon_x, x):
         recon_loss = F.mse_loss(recon_x, x, reduction = 'sum') / self.recon_sigma**2
@@ -123,14 +103,16 @@ class Shallow_Decoder(nn.Module):
         return recon_loss
 
 
-class Shallow_gammaAE():
-    def __init__(self, dataset, p_dim, q_dim, nu, DEVICE, num_layers = 20, 
+class True_Shallow_gammaAE():
+    def __init__(self, dataset, p_dim, q_dim, nu, DEVICE, A, b, num_layers = 20, 
                  recon_sigma = 0.5, lr = 5e-4, batch_size = 64):
         self.dataset = dataset
         self.p_dim = p_dim
         self.q_dim = q_dim
         self.nu = nu
         self.DEVICE = DEVICE
+        self.A = A
+        self.b = b
         self.num_layers = num_layers
         self.recon_sigma = recon_sigma
         self.lr = lr
@@ -138,9 +120,9 @@ class Shallow_gammaAE():
 
         self.total_loss = []
 
-        self.encoder = Shallow_Encoder(self.p_dim, self.q_dim, self.nu, 
-                               self.DEVICE, self.num_layers, self.recon_sigma).to(self.DEVICE)
-        self.decoder = Shallow_Decoder(self.p_dim, self.q_dim, self.nu, self.DEVICE, self.num_layers, self.recon_sigma).to(self.DEVICE)
+        self.encoder = True_Shallow_Encoder(self.p_dim, self.q_dim, self.nu, 
+                               self.DEVICE, self.A, self.b, self.num_layers, self.recon_sigma).to(self.DEVICE)
+        self.decoder = True_Shallow_Decoder(self.p_dim, self.q_dim, self.num_layers, self.recon_sigma).to(self.DEVICE)
         self.opt = optim.Adam(list(self.encoder.parameters()) +
                  list(self.decoder.parameters()), lr=self.lr, eps=1e-6, weight_decay=1e-5)
 
