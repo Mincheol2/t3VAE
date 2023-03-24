@@ -52,8 +52,8 @@ class Encoder(nn.Module):
             self.const_2bar1 = const_2bar1_term_1 * const_2bar1_term_2_log.exp()
             
             
-            ## 230308 : add new constant nu*tau
-            log_tau = 1 / (args.nu + self.pdim - 2) * log_tau_base
+            ## 230308 : add new constant nu*tau , and tau --> tau**2
+            log_tau = 2 / (args.nu + self.pdim - 2) * log_tau_base
             self.tau = log_tau.exp()
     
     def reparameterize(self, mu, logvar):
