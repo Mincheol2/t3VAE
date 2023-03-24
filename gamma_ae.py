@@ -103,9 +103,11 @@ class gammaAE():
             sample_z, _, _ = self.encoder(self.sample_imgs)
             test_imgs = self.decoder(sample_z)
 
+
             sample_img_board = self.sample_imgs[:n] *0.5 +0.5
             test_img_board = test_imgs[:n] *0.5 +0.5
             comparison = torch.cat([sample_img_board , test_img_board]) 
+
             grid = torchvision.utils.make_grid(comparison.cpu())
             writer.add_image("Test image - Above: Real data, below: reconstruction data", grid, epoch)
         return reg_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)
