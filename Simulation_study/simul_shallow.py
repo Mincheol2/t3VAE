@@ -113,7 +113,7 @@ class Shallow_Decoder(nn.Module):
             # Student T dist : [B, z_dim]
             eps = MVN_dist.sample(sample_shape=torch.tensor([f_theta.shape[0]])).to(self.device)
             std_const = torch.sqrt((self.nu * torch.ones(f_theta.shape[0]).to(self.device) + torch.norm(z,dim=1).pow(2)) / nu_prime)
-            std_const = std_const.unsqueeze(1).repeat(1,2).to(self.device)
+            std_const = std_const.unsqueeze(1).repeat(1,self.p_dim).to(self.device)
             std = self.recon_sigma * std_const
             v = chi_dist.sample().to(self.device)
             print("std:",std.shape)
