@@ -99,11 +99,11 @@ class Shallow_Decoder(nn.Module):
         x = self.fc(enc_z)
         return x
     
-    def sampling(self, z) :
-        f_theta = self.forward(z) 
+    def sampling(self, z):
+        f_theta = self.forward(z)
 
         if self.nu == 0:
-            eps = torch.randn_like(x) # Normal dist : eps ~ N(0, I)
+            eps = torch.randn_like(f_theta) # Normal dist : eps ~ N(0, I)
             return f_theta + self.recon_sigma * eps
         else:
             nu_prime = self.nu + self.q_dim
@@ -112,19 +112,22 @@ class Shallow_Decoder(nn.Module):
             
             # Student T dist : [B, z_dim]
             eps = MVN_dist.sample(sample_shape=torch.tensor([f_theta.shape[0]])).to(self.device)
-            
-            std = torch.sqrt((self.nu + torch.norm(z).pow(2)) / nu_prime ) * self.recon_sigma
+            std_const = torch.sqrt((self.nu * torch.ones(f_theta.shape[0]).to(self.device) + torch.norm(z,dim=1).pow(2)) / nu_prime)
+            std_const = std_const.unsqueeze(1).repeat(1,2).to(self.device)
+            std = self.recon_sigma * std_const
             v = chi_dist.sample().to(self.device)
+            print("std:",std.shape)
+            print("v:",v)
+            print("const:", std * (eps * torch.sqrt(nu_prime / v)))
             return f_theta + std * (eps * torch.sqrt(nu_prime / v))
 
     def loss(self, recon_x, x):
         recon_loss = F.mse_loss(recon_x, x, reduction = 'sum') / self.recon_sigma**2
-        
         return recon_loss
 
 
 class Shallow_gammaAE():
-    def __init__(self, dataset, p_dim, q_dim, nu, DEVICE, num_layers = 20, 
+    def __init__(self, dataset, p_dim, q_dim, nu, DEVICE, num_layers = 20,
                  recon_sigma = 0.5, lr = 5e-4, batch_size = 64):
         self.dataset = dataset
         self.p_dim = p_dim
@@ -138,7 +141,7 @@ class Shallow_gammaAE():
 
         self.total_loss = []
 
-        self.encoder = Shallow_Encoder(self.p_dim, self.q_dim, self.nu, 
+        self.encoder = Shallow_Encoder(self.p_dim, self.q_dim, self.nu,
                                self.DEVICE, self.num_layers, self.recon_sigma).to(self.DEVICE)
         self.decoder = Shallow_Decoder(self.p_dim, self.q_dim, self.nu, self.DEVICE, self.num_layers, self.recon_sigma).to(self.DEVICE)
         self.opt = optim.Adam(list(self.encoder.parameters()) +
