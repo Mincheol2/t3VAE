@@ -35,7 +35,8 @@ if not os.path.exists(model_dir):
 
 if args.flat != 'y':
     print("We use KL divergence, despite gammaAE")
-
+if args.dirname != '':
+    model_dir= args.dirname + "/"
 
 ## For tensorboard data ##
 writer = SummaryWriter(model_dir + 'Tensorboard_results')

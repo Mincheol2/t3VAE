@@ -3,6 +3,8 @@ import argparse
 parser = argparse.ArgumentParser(description='gammaAE')
 parser.add_argument('--dataset', type=str, default="mnist",
                     help='Dataset name')
+parser.add_argument('--dirname', type=str, default="",
+                    help='Dataset name')
 parser.add_argument('--nu', type=float, default=0.0,
                     help='gamma div parameter (default: 0)')
 parser.add_argument('--beta', type=float, default=0.0,
