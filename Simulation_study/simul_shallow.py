@@ -19,12 +19,12 @@ class Shallow_Encoder(nn.Module):
 
         self.latent_mu = nn.Linear(self.p_dim, self.q_dim)
         self.latent_var = nn.Sequential(
-            nn.Linear(self.p_dim, self.num_layers), 
-            nn.LeakyReLU(), 
-            # nn.Linear(self.num_layers, 2 * self.num_layers), 
-            # nn.LeakyReLU(), 
-            # nn.Linear(2 * self.num_layers, self.num_layers), 
-            # nn.LeakyReLU(), 
+            nn.Linear(self.p_dim, self.num_layers),
+            nn.ReLU(),
+            nn.Linear(self.num_layers, 2 * self.num_layers),
+            nn.ReLU(),
+            nn.Linear(2 * self.num_layers, self.num_layers),
+            nn.ReLU(),
             nn.Linear(self.num_layers, self.q_dim)
         )
         
@@ -92,7 +92,7 @@ class Shallow_Decoder(nn.Module):
         self.nu = nu
         self.device = device
         self.num_layers = num_layers
-        self.recon_sigma = 0.5
+        self.recon_sigma = recon_sigma
         self.fc = nn.Linear(self.q_dim, self.p_dim)
 
     def forward(self, enc_z):
