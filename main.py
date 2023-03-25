@@ -54,6 +54,28 @@ for epoch in epoch_tqdm:
     reg_loss, recon_loss, total_loss = gammaAE.test(epoch,writer)
     print(f'Test) reg_loss={reg_loss:.4f} recon_loss={recon_loss:.4f} total_loss={total_loss:.4f}\n')
     
+# generation 
+
+## interpolation images
+
+sample_z, _, _ = gammaAE.encoder(gamma_AE.sample_imgs)
+test_imgs = gamma_AE.decoder(sample_z).detach().cpu()
+inter_z = []
+loop_iter = 16
+num_steps = 8
+for _ in range(loop_iter):
+    idx1, idx2, idx3, idx4 = np.random.choice(args.zdim, 4, replace=False)
+    for j in range(num_steps):
+        for i in range(num_steps):
+            t = i / (num_steps -1)
+            s = j / (num_steps -1)
+            result1 = t * sample_z[idx1] + (1-t) * sample_z[idx2]
+            result2 = t * sample_z[idx3] + (1-t) * sample_z[idx4]
+            result = s * result1 + (1-s) * result2
+            inter_z.append(result.tolist())
+    inter_img = 0.5 * self.decoder(torch.tensor(inter_z).to(self.DEVICE)) + 0.5
+    inter_grid = torchvision.utils.make_grid(inter_img.cpu())
+    writer.add_image("Interpolation images" , inter_grid, loop_iter)
 
 
 writer.close()

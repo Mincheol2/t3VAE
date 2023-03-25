@@ -108,24 +108,6 @@ class gammaAE():
 
             writer.add_scalar("Test/Reconstruction Sharpness", measure_sharpness(test_imgs),  batch_idx + epoch * denom)
             
-            ## interpolation ##
-            inter_z = []
-            num_steps = 8
-            for j in range(num_steps):
-                for i in range(num_steps):
-                    t = i / (num_steps -1)
-                    s = j / (num_steps -1)
-
-                    result1 = t * sample_z[0] + (1-t) * sample_z[1]
-                    result2 = t * sample_z[2] + (1-t) * sample_z[3]
-                    result = s * result1 + (1-s) * result2
-                    inter_z.append(result.tolist())
-            
-            
-            inter_img = 0.5 * self.decoder(torch.tensor(inter_z).to(self.DEVICE)) + 0.5
-            inter_grid = torchvision.utils.make_grid(inter_img.cpu())
-            writer.add_image("Interpolation images" , inter_grid, epoch)
-
 
             sample_img_board = self.sample_imgs[:n] *0.5 +0.5
             test_img_board = test_imgs[:n] *0.5 +0.5
