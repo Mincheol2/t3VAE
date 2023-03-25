@@ -138,3 +138,18 @@ def sp_noise(image, prob):
     image[rd_p < (prob / 2)] = black
     image[rd_p > 1 - (prob / 2)] = white
     return image
+
+def measure_sharpness(imgs):
+    N = imgs.shape[0]
+    sharpness = 0 
+    for img in imgs:
+        # 1. convert img to greyscale
+        grey_img = torchvision.transforms.functional.rgb_to_grayscale(img).numpy()
+
+        # 2. convolved with the laplace filter
+        mask = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]])
+        laplacian = cv2.filter2D(grey_img, -1, mask)
+        # 3.compute var of filtered img.
+        sharpness += np.var(laplacian)
+
+    return sharpness / N 
