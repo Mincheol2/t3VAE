@@ -150,6 +150,8 @@ class load_dataset():
         )
 
     def load_mnist_dataset(self, dataset_name):
+        self.transform = transforms.Compose([transforms.ToTensor(),
+        transforms.Resize((32, 32))])
         trainset = datasets.MNIST('/data_intern/MNIST/', download=True, train=True, transform=self.transform)
         testset = datasets.MNIST('/data_intern/MNIST/', download=True, train=False, transform=self.transform)
         ## Original data##

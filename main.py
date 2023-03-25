@@ -57,13 +57,14 @@ for epoch in epoch_tqdm:
 # generation 
 
 ## interpolation images
+os.makedirs(model_dir + 'interpolations')
+sample_z, _, _ = gammaAE.encoder(gammaAE.sample_imgs)
+test_imgs = gammaAE.decoder(sample_z).detach().cpu()
 
-sample_z, _, _ = gammaAE.encoder(gamma_AE.sample_imgs)
-test_imgs = gamma_AE.decoder(sample_z).detach().cpu()
-inter_z = []
-loop_iter = 16
+loop_iter = 3
 num_steps = 8
-for _ in range(loop_iter):
+for k in range(loop_iter):
+    inter_z = []
     idx1, idx2, idx3, idx4 = np.random.choice(args.zdim, 4, replace=False)
     for j in range(num_steps):
         for i in range(num_steps):
@@ -73,11 +74,15 @@ for _ in range(loop_iter):
             result2 = t * sample_z[idx3] + (1-t) * sample_z[idx4]
             result = s * result1 + (1-s) * result2
             inter_z.append(result.tolist())
-    inter_img = 0.5 * self.decoder(torch.tensor(inter_z).to(self.DEVICE)) + 0.5
+    inter_img = 0.5 * gammaAE.decoder(torch.tensor(inter_z).to(DEVICE)) + 0.5
     inter_grid = torchvision.utils.make_grid(inter_img.cpu())
-    writer.add_image("Interpolation images" , inter_grid, loop_iter)
+    filename = f'{model_dir}/interpolations/interpolation_{k}.png'
+    torchvision.utils.save_image(inter_grid, filename)
 
+## generation images
 
+# prior_z = 
+# gamma_AE.decoder(sample_z).detach().cpu()
 writer.close()
 ## t-sne ##
 # if args.tsne == 1:
