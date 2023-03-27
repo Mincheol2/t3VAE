@@ -8,11 +8,12 @@ from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 
 ## init ##
+args = argument.args
 USE_CUDA = torch.cuda.is_available()
 DEVICE = torch.device(f'cuda:{args.gpu_id}' if USE_CUDA else "cpu")
 
 make_reproducibility(args.seed)
-args = argument.args
+
 
 if args.nu != 0:
     print("Current framework : gammaAE ")
