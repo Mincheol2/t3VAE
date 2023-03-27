@@ -102,19 +102,58 @@ class gammaAE():
             n = min(self.img_shape[0], 32)
 
 
-            ### Reconstruction test ###
+            ### Reconstruction ###
             sample_z, _, _ = self.encoder(self.sample_imgs)
             test_imgs = self.decoder(sample_z).detach().cpu()
 
-            writer.add_scalar("Test/Reconstruction Sharpness", measure_sharpness(test_imgs),  batch_idx + epoch * denom)
+            writer.add_scalar("Test/Reconstruction Sharpness", measure_sharpness(test_imgs), epoch)
             
-
             sample_img_board = self.sample_imgs[:n] *0.5 +0.5
             test_img_board = test_imgs[:n] *0.5 +0.5
             comparison = torch.cat([sample_img_board.cpu() , test_img_board]) 
 
             grid = torchvision.utils.make_grid(comparison.cpu())
             writer.add_image("Test image - Above: Real data, below: reconstruction data", grid, epoch)
+        
+            ## Interpolation ##
+            loop_iter = 1
+            num_steps = 8
+            for k in range(loop_iter):
+                inter_z = []
+                idx1, idx2, idx3, idx4 = np.random.choice(sample_z.shape[0], 4, replace=False)
+                for j in range(num_steps):
+                    for i in range(num_steps):
+                        t = i / (num_steps -1)
+                        s = j / (num_steps -1)
+                        result1 = t * sample_z[idx1] + (1-t) * sample_z[idx2]
+                        result2 = t * sample_z[idx3] + (1-t) * sample_z[idx4]
+                        result = s * result1 + (1-s) * result2
+                        inter_z.append(result.tolist())
+                inter_img = 0.5 * self.decoder(torch.tensor(inter_z).to(self.DEVICE)) + 0.5
+                inter_grid = torchvision.utils.make_grid(inter_img.cpu())
+                filename = f'{args.dirname}interpolations/interpolation_{epoch}.png'
+                torchvision.utils.save_image(inter_grid, filename)
 
+            ## generation ##
+            if args.nu == 0:
+                prior_z = torch.randn(sample_z.shape[0], args.zdim)
+                VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
+                VAE_gen = VAE_gen *0.5 +0.5
+                gen_grid = torchvision.utils.make_grid(VAE_gen)
+                writer.add_scalar("Test/Generation Sharpness", measure_sharpness(VAE_gen), epoch)
+            else:
+                MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(args.zdim), torch.eye(args.zdim))
+                chi_dist = torch.distributions.chi2.Chi2(torch.tensor([args.nu]))
+                prior_z = MVN_dist.sample(sample_shape=torch.tensor([sample_z.shape[0]])).to(self.DEVICE)
+                v = chi_dist.sample().to(self.DEVICE)
+                prior_t = prior_z * torch.sqrt(args.nu / v)
+                gammaAE_gen = self.decoder(prior_t.to(self.DEVICE)).detach().cpu()
+                gammaAE_gen = gammaAE_gen *0.5 +0.5
+                gen_grid = torchvision.utils.make_grid(gammaAE_gen)
+                writer.add_scalar("Test/Generation Sharpness", measure_sharpness(gammaAE_gen), epoch)
 
+            filename = f'{args.dirname}generations/generation_{epoch}.png'
+            torchvision.utils.save_image(gen_grid, filename)
+
+            
         return reg_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)

@@ -12,9 +12,9 @@ args = argument.args
 class Decoder(nn.Module):
     def __init__(self, img_shape):
         super(Decoder, self).__init__(), 
-        _, self.C, self.H, self.W = img_shape
+        self.B, self.C, self.H, self.W = img_shape
         data_dim = self.H * self.W
-        self.hidden_dims = [512,256,128]
+        self.hidden_dims = [512,256,128, 64,32]
         self.n = len(self.hidden_dims)
         self.pdim  = self.hidden_dims[0]* math.ceil(self.H / 2**self.n) * math.ceil(self.W / 2**self.n)
         self.linear = nn.Sequential(
@@ -36,8 +36,12 @@ class Decoder(nn.Module):
         self.tp_cnn_layers = nn.Sequential(*layers)
 
         self.final_layer = nn.Sequential(
+                            nn.ConvTranspose2d(self.hidden_dims[-1], self.hidden_dims[-1],
+                                                            kernel_size=3, stride=2, padding=1, output_padding=1),
+                            nn.BatchNorm2d(self.hidden_dims[-1]),
+                            nn.LeakyReLU(),
                             nn.ConvTranspose2d(self.hidden_dims[-1], self.C,
-                                               kernel_size=3, stride=2, padding=1, output_padding=1),
+                                               kernel_size=3, padding=1),
                             nn.Tanh()
                             )
         
@@ -51,11 +55,11 @@ class Decoder(nn.Module):
         return z
 
     def loss(self, recon_x, x):
-        if args.beta == 0:
+        # if args.beta == 0:
             # recon_loss = F.binary_cross_entropy(recon_x, x, reduction = 'sum') / args.recon_sigma**2
-            recon_loss = F.mse_loss(recon_x, x, reduction ='sum') / args.recon_sigma**2
-        else:
-            # RVAE : According to the original code, the sigma value is 0.2.
-            recon_loss = loss.beta_div_loss(recon_x, x, args.beta, sigma=0.2)
+        recon_loss = F.mse_loss(recon_x, x, reduction ='sum') / args.recon_sigma**2
+        # else:
+        #     # RVAE : According to the original code, the sigma value is 0.2.
+        #     recon_loss = loss.beta_div_loss(recon_x, x, args.beta, sigma=0.2)
 
         return recon_loss

@@ -286,7 +286,7 @@ class load_dataset():
             break
         return trainloader, testloader, sample_imgs
 
-        # ## Mix with contamination data (TODO) ##
+        # ## Mixed with contamination data (TODO) ##
         # else:
         #     np_trainset = (trainset.data.numpy(), trainset.targets.numpy())
         #     np_testset = (testset.data.numpy(), testset.targets.numpy())

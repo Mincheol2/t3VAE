@@ -15,7 +15,7 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         _, self.C, self.H, self.W = img_shape
         self.device = DEVICE
-        hidden_dims = [128, 256, 512]
+        hidden_dims = [32, 64, 128, 256, 512]
         layers = []
         input_ch = self.C
         for dim in hidden_dims:
@@ -86,12 +86,6 @@ class Encoder(nn.Module):
         mu = self.mu_layer(x)
         logvar = self.mu_layer(x)
         z = self.reparameterize(mu, logvar)
-
-        # x = x.view(-1,self.input_dim)
-        # x = F.relu(self.fc1(x))
-        # mu = self.latent_mu(x)
-        # logvar = self.latent_var(x)
-        # z = self.reparameterize(mu, logvar)
 
         return z, mu, logvar
 

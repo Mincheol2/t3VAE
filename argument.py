@@ -7,8 +7,8 @@ parser.add_argument('--dirname', type=str, default="",
                     help='directory name')
 parser.add_argument('--nu', type=float, default=0.0,
                     help='gamma div parameter (default: 0)')
-parser.add_argument('--beta', type=float, default=0.0,
-                    help='rvae div parameter (default: 0, no-use)')
+# parser.add_argument('--beta', type=float, default=0.0,
+#                     help='rvae div parameter (default: 0, no-use)')
 parser.add_argument('--flat', type=str, default='y',
                     help='use gamma-pow regularizer')
 parser.add_argument('--epochs', type=int, default=20,
@@ -19,7 +19,7 @@ parser.add_argument('--batch_size', type=int, default=64,
                     help='input batch size for training (default: 64)')
 parser.add_argument('--zdim',  type=int, default=32,
                     help='latent_zdim for training (default: 32)')
-parser.add_argument('--lr', type=float, default=5e-5, 
+parser.add_argument('--lr', type=float, default=12-3, # GAE : 2e-3
                     help='learning rate')
 parser.add_argument('--train_frac', type=float, default=0,
                     help='fraction ratio of noisy data in trainset')
