@@ -130,10 +130,10 @@ def generate_dataloader(origin_dataset, noise_dataset):
     testset = torch.utils.data.TensorDataset(testset_tensor, testclass)
 
     transform = transforms.Compose([transforms.ToTensor(),
-    # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ])
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=2,transform=transform)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size, shuffle=True, num_workers=2,transform=transform)
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=args.batch_size, shuffle=True, num_workers=4,transform=transform)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=args.batch_size, shuffle=True, num_workers=4,transform=transform)
 
     return trainloader, testloader,sample_imgs
 

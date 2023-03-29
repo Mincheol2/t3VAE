@@ -1,5 +1,5 @@
 import argument
-import gamma_ae
+import gamma_ae, vampprior
 import torch
 import os
 from util import *
@@ -16,7 +16,7 @@ make_reproducibility(args.seed)
 
 
 if args.nu != 0:
-    print("Current framework : gammaAE ")
+    print("Current framework : {gammaAE}")
     print(f'nu : {args.nu}')
     if args.dirname == "":
         args.dirname = './'+args.dataset+ f'_gammaAE_nu:{args.nu}_seed:{args.seed}/'
@@ -25,9 +25,13 @@ if args.nu != 0:
 #     print(f'beta : {args.beta}')
 #     model_dir = './'+args.dataset+ f'_RVAE_beta:{args.beta}_seed:{args.seed}/'
 else:
-    print("Current framework : Vanilla VAE ")
+    if args.model == "vampprior":
+        print("Current framework : VAE+Vampprior")
+    else:
+        print("Current framework : Vanilla VAE ")
     if args.dirname == "":
         args.dirname = './'+args.dataset+ f'_VAE_seed:{args.seed}/'
+        
 if args.dirname != "":
     args.dirname = f'./{args.dirname}/'
 
@@ -44,16 +48,18 @@ os.makedirs(args.dirname + 'generations')
 writer = SummaryWriter(args.dirname + 'Tensorboard_results')
 
 ## INIT ##
-
-gammaAE = gamma_ae.gammaAE(DEVICE)
+if args.model == "vampprior":
+    model = vampprior.VAE_vampprior(DEVICE)
+else:
+    model = gamma_ae.gammaAE(DEVICE)
 
 epoch_tqdm = tqdm(range(0, args.epochs))
 for epoch in epoch_tqdm:
     # print(f'\nEpoch {epoch}')
-    reg_loss, recon_loss, total_loss = gammaAE.train(epoch,writer)
+    reg_loss, recon_loss, total_loss = model.train(epoch,writer)
     print(f'\nTrain) reg_loss={reg_loss:.4f} recon_loss={recon_loss:.4f} total_loss={total_loss:.4f}')
     
-    reg_loss, recon_loss, total_loss = gammaAE.test(epoch,writer)
+    reg_loss, recon_loss, total_loss = model.test(epoch,writer)
     print(f'Test) reg_loss={reg_loss:.4f} recon_loss={recon_loss:.4f} total_loss={total_loss:.4f}\n')
     
 

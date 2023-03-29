@@ -13,7 +13,6 @@ from tqdm import tqdm
    Deterministic operations are often slower than nondeterministic operations.
 '''
 
-args = argument.args
 def make_reproducibility(seed):
     random.seed(seed)
     np.random.seed(seed)

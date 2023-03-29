@@ -1,6 +1,8 @@
 import argparse
 
 parser = argparse.ArgumentParser(description='gammaAE')
+parser.add_argument('--model', type=str, default="gae",
+                    help='model name')
 parser.add_argument('--dataset', type=str, default="mnist",
                     help='Dataset name')
 parser.add_argument('--dirname', type=str, default="",
@@ -19,7 +21,7 @@ parser.add_argument('--batch_size', type=int, default=64,
                     help='input batch size for training (default: 64)')
 parser.add_argument('--zdim',  type=int, default=32,
                     help='latent_zdim for training (default: 32)')
-parser.add_argument('--lr', type=float, default=12-3, # GAE : 2e-3
+parser.add_argument('--lr', type=float, default=1e-3, # GAE : 2e-3 // VAE : 
                     help='learning rate')
 parser.add_argument('--train_frac', type=float, default=0,
                     help='fraction ratio of noisy data in trainset')
