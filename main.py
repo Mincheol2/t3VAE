@@ -1,5 +1,6 @@
 import argument
-import gamma_ae, vampprior
+import gamma_ae
+from vampprior import vampprior_model
 import torch
 import os
 from util import *
@@ -26,7 +27,7 @@ if args.nu != 0:
 #     model_dir = './'+args.dataset+ f'_RVAE_beta:{args.beta}_seed:{args.seed}/'
 else:
     if args.model == "vampprior":
-        print("Current framework : VAE+Vampprior")
+        print("Current framework : VAE + Vampprior")
     else:
         print("Current framework : Vanilla VAE ")
     if args.dirname == "":
@@ -49,7 +50,7 @@ writer = SummaryWriter(args.dirname + 'Tensorboard_results')
 
 ## INIT ##
 if args.model == "vampprior":
-    model = vampprior.VAE_vampprior(DEVICE)
+    model = vampprior_model.VAE_vampprior(DEVICE)
 else:
     model = gamma_ae.gammaAE(DEVICE)
 
