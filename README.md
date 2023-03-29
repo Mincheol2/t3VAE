@@ -24,17 +24,13 @@ Pytorch implementaion of γAE framework, made by **Jaehyuk Kwon**, **Juno Kim**,
 
 
 ```
-python main.py --dataset mnist --nu 2.5
+python main.py --dataset celeb_crop64 --nu 2.5
 ```
 
-#### RVAE
-
-- Use a 'beta' argument. This is the hyperparameter for beta ELBO. For details, see [the original paper](https://www.sciencedirect.com/science/article/abs/pii/S0950705121010534)
-
-- Usually use beta = 0.005
+#### Vampprior
 
 ```
-python main.py --dataset mnist --beta 0.005
+python main.py --model vampprior --dataset celeb_crop64
 ```
 
 #### Vanila VAE
