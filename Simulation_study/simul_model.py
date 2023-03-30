@@ -108,7 +108,7 @@ class Decoder(nn.Module):
         return x
 
     def loss(self, recon_x, x):
-        recon_loss = F.mse_loss(recon_x, x, reduction = 'mean') / self.recon_sigma**2
+        recon_loss = F.mse_loss(recon_x, x, reduction = 'sum') / self.recon_sigma**2
         
         return recon_loss
 
