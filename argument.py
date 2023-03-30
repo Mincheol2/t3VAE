@@ -9,8 +9,6 @@ parser.add_argument('--dirname', type=str, default="",
                     help='directory name')
 parser.add_argument('--nu', type=float, default=0.0,
                     help='gamma div parameter (default: 0)')
-# parser.add_argument('--beta', type=float, default=0.0,
-#                     help='rvae div parameter (default: 0, no-use)')
 parser.add_argument('--flat', type=str, default='y',
                     help='use gamma-pow regularizer')
 parser.add_argument('--epochs', type=int, default=20,

@@ -13,7 +13,6 @@ class Decoder(nn.Module):
     def __init__(self, img_shape):
         super(Decoder, self).__init__(), 
         self.B, self.C, self.H, self.W = img_shape
-        data_dim = self.H * self.W
         self.hidden_dims = [512,256,128, 64,32]
         self.n = len(self.hidden_dims)
         self.pdim  = self.hidden_dims[0]* math.ceil(self.H / 2**self.n) * math.ceil(self.W / 2**self.n)

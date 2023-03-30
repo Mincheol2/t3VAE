@@ -1,5 +1,5 @@
-from encoder import Encoder
-from decoder import Decoder
+from vampprior.encoder import Encoder
+from vampprior.decoder import Decoder
 import argument
 import dataloader
 import torch
@@ -20,15 +20,13 @@ class VAE_vampprior():
         self.sample_imgs = self.sample_imgs.to(DEVICE)
         self.img_shape = self.sample_imgs.shape # img : [B, C, H, W]
         
-        self.encoder = Encoder(self.img_shape,DEVICE).to(DEVICE)
+        num_components = 50
+        self.encoder = Encoder(self.img_shape,num_components,DEVICE).to(DEVICE)
         self.decoder = Decoder(self.img_shape).to(DEVICE)
         self.opt = optim.Adam(list(self.encoder.parameters()) +
-                 list(self.decoder.parameters()), lr=args.lr, eps=1e-6, weight_decay=1e-5)
+                 list(self.decoder.parameters()), lr=args.lr, eps=1e-6)
+        self.scheduler = optim.lr_scheduler.ExponentialLR(self.opt, gamma = 0.99)
 
-        
-    def add_pseudoinputs(self,x):
-        x = nn.tanh(self.mean_layer(x))
-        return x
         
     def train(self,epoch,writer):
         self.encoder.train()
@@ -38,7 +36,7 @@ class VAE_vampprior():
             data = data.to(self.DEVICE)
             self.opt.zero_grad()
             z, mu, logvar = self.encoder(data)
-            reg_loss = self.encoder.loss(mu, logvar)
+            reg_loss = self.encoder.loss(z,mu, logvar)
             recon_data = self.decoder(z)
             B = data.shape[0]
             data = data.view(B,-1)
@@ -54,11 +52,12 @@ class VAE_vampprior():
             if batch_idx % 200 == 0:
                 N = data.shape[0]
                 denom = len(self.trainloader.dataset)/args.batch_size
-                writer.add_scalar("Train/Reconstruction Error", recon_loss.item() / N, batch_idx + epoch * denom )
-                writer.add_scalar("Train/Regularizer", reg_loss.item() / N, batch_idx + epoch * denom )
-                writer.add_scalar("Train/Total Loss" , current_loss.item() / N, batch_idx + epoch * denom )
+                writer.add_scalar("Train/Reconstruction Error", recon_loss.item(), batch_idx + epoch * denom )
+                writer.add_scalar("Train/Regularizer", reg_loss.item(), batch_idx + epoch * denom )
+                writer.add_scalar("Train/Total Loss" , current_loss.item(), batch_idx + epoch * denom )
         
-        return reg_loss.item() / N, recon_loss.item() / N, current_loss.item() / N
+        self.scheduler.step()
+        return reg_loss.item(), recon_loss.item(), current_loss.item()
 
     def test(self,epoch,writer):
         self.encoder.eval()
@@ -68,12 +67,12 @@ class VAE_vampprior():
                 data = data.to(self.DEVICE)
                 z, mu, logvar = self.encoder(data)
                             
-                reg_loss = self.encoder.loss(mu, logvar)
+                reg_loss = self.encoder.loss(z, mu, logvar)
                 recon_data = self.decoder(z)
                 B = data.shape[0]
                 data = data.view(B,-1)
                 recon_data = recon_data.view(B,-1)
-                recon_loss = self.decoder.loss(data, recon_data)
+                recon_loss = self.decoder.loss(recon_data, data)
                 current_loss = reg_loss + recon_loss
 
                 ## Caculate SSIM, PSNR, RMSE ##
@@ -97,9 +96,9 @@ class VAE_vampprior():
                     writer.add_scalar("Test/PSNR", psnr_test.item(), batch_idx + epoch * denom )
                     writer.add_scalar("Test/MSE", mse_test.item(), batch_idx + epoch * denom )
                     
-                    writer.add_scalar("Test/Reconstruction Error", recon_loss.item() / N, batch_idx + epoch * denom )
-                    writer.add_scalar("Test/Regularizer", reg_loss.item() / N, batch_idx + epoch * denom )
-                    writer.add_scalar("Test/Total Loss" , current_loss.item() / N, batch_idx + epoch * denom)
+                    writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), batch_idx + epoch * denom )
+                    writer.add_scalar("Test/Regularizer", reg_loss.item(), batch_idx + epoch * denom )
+                    writer.add_scalar("Test/Total Loss" , current_loss.item(), batch_idx + epoch * denom)
                 
             n = min(self.img_shape[0], 32)
 
@@ -158,4 +157,4 @@ class VAE_vampprior():
             torchvision.utils.save_image(gen_grid, filename)
 
             
-        return reg_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)
+        return reg_loss.item(), recon_loss.item(), current_loss.item()

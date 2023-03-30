@@ -236,8 +236,12 @@ class load_dataset():
 
     def load_celeb_dataset(self, dataset_name):
 
-        self.transform = transforms.Compose([transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        self.transform = transforms.Compose(
+            [transforms.RandomHorizontalFlip(),
+            transforms.CenterCrop(148),
+            transforms.Resize(64),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
         ]
         )
         train_img_list = []
@@ -267,6 +271,13 @@ class load_dataset():
                 train_img_list.append(img_path)
             for idx in test_indices:
                 img_path = f"/data_intern/celeba_crop128/{idx:06d}.jpg"
+                test_img_list.append(img_path)
+        elif dataset_name == "celebA":
+            for idx in train_indices:
+                img_path = f"/data_intern/img_align_celeba/{idx:06d}.jpg"
+                train_img_list.append(img_path)
+            for idx in test_indices:
+                img_path = f"/data_intern/img_align_celeba/{idx:06d}.jpg"
                 test_img_list.append(img_path)
         else:
             raise Exception("Use proper size.")

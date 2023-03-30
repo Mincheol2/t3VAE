@@ -11,7 +11,7 @@ from skimage.metrics import peak_signal_noise_ratio as psnr
 from sklearn.metrics import mean_squared_error as mse
 
 args = argument.args
-class gammaAE():
+class TVAE():
     def __init__(self, DEVICE):
         
         self.DEVICE = DEVICE
@@ -23,9 +23,7 @@ class gammaAE():
         self.encoder = Encoder(self.img_shape,DEVICE).to(DEVICE)
         self.decoder = Decoder(self.img_shape).to(DEVICE)
         self.opt = optim.Adam(list(self.encoder.parameters()) +
-                 list(self.decoder.parameters()), lr=args.lr, eps=1e-6)
-        
-        self.scheduler = optim.lr_scheduler.ExponentialLR(self.opt, gamma = 0.95)
+                 list(self.decoder.parameters()), lr=args.lr, eps=1e-6, weight_decay=1e-5)
 
 
         
@@ -49,15 +47,15 @@ class gammaAE():
             total_loss.append(current_loss.item())
             
             self.opt.step()
+
             if batch_idx % 200 == 0:
                 N = data.shape[0]
                 denom = len(self.trainloader.dataset)/args.batch_size
-                writer.add_scalar("Train/Reconstruction Error", recon_loss.item() , batch_idx + epoch * denom )
-                writer.add_scalar("Train/Regularizer", reg_loss.item() , batch_idx + epoch * denom )
-                writer.add_scalar("Train/Total Loss" , current_loss.item() , batch_idx + epoch * denom )
+                writer.add_scalar("Train/Reconstruction Error", recon_loss.item() / N, batch_idx + epoch * denom )
+                writer.add_scalar("Train/Regularizer", reg_loss.item() / N, batch_idx + epoch * denom )
+                writer.add_scalar("Train/Total Loss" , current_loss.item() / N, batch_idx + epoch * denom )
         
-        self.scheduler.step()
-        return reg_loss.item() , recon_loss.item() , current_loss.item()
+        return reg_loss.item() / N, recon_loss.item() / N, current_loss.item() / N
 
     def test(self,epoch,writer):
         self.encoder.eval()
@@ -96,9 +94,9 @@ class gammaAE():
                     writer.add_scalar("Test/PSNR", psnr_test.item(), batch_idx + epoch * denom )
                     writer.add_scalar("Test/MSE", mse_test.item(), batch_idx + epoch * denom )
                     
-                    writer.add_scalar("Test/Reconstruction Error", recon_loss.item() , batch_idx + epoch * denom )
-                    writer.add_scalar("Test/Regularizer", reg_loss.item(), batch_idx + epoch * denom )
-                    writer.add_scalar("Test/Total Loss" , current_loss.item() , batch_idx + epoch * denom)
+                    writer.add_scalar("Test/Reconstruction Error", recon_loss.item() / N, batch_idx + epoch * denom )
+                    writer.add_scalar("Test/Regularizer", reg_loss.item() / N, batch_idx + epoch * denom )
+                    writer.add_scalar("Test/Total Loss" , current_loss.item() / N, batch_idx + epoch * denom)
                 
             n = min(self.img_shape[0], 32)
 
@@ -116,31 +114,30 @@ class gammaAE():
             grid = torchvision.utils.make_grid(comparison.cpu())
             writer.add_image("Test image - Above: Real data, below: reconstruction data", grid, epoch)
         
-            # ## Interpolation ##
-            # loop_iter = 1
-            # num_steps = 8
-            # for k in range(loop_iter):
-            #     inter_z = []
-            #     idx1, idx2, idx3, idx4 = np.random.choice(sample_z.shape[0], 4, replace=False)
-            #     for j in range(num_steps):
-            #         for i in range(num_steps):
-            #             t = i / (num_steps -1)
-            #             s = j / (num_steps -1)
-            #             result1 = t * sample_z[idx1] + (1-t) * sample_z[idx2]
-            #             result2 = t * sample_z[idx3] + (1-t) * sample_z[idx4]
-            #             result = s * result1 + (1-s) * result2
-            #             inter_z.append(result.tolist())
-            #     inter_img = 0.5 * self.decoder(torch.tensor(inter_z).to(self.DEVICE)) + 0.5
-            #     inter_grid = torchvision.utils.make_grid(inter_img.cpu())
-            #     filename = f'{args.dirname}interpolations/interpolation_{epoch}.png'
-            #     torchvision.utils.save_image(inter_grid, filename)
+            ## Interpolation ##
+            loop_iter = 1
+            num_steps = 8
+            for k in range(loop_iter):
+                inter_z = []
+                idx1, idx2, idx3, idx4 = np.random.choice(sample_z.shape[0], 4, replace=False)
+                for j in range(num_steps):
+                    for i in range(num_steps):
+                        t = i / (num_steps -1)
+                        s = j / (num_steps -1)
+                        result1 = t * sample_z[idx1] + (1-t) * sample_z[idx2]
+                        result2 = t * sample_z[idx3] + (1-t) * sample_z[idx4]
+                        result = s * result1 + (1-s) * result2
+                        inter_z.append(result.tolist())
+                inter_img = 0.5 * self.decoder(torch.tensor(inter_z).to(self.DEVICE)) + 0.5
+                inter_grid = torchvision.utils.make_grid(inter_img.cpu())
+                filename = f'{args.dirname}interpolations/interpolation_{epoch}.png'
+                torchvision.utils.save_image(inter_grid, filename)
 
             ## generation ##
             if args.nu == 0:
                 prior_z = torch.randn(sample_z.shape[0], args.zdim)
-                prior_z = args.recon_sigma * prior_z
                 VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
-                VAE_gen = VAE_gen *0.5 + 0.5
+                VAE_gen = VAE_gen *0.5 +0.5
                 gen_grid = torchvision.utils.make_grid(VAE_gen)
                 writer.add_scalar("Test/Generation Sharpness", measure_sharpness(VAE_gen), epoch)
             else:
@@ -148,9 +145,9 @@ class gammaAE():
                 chi_dist = torch.distributions.chi2.Chi2(torch.tensor([args.nu]))
                 prior_z = MVN_dist.sample(sample_shape=torch.tensor([sample_z.shape[0]])).to(self.DEVICE)
                 v = chi_dist.sample().to(self.DEVICE)
-                prior_t = args.recon_sigma * prior_z * torch.sqrt(args.nu / v)
+                prior_t = prior_z * torch.sqrt(args.nu / v)
                 gammaAE_gen = self.decoder(prior_t.to(self.DEVICE)).detach().cpu()
-                gammaAE_gen = gammaAE_gen*0.5 + 0.5
+                gammaAE_gen = gammaAE_gen *0.5 +0.5
                 gen_grid = torchvision.utils.make_grid(gammaAE_gen)
                 writer.add_scalar("Test/Generation Sharpness", measure_sharpness(gammaAE_gen), epoch)
 
@@ -158,4 +155,4 @@ class gammaAE():
             torchvision.utils.save_image(gen_grid, filename)
 
             
-        return reg_loss.item(), recon_loss.item(), current_loss.item() 
+        return reg_loss.item() / len(data), recon_loss.item() / len(data), current_loss.item() / len(data)

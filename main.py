@@ -40,12 +40,9 @@ if args.flat != 'y':
     print("We'll use KL divergence, despite gammaAE")
 
 
-if not os.path.exists(args.dirname):
-    os.makedirs(args.dirname)
-
-
-os.makedirs(args.dirname + 'interpolations')
-os.makedirs(args.dirname + 'generations')
+os.makedirs(args.dirname,exist_ok=True)
+os.makedirs(args.dirname + 'interpolations',exist_ok=True)
+os.makedirs(args.dirname + 'generations',exist_ok=True)
 writer = SummaryWriter(args.dirname + 'Tensorboard_results')
 
 ## INIT ##
