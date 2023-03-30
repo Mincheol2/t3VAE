@@ -8,15 +8,14 @@ from torchvision import datasets, transforms
 from simul_loss import log_t_normalizing_const, gamma_regularizer
 
 class Encoder(nn.Module):
-    def __init__(self, p_dim, q_dim, nu, DEVICE, num_layers = 32, recon_sigma = 0.5, reg_weight = 1.0):
+    def __init__(self, p_dim, q_dim, nu, device, num_layers = 32, recon_sigma = 0.5):
         super(Encoder, self).__init__()
         self.p_dim = p_dim
         self.q_dim = q_dim
         self.nu = nu
-        self.num_layers = 20
-        self.device = DEVICE
+        self.num_layers = num_layers
+        self.device = device
         self.recon_sigma = recon_sigma
-        self.reg_weight = reg_weight
 
         self.fc = nn.Sequential(
             nn.Linear(self.p_dim, self.num_layers), 
@@ -86,15 +85,17 @@ class Encoder(nn.Module):
             # gammaAE regularizer
             reg_loss = gamma_regularizer(mu, logvar, self.p_dim, self.const_2bar1, self.gamma, self.tau, self.nu)
         
-        return reg_loss * self.reg_weight
+        return reg_loss
 
 class Decoder(nn.Module):
-    def __init__(self, p_dim, q_dim, num_layers = 20, recon_sigma = 0.5):
+    def __init__(self, p_dim, q_dim, nu, device, num_layers = 32, recon_sigma = 0.5):
         super(Decoder, self).__init__()
         self.p_dim = p_dim
         self.q_dim = q_dim
+        self.nu = nu
+        self.device = device
         self.num_layers = num_layers
-        self.recon_sigma = 0.5
+        self.recon_sigma = recon_sigma
         self.fc = nn.Sequential(
             nn.Linear(self.q_dim, self.num_layers), 
             nn.LeakyReLU(), 
@@ -106,6 +107,29 @@ class Decoder(nn.Module):
     def forward(self, enc_z):
         x = self.fc(enc_z)
         return x
+    
+    
+    def sampling(self, z):
+        f_theta = self.forward(z)
+
+        if self.nu == 0:
+            eps = torch.randn_like(f_theta) # Normal dist : eps ~ N(0, I)
+            return f_theta + self.recon_sigma * eps
+        else:
+            nu_prime = self.nu + self.q_dim
+            MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.p_dim), torch.eye(self.p_dim))
+            chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu_prime]))
+            
+            # Student T dist : [B, z_dim]
+            eps = MVN_dist.sample(sample_shape=torch.tensor([f_theta.shape[0]])).to(self.device)
+            std_const = torch.sqrt((self.nu * torch.ones(f_theta.shape[0]).to(self.device) + torch.norm(z,dim=1).pow(2)) / nu_prime)
+            std_const = std_const.unsqueeze(1).repeat(1,self.p_dim).to(self.device)
+            std = self.recon_sigma * std_const
+            v = chi_dist.sample().to(self.device)
+            print("std:",std.shape)
+            print("v:",v)
+            print("const:", std * (eps * torch.sqrt(nu_prime / v)))
+            return f_theta + std * (eps * torch.sqrt(nu_prime / v))
 
     def loss(self, recon_x, x):
         recon_loss = F.mse_loss(recon_x, x, reduction = 'sum') / self.recon_sigma**2
@@ -115,7 +139,7 @@ class Decoder(nn.Module):
 
 class gammaAE():
     def __init__(self, dataset, p_dim, q_dim, nu, DEVICE, num_layers = 20, 
-                 recon_sigma = 0.5, reg_weight = 1.0, lr = 5e-4, batch_size = 64):
+                 recon_sigma = 0.5, lr = 5e-4, batch_size = 64):
         self.dataset = dataset
         self.p_dim = p_dim
         self.q_dim = q_dim
@@ -123,13 +147,13 @@ class gammaAE():
         self.DEVICE = DEVICE
         self.num_layers = num_layers
         self.recon_sigma = recon_sigma
-        self.reg_weight = reg_weight
         self.lr = lr
         self.batch_size = batch_size
 
         self.encoder = Encoder(self.p_dim, self.q_dim, self.nu, 
-                               self.DEVICE, self.num_layers, self.recon_sigma, self.reg_weight).to(self.DEVICE)
-        self.decoder = Decoder(self.p_dim, self.q_dim, self.num_layers, self.recon_sigma).to(self.DEVICE)
+                               self.DEVICE, self.num_layers, self.recon_sigma).to(self.DEVICE)
+        self.decoder = Decoder(self.p_dim, self.q_dim, self.nu, 
+                               self.DEVICE, self.num_layers, self.recon_sigma).to(self.DEVICE)
         self.opt = optim.Adam(list(self.encoder.parameters()) +
                  list(self.decoder.parameters()), lr=self.lr, eps=1e-6, weight_decay=1e-5)
 
