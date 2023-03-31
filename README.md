@@ -1,4 +1,4 @@
-# $t^3$ VAE (working title)
+# $t^3$-VAE (working title)
 
 Pytorch implementaion of $t^3$ VAE(Triple-t) framework, made by **Jaehyuk Kwon**, **Juno Kim**, and **Mincheol Cho**.
 
@@ -9,38 +9,30 @@ Pytorch implementaion of $t^3$ VAE(Triple-t) framework, made by **Jaehyuk Kwon**
 
 ### Run Model
 
-- This model covers three types of VAE frameworks : VAE, RVAE(Robust Variational AutoEncoder using beta divergence), and γAE(ours).
-
-- The type of models can be determined by varying argument types. (nu, beta)
-
-
-#### γAE 
-
-- Use a 'nu' argument.
-
-- Note that **γ = -2 / (p + q + nu)**, where p = data dimension, q = latent dimesnion.
-
-- If you test γAE, please keep in mind **nu > 2**. (Because the variance of T distribution exists when nu > 2)
+- This model covers N types of VAE framework : $t^3$ VAE(ours), Vanila VAE, , VampPrior, and TVAE
+ 
+- The type of model can be determined by varying argument types. (--model)
 
 
-```
-python main.py --model TtAE --dataset celeb_crop64 --nu 2.5
-```
+#### t^3$-VAE
 
-#### VampPrior
+- Use a '--nu' argument. (because of the gamma-pow divergence)
+
+- Note that **γ = -2 / (p + q + nu)**, where p = data dimension, q = latent variable dimesnion.
+
+- When you test, please keep in mind **nu > 2**. (By definition)
 
 ```
-python main.py --model VampPrior --dataset celeb_crop64
+python main.py --model TtAE --dataset celebA --nu 3
 ```
 
-#### Vanila VAE
+#### Other frameworks
 
-- Both types of arguments are not used.
+- Just change model name. If you want to fine-tune these models, see the details on the arguments description.
 
 ```
-python main.py --dataset mnist
+python main.py --model VAE --dataset celebA
 ```
-
 
 ### Arguments description.
 
@@ -48,11 +40,10 @@ python main.py --dataset mnist
 
 |argument|description|Default|
 |------|---|---|
-|--dataset|Dataset type| mnist|
-|--beta|RVAE hyperparatmer for beta ELBO| |
-|--nu |γAE hyperparatmer for γ-divergence.||
-|--epoch |Learning epochs |100|
-|--train_frac |Proportion of contaminated data in the train dataset.(0~1)|0|
-|--test_frac |Proportion of contaminated data in the test dataset.(0~1)|0|
+|dataset|Dataset type|celebA|
+|nu |hyperparatmer for γ-divergence.||
+|qdim| latent variable dimension| 64|
+|reg_weight| weight of the regularizer loss| 1.0|
+|recon_sigma| sigma value used in reconstruction term| 1.0|
+|--nums_component| number of pseudoinput components (Only used in VampPrior)|50|
 
-- If you want to change other parameters(zdim, lr, .. etc.), see the argument.py.
