@@ -18,7 +18,7 @@ Pytorch implementaion of $t^3$ VAE(Triple-t) framework, made by **Jaehyuk Kwon**
 
 - Use a '--nu' argument. (because of the gamma-pow divergence)
 
-- Note that **γ = -2 / (p + q + nu)**, where p = data dimension, q = latent variable dimesnion.
+- Note that **γ = $- \frac{2} {p + q + \nu}$**, where p = data dimension, q = latent variable dimesnion.
 
 - When you test, please keep in mind **nu > 2**. (By definition)
 
