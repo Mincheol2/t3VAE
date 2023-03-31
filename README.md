@@ -14,7 +14,7 @@ Pytorch implementaion of $t^3$ VAE(Triple-t) framework, made by **Jaehyuk Kwon**
 - The type of model can be determined by varying argument types. (--model)
 
 
-#### t^3$-VAE
+#### $t^3$-VAE
 
 - Use a '--nu' argument. (because of the gamma-pow divergence)
 
@@ -28,7 +28,7 @@ python main.py --model TtAE --dataset celebA --nu 3
 
 #### Other frameworks
 
-- Just change model name. If you want to fine-tune these models, see the details on the arguments description.
+- Just change the model name. If you want to fine-tune these models, see the details on the arguments description.
 
 ```
 python main.py --model VAE --dataset celebA
