@@ -72,14 +72,16 @@ class TVAE(baseline.VAE_Baseline):
         reg_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
         
 
-        lambda_z = self.loglambda.exp() + 1e-8
-        nu_z = self.lognu.exp() + 1e-8
+        lambda_z = (self.loglambda.exp() + 1e-8)
+        nu_z = (self.lognu.exp() + 1e-8)
         lgamma_term = torch.lgamma((nu_z + self.pdim)/2) - torch.lgamma(nu_z/2)
         log_term = self.pdim/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
+        lgamma_term = lgamma_term.to(self.DEVICE)
+
         x_flat = torch.flatten(x,start_dim = 1)
-        log_recon = (nu_z + self.pdim)/2 * torch.log(1 + lambda_z / nu_z * torch.linalg.norm(x_flat-self.locale_mu, ord=2, dim=1).pow(2))
-        
-        recon_loss = torch.mean(torch.sum(lgamma_term.to(self.DEVICE) + log_term - log_recon,dim=1),dim=0)
+        x_norm = torch.linalg.norm(x_flat-self.locale_mu, ord=2, dim=1).pow(2).unsqueeze(1)
+        log_recon = (nu_z + self.pdim)/2 * torch.log(1 + lambda_z / nu_z  * x_norm)
+        recon_loss = torch.mean(lgamma_term + log_term - log_recon)
 
         total_loss = self.args.reg_weight * reg_loss + recon_loss
         return reg_loss, recon_loss, total_loss
