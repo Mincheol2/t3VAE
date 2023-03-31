@@ -1,26 +1,29 @@
 # $t^3$-VAE (working title)
 
-The Pytorch implementation of the $t^3$-VAE(Triple-t) framework, made by **Jaehyuk Kwon**, **Juno Kim**, and **Mincheol Cho**.
+The Pytorch implementation of the $t^3$-VAE(Triple-t) framework, developed by **Jaehyuk Kwon**, **Juno Kim**, and **Mincheol Cho**.
 
 ## Abstract
 
 
 ## Basic Usage
 
-### Run Model
+This model covers multiple types of VAE framework, including $t^3$ VAE(ours), Vanila VAE, , VampPrior, and TVAE.
 
-- This model covers N types of VAE framework : $t^3$ VAE(ours), Vanila VAE, , VampPrior, and TVAE
- 
-- The type of model can be determined by varying argument types. (--model)
+The specific type of model can be determined by varying the argument "--model".
 
+To run the model, use the following command:
 
-#### $t^3$-VAE
+```
+python main.py  --model [model_type] --dataset [dataset_name]
+```
+
+### $t^3$-VAE
 
 - Use a '--nu' argument. (because of the gamma-pow divergence)
 
 - Note that **γ = $- \frac{2} {p + q + \nu}$**, where p = data dimension, q = latent variable dimesnion.
 
-- When you test, please keep in mind **nu > 2**. (By definition)
+- Please keep in mind **nu > 2**. (By definition)
 
 ```
 python main.py --model TtAE --dataset celebA --nu 3
@@ -28,15 +31,14 @@ python main.py --model TtAE --dataset celebA --nu 3
 
 #### Other frameworks
 
-- Just change the model name. If you want to fine-tune these models, see the details on the arguments description.
+- To use other framework, simply change the model name in the command. 
 
+- For fine-tuning these models, refer to the argument description.
 ```
 python main.py --model VAE --dataset celebA
 ```
 
-### Arguments description.
-
-- To reproducing our experiments, you may fine-tune these arguments.
+### Arguments description
 
 |argument|description|Default|
 |------|---|---|
