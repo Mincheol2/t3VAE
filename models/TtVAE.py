@@ -7,9 +7,9 @@ import math
 
 from models import baseline
 
-class TtAE(baseline.VAE_Baseline):
+class TtVAE(baseline.VAE_Baseline):
     def __init__(self, image_shape, DEVICE, args):
-        super(TtAE, self).__init__(image_shape, DEVICE, args)
+        super(TtVAE, self).__init__(image_shape, DEVICE, args)
         self.opt = optim.Adam(list(self.parameters()), lr=self.args.lr, eps=1e-6)
         self.scheduler = optim.lr_scheduler.ExponentialLR(self.opt, gamma = 0.99)
         self.pdim = self.C * self.H * self.W

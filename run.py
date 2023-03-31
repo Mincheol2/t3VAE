@@ -46,14 +46,14 @@ parser.add_argument('--num_components', type=int, default=500,
 def load_model(model_name,img_shape,DEVICE, args):
     if model_name == 'VAE':
        return VAE.VAE(img_shape, DEVICE,args)
-    elif model_name == 'TtAE':
+    elif model_name == 'TtVAE':
         return TtAE.TtAE(img_shape, DEVICE, args)
     elif model_name == 'VampPrior':
         return VampPrior.VampPrior(img_shape, DEVICE, args)
     elif model_name == "TVAE":
         return TVAE.TVAE(img_shape, DEVICE, args)
     else:
-        raise Exception("Please use appropriate model!", ['VAE', 'TtAE', 'VampPrior'])
+        raise Exception("Please use appropriate model!", ['VAE', 'TtVAE', 'VampPrior','TVAE'])
     
 def make_result_dir(dirname):
     os.makedirs(dirname,exist_ok=True)
