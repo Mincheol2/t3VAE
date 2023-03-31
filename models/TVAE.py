@@ -104,9 +104,8 @@ class TVAE(baseline.VAE_Baseline):
         return reg_loss, recon_loss, total_loss
 
     def generate(self):
-
         prior_z = torch.randn(64, self.args.qdim)
         prior_z = self.args.recon_sigma * prior_z
-        VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
+        VAE_gen = self.gidecoder(prior_z.to(self.DEVICE)).detach().cpu()
         VAE_gen = VAE_gen *0.5 + 0.5
         return VAE_gen
