@@ -1,1 +1,1 @@
-from . import VAE, TtAE, VampPrior
+from . import VAE, TtVAE, VampPrior, TVAE

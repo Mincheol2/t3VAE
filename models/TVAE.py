@@ -1,5 +1,7 @@
+import numpy as np
 import torch
 import torchvision
+import torch.nn as nn
 import torch.optim as optim
 from torch.nn import functional as F
 import math
@@ -11,7 +13,7 @@ class TVAE(baseline.VAE_Baseline):
         super(TVAE, self).__init__(image_shape, DEVICE,args)
         self.opt = optim.Adam(list(self.parameters()), lr=args.lr, eps=1e-6)
         self.scheduler = optim.lr_scheduler.ExponentialLR(self.opt, gamma = 0.99)
-        
+        self.pdim = self.C * self.H * self.W
         '''
             T-VAE : add three-level layers and parameter layers : mu, lambda, nu
             Although the original code use one-dimension prior for each pixel,
@@ -19,21 +21,21 @@ class TVAE(baseline.VAE_Baseline):
             -> Therefore, we learn "one-dimensional" nu and lambda.
         ''' 
         n_h = 500
-        n_latent = self.pdim
-        self.linear_layers = nn.Sequential(
+        n_latent = self.args.qdim
+        self.parameter_network = nn.Sequential(
             nn.Linear(n_latent, n_h), nn.Tanh(),
             nn.Linear(n_h, n_h), nn.Tanh(),
             nn.Linear(n_h, n_h), nn.Tanh(),
         )
         # init parameters
-        self.mu = 0
+        self.locale_mu = 0
         self.loglambda = 0
         self.lognu = 0
 
         # parameter layers
-        self.mu_layer = nn.Linear(n_h, self.pdim) # locale params
-        self.lambda_layer = nn.Linear(n_h, 1) # scale params
-        self.nu_layer = nn.Linear(n_h, 1) # degree of freedom
+        self.parameter_mu_layer = nn.Linear(n_h, self.pdim) # locale params
+        self.parameter_loglambda_layer = nn.Linear(n_h, 1) # scale params
+        self.parameter_lognu_layer = nn.Linear(n_h, 1) # degree of freedom
     
     def encoder(self, x):
         x = self.cnn_layers(x)
@@ -58,6 +60,11 @@ class TVAE(baseline.VAE_Baseline):
     def forward(self, x):
         z, mu, logvar = self.encoder(x)
         x_recon = self.decoder(z)
+
+        params_z = self.parameter_network(z)
+        self.locale_mu = self.parameter_mu_layer(params_z)
+        self.loglambda = self.parameter_loglambda_layer(params_z)
+        self.lognu = self.parameter_lognu_layer(params_z)
         return x_recon, z, mu, logvar
         
     def loss(self, x, recon_x, z, mu, logvar):
@@ -65,13 +72,14 @@ class TVAE(baseline.VAE_Baseline):
         reg_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
         
 
-        lambda_z = self.loglambda.exp()
-        nu = self.lognu.exp()
-        lgamma_term = torch.lgamma((nu + self.pdim)/2) - torch.lgamma(nu/2)
-        log_term = self.pdim/2 * (torch.log(lambda_z/np) - torch.log(np.pi * self.nu_z))
-        log_recon = (nu + p)/2 * torch.log(1 + self.lambda_z / self.nu_z * torch.linalg.norm(x-self.mu, ord=2, dim=1).pow(2))
+        lambda_z = self.loglambda.exp() + 1e-8
+        nu_z = self.lognu.exp() + 1e-8
+        lgamma_term = torch.lgamma(nu_z + self.pdim) - torch.lgamma(nu_z/2)
+        log_term = self.pdim/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
+        x_flat = torch.flatten(x,start_dim = 1)
+        log_recon = (nu_z + self.pdim)/2 * torch.log(1 + lambda_z / nu_z * torch.linalg.norm(x_flat-self.locale_mu, ord=2, dim=1).pow(2))
         
-        recon_loss = torch.mean(torch.sum(lgamma_term + log_term - log_recon,dim=1),dim=0)
+        recon_loss = torch.mean(torch.sum(lgamma_term.to(self.DEVICE) + log_term - log_recon,dim=1),dim=0)
 
         total_loss = self.args.reg_weight * reg_loss + recon_loss
         return reg_loss, recon_loss, total_loss
