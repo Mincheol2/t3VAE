@@ -1,13 +1,13 @@
-# γAE
+# $t^3$ VAE (working title)
 
-Pytorch implementaion of γAE framework, made by **Jaehyuk Kwon**, **Juno Kim**, and **Mincheol Cho**.
+Pytorch implementaion of $t^3$ VAE(Triple-t) framework, made by **Jaehyuk Kwon**, **Juno Kim**, and **Mincheol Cho**.
 
 ## Abstract
 
 
 ## Basic Usage
 
-### Run model
+### Run Model
 
 - This model covers three types of VAE frameworks : VAE, RVAE(Robust Variational AutoEncoder using beta divergence), and γAE(ours).
 
@@ -24,13 +24,13 @@ Pytorch implementaion of γAE framework, made by **Jaehyuk Kwon**, **Juno Kim**,
 
 
 ```
-python main.py --dataset celeb_crop64 --nu 2.5
+python main.py --model TtAE --dataset celeb_crop64 --nu 2.5
 ```
 
-#### Vampprior
+#### VampPrior
 
 ```
-python main.py --model vampprior --dataset celeb_crop64
+python main.py --model VampPrior --dataset celeb_crop64
 ```
 
 #### Vanila VAE
