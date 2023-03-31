@@ -69,7 +69,7 @@ class TVAE(baseline.VAE_Baseline):
         
     def loss(self, x, recon_x, z, mu, logvar):
         N = x.shape[0]
-        reg_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
+        reg_loss = self.args.reg_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
         
 
         lambda_z = (self.loglambda.exp() + 1e-8)
@@ -83,7 +83,7 @@ class TVAE(baseline.VAE_Baseline):
         log_recon = (nu_z + self.pdim)/2 * torch.log(1 + lambda_z / nu_z  * x_norm)
         recon_loss = torch.mean(lgamma_term + log_term - log_recon)
 
-        total_loss = self.args.reg_weight * reg_loss + recon_loss
+        total_loss = reg_loss + recon_loss
         return reg_loss, recon_loss, total_loss
 
     def generate(self):

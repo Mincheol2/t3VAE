@@ -41,8 +41,8 @@ class VAE(baseline.VAE_Baseline):
     def loss(self, x, recon_x, z, mu, logvar):
         N = x.shape[0]
         reg_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
-        recon_loss = F.mse_loss(recon_x, x) / self.args.recon_sigma**2
-        total_loss = self.args.reg_weight * reg_loss + recon_loss
+        recon_loss = self.args.reg_weight *F.mse_loss(recon_x, x) / self.args.recon_sigma**2
+        total_loss = reg_loss + recon_loss
         return reg_loss, recon_loss, total_loss
 
     def generate(self):

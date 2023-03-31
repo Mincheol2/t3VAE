@@ -63,9 +63,9 @@ class VampPrior(baseline.VAE_Baseline):
         E_log_p = torch.logsumexp(E_log_p, dim = 1)
         
         reg_loss = torch.mean(E_log_q, dim=0) - torch.mean(E_log_p, dim=0)
-
+        reg_loss = self.args.reg_weight * reg_loss
         recon_loss = F.mse_loss(recon_x, x) / self.args.recon_sigma**2
-        total_loss = reg_loss * self.args.reg_weight + recon_loss
+        total_loss = reg_loss + recon_loss
         
         return reg_loss, recon_loss, total_loss
 
