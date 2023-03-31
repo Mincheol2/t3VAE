@@ -1,6 +1,6 @@
 # $t^3$-VAE (working title)
 
-Pytorch implementaion of $t^3$ VAE(Triple-t) framework, made by **Jaehyuk Kwon**, **Juno Kim**, and **Mincheol Cho**.
+Pytorch implementaion of $t^3$-VAE(Triple-t) framework, made by **Jaehyuk Kwon**, **Juno Kim**, and **Mincheol Cho**.
 
 ## Abstract
 
