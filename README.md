@@ -47,5 +47,4 @@ python main.py --model VAE --dataset celebA
 |qdim| latent variable dimension| 64|
 |reg_weight| weight of the regularizer loss| 1.0|
 |recon_sigma| sigma value used in reconstruction term| 1.0|
-|--nums_component| number of pseudoinput components (Only used in VampPrior)|50|
-
+|nums_component| number of pseudoinput components (Only used in VampPrior)|50|
