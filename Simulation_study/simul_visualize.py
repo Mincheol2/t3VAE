@@ -73,26 +73,31 @@ def total_visualize_2D(data, gAE_recon, gAE_gen, VAE_recon, VAE_gen, axis = [0,1
     ax = fig.add_subplot(2,3,1)
     ax.scatter(data.cpu().numpy()[:,axis[0]], 
                data.cpu().numpy()[:,axis[1]])
+    domain = ax.axis()
     plt.title('sample')
 
     ax = fig.add_subplot(2,3,2)
     ax.scatter(gAE_gen[:,axis[0]], 
                gAE_gen[:,axis[1]])
+    ax.axis(domain)
     plt.title('gammaAE generation')
 
     ax = fig.add_subplot(2,3,3)
     ax.scatter(VAE_gen[:,axis[0]], 
                VAE_gen[:,axis[1]])
+    ax.axis(domain)
     plt.title('VAE generation')
 
     ax = fig.add_subplot(2,3,5)
     ax.scatter(gAE_recon[:,axis[0]], 
                gAE_recon[:,axis[1]])
+    ax.axis(domain)
     plt.title('gammaAE reconstruction')
 
     ax = fig.add_subplot(2,3,6)
     ax.scatter(VAE_recon[:,axis[0]], 
                VAE_recon[:,axis[1]])
+    ax.axis(domain)
     plt.title('VAE reconstruction')
 
     return fig
