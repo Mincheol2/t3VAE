@@ -19,11 +19,10 @@ python main.py  --model [model_type] --dataset [dataset_name]
 
 ### $t^3$-VAE
 
-- Use a '--nu' argument. (because of the gamma-pow divergence)
+- For the gamma-pow divergence, use a "--nu" argument. Please keep in mind **nu > 2**.
 
 - Note that **γ = $- \frac{2} {p + q + \nu}$**, where p = data dimension, q = latent variable dimesnion.
 
-- Please keep in mind **nu > 2**. (By definition)
 
 ```
 python main.py --model TtAE --dataset celebA --nu 3
