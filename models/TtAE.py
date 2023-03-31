@@ -76,7 +76,7 @@ class TtAE(baseline.VAE_Baseline):
         return x_recon, z, mu, logvar
 
 
-    def loss(self, x, recon_x, mu, logvar):
+    def loss(self, x, recon_x, z, mu, logvar):
         N = x.shape[0]
         x = x.view(N,-1)
         recon_x = recon_x.view(N,-1)

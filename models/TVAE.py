@@ -6,12 +6,34 @@ import math
 
 from models import baseline
 
-class VAE(baseline.VAE_Baseline):
+class TVAE(baseline.VAE_Baseline):
     def __init__(self, image_shape, DEVICE, args):
-        super(VAE, self).__init__(image_shape, DEVICE,args)
+        super(TVAE, self).__init__(image_shape, DEVICE,args)
         self.opt = optim.Adam(list(self.parameters()), lr=args.lr, eps=1e-6)
         self.scheduler = optim.lr_scheduler.ExponentialLR(self.opt, gamma = 0.99)
-            
+        
+        '''
+            T-VAE : add three-level layers and parameter layers : mu, lambda, nu
+            Although the original code use one-dimension prior for each pixel,
+            we use Multivariate Gamma prior instead.
+            -> Therefore, we learn "one-dimensional" nu and lambda.
+        ''' 
+        n_h = 500
+        n_latent = self.pdim
+        self.linear_layers = nn.Sequential(
+            nn.Linear(n_latent, n_h), nn.Tanh(),
+            nn.Linear(n_h, n_h), nn.Tanh(),
+            nn.Linear(n_h, n_h), nn.Tanh(),
+        )
+        # init parameters
+        self.mu = 0
+        self.loglambda = 0
+        self.lognu = 0
+
+        # parameter layers
+        self.mu_layer = nn.Linear(n_h, self.pdim) # locale params
+        self.lambda_layer = nn.Linear(n_h, 1) # scale params
+        self.nu_layer = nn.Linear(n_h, 1) # degree of freedom
     
     def encoder(self, x):
         x = self.cnn_layers(x)
@@ -41,7 +63,16 @@ class VAE(baseline.VAE_Baseline):
     def loss(self, x, recon_x, z, mu, logvar):
         N = x.shape[0]
         reg_loss = torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
-        recon_loss = F.mse_loss(recon_x, x) / self.args.recon_sigma**2
+        
+
+        lambda_z = self.loglambda.exp()
+        nu = self.lognu.exp()
+        lgamma_term = torch.lgamma((nu + self.pdim)/2) - torch.lgamma(nu/2)
+        log_term = self.pdim/2 * (torch.log(lambda_z/np) - torch.log(np.pi * self.nu_z))
+        log_recon = (nu + p)/2 * torch.log(1 + self.lambda_z / self.nu_z * torch.linalg.norm(x-self.mu, ord=2, dim=1).pow(2))
+        
+        recon_loss = torch.mean(torch.sum(lgamma_term + log_term - log_recon,dim=1),dim=0)
+
         total_loss = self.args.reg_weight * reg_loss + recon_loss
         return reg_loss, recon_loss, total_loss
 

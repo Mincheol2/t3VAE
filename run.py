@@ -24,8 +24,6 @@ parser.add_argument('--dirname', type=str, default="",
                     help='directory name')
 parser.add_argument('--nu', type=float, default=0.0,
                     help='gamma pow div parameter')
-parser.add_argument('--flat', type=str, default='y',
-                    help='use gamma-pow regularizer')
 parser.add_argument('--epoch', type=int, default=20,
                     help='Train epoch')
 parser.add_argument('--seed', type=int, default=2023,
@@ -40,29 +38,36 @@ parser.add_argument('--reg_weight', type=float, default=1.0,
                     help='weight for regularizer')
 parser.add_argument('--recon_sigma', type=float, default=1.0,
                     help='sigma value in reconstruction term')
-parser.add_argument('--gpu_id', type=str, default='0',
-                    help='gpu id')
-parser.add_argument('--no_cuda', action='store_true',
-                    help='enables CUDA training')
+parser.add_argument('--flat', type=str, default='y',
+                    help='use gamma-pow regularizer')
+parser.add_argument('--num_components', type=int, default=500,
+                    help='number of pseudoinput components (Only used in VampPrior)')
                     
 def load_model(model_name,img_shape,DEVICE, args):
     if model_name == 'VAE':
        return VAE.VAE(img_shape, DEVICE,args)
     elif model_name == 'TtAE':
         return TtAE.TtAE(img_shape, DEVICE, args)
+    elif model_name == 'VampPrior':
+        return VampPrior.VampPrior(img_shape, DEVICE, args)
+    elif model_name == "TVAE":
+        return TVAE.TVAE(img_shape, DEVICE, args)
+    else:
+        raise Exception("Please use appropriate model!", ['VAE', 'TtAE', 'VampPrior'])
     
 def make_result_dir(dirname):
     os.makedirs(dirname,exist_ok=True)
     os.makedirs(dirname + '/interpolations',exist_ok=True)
     os.makedirs(dirname + '/generations',exist_ok=True)
     
-    
+
 def make_reproducibility(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
+
 
 def measure_sharpness(imgs):
     N = imgs.shape[0]
@@ -83,7 +88,7 @@ if __name__ == "__main__":
     ## init ##
     args = parser.parse_args()
     USE_CUDA = torch.cuda.is_available()
-    DEVICE = torch.device(f'cuda:{args.gpu_id}' if USE_CUDA else "cpu")
+    DEVICE = torch.device(f'cuda' if USE_CUDA else "cpu")
     make_reproducibility(args.seed)
     if args.dirname == "":
         args.dirname = './'+args.dataset+ f'_{args.model}_seed:{args.seed}_qdim:{args.qdim}'
@@ -98,8 +103,8 @@ if __name__ == "__main__":
         if args.nu <= 2:
             raise Exception("Degree of freedom nu must be larger than 2")
         print(f'nu : {args.nu}')
-    if args.flat != 'y':
-        print("We'll use KL divergence, despite TtAE")
+    # if args.flat != 'y':
+        # print("We'll use KL divergence, despite TtAE")
     
     ## Load Dataset ##
     dataloader_setup = load_dataset(args.batch_size,args.dataset)
@@ -121,11 +126,12 @@ if __name__ == "__main__":
         ## Train ##
         model.train()
         total_loss = []
-        for batch_idx, (x, _) in enumerate(trainloader):
+        tqdm_trainloader = tqdm(trainloader)
+        for batch_idx, (x, _) in enumerate(tqdm_trainloader):
             x = x.to(DEVICE)
             model.opt.zero_grad()
             recon_x, z, mu, logvar = model.forward(x)
-            reg_loss, recon_loss, total_loss = model.loss(x, recon_x, mu, logvar)
+            reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
             total_loss.backward()
             model.opt.step()
             if batch_idx % 200 == 0:
@@ -133,17 +139,19 @@ if __name__ == "__main__":
                 writer.add_scalar("Train/Reconstruction Error", recon_loss.item(), current_step_train)
                 writer.add_scalar("Train/Regularizer", reg_loss.item(), current_step_train)
                 writer.add_scalar("Train/Total Loss" , total_loss.item(), current_step_train)
+            tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.6f} recon={recon_loss:.6f} total={total_loss:.6f}')
         if model.scheduler is not None:
             model.scheduler.step()        
-        print(f'\nTrain {epoch}) reg_loss={reg_loss:.6f} recon_loss={recon_loss:.6f} total_loss={total_loss:.6f}')
+        
         
         ## Test ##
         model.eval()
         with torch.no_grad():
-            for batch_idx, (x, _) in enumerate(testloader):
+            tqdm_testloader = tqdm(testloader)
+            for batch_idx, (x, _) in enumerate(tqdm_testloader):
                 x = x.to(DEVICE)
                 recon_x, z, mu, logvar = model.forward(x)
-                reg_loss, recon_loss, total_loss = model.loss(x, recon_x, mu, logvar)
+                reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
                             
                 ## Add metrics to tensorboard ##
                 if batch_idx % 200 == 0:
@@ -162,18 +170,19 @@ if __name__ == "__main__":
                     ssim_test /= N
                     psnr_test /= N
                     mse_test /= N
-
                     current_step = batch_idx + epoch * denom_test
                     writer.add_scalar("Test/SSIM", ssim_test.item(), current_step)
                     writer.add_scalar("Test/PSNR", psnr_test.item(), current_step)
                     writer.add_scalar("Test/MSE", mse_test.item(), current_step )
                     writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), current_step )
-                    writer.add_scalar("Test/Regularizer", reg_loss.item(), current_step )
+                    writer.add_scalar("Test/Regularizer", reg_loss.item(), current_step)
                     writer.add_scalar("Test/Total Loss" , total_loss.item(), current_step)
-            print(f'\nTest {epoch}) reg_loss={reg_loss:.6f} recon_loss={recon_loss:.6f} total_loss={total_loss:.6f}')
-        
+
+                tqdm_testloader.set_description(f'test {epoch} :reg={reg_loss:.6f} recon={recon_loss:.6f} total={total_loss:.6f}')
+            
             ## Save the best model ##
             if total_loss < model_best_loss:
+                model_best_loss = total_loss
                 torch.save(model, f'{args.dirname}/{args.model}_best.pt')
 
 
