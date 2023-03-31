@@ -19,9 +19,9 @@ python main.py  --model [model_type] --dataset [dataset_name]
 
 ### $t^3$-VAE
 
-- For the gamma-pow divergence, use a "--nu" argument. Please keep in mind **nu > 2**.
+- For the gamma-pow divergence, use a "--nu" argument. Please keep in mind **$\nu$ > 2**.
 
-- Note that **γ = $- \frac{2} {p + q + \nu}$**, where p = data dimension, q = latent variable dimesnion.
+- Note that **$\gamma = - \frac{2} {p + q + \nu}$**, where p = data dimension, q = latent variable dimesnion.
 
 
 ```
