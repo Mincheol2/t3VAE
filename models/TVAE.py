@@ -74,7 +74,7 @@ class TVAE(baseline.VAE_Baseline):
 
         lambda_z = self.loglambda.exp() + 1e-8
         nu_z = self.lognu.exp() + 1e-8
-        lgamma_term = torch.lgamma(nu_z + self.pdim) - torch.lgamma(nu_z/2)
+        lgamma_term = torch.lgamma((nu_z + self.pdim)/2) - torch.lgamma(nu_z/2)
         log_term = self.pdim/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
         x_flat = torch.flatten(x,start_dim = 1)
         log_recon = (nu_z + self.pdim)/2 * torch.log(1 + lambda_z / nu_z * torch.linalg.norm(x_flat-self.locale_mu, ord=2, dim=1).pow(2))
