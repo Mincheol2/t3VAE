@@ -25,7 +25,7 @@ python main.py  --model [model_type] --dataset [dataset_name]
 
 
 ```
-python main.py --model TtAE --dataset celebA --nu 3
+python main.py --model TtVAE --dataset celebA --nu 3
 ```
 
 #### Other frameworks
