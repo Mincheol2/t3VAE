@@ -70,9 +70,9 @@ class VampPrior(baseline.VAE_Baseline):
         return reg_loss, recon_loss, total_loss
 
     def make_vampprior(self):
-        z2 = self.pseudo_input_layer(self.idle_input)
-        z2 = z2.view(-1, self.C, self.H, self.W)
-        *_, prior_mu, prior_logvar = self.forward(z2)
+        x = self.pseudo_input_layer(self.idle_input)
+        x = x.view(-1, self.C, self.H, self.W)
+        *_, prior_mu, prior_logvar = self.forward(x)
 
         prior_mu = prior_mu.unsqueeze(0)
         prior_logvar = prior_logvar.unsqueeze(0)
@@ -80,8 +80,10 @@ class VampPrior(baseline.VAE_Baseline):
         return prior_mu, prior_logvar # dim : [1, K, qdim]
 
     def generate(self):
-        prior_z = torch.randn(64, self.args.qdim)
-        prior_z = self.args.recon_sigma * prior_z
+        # pseudo input prior
+        x = self.pseudo_input_layer(self.idle_input)
+        _ ,mu, logvar = self.encoder(x)
+        prior_z = self.reparameterize(mu, logvar)
         VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
-        VAE_gen = VAE_gen *0.5 + 0.5
+        VAE_gen = VAE_gen * 0.5 + 0.5
         return VAE_gen
