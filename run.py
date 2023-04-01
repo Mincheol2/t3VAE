@@ -37,7 +37,7 @@ parser.add_argument('--lr', type=float, default=1e-3,
 parser.add_argument('--reg_weight', type=float, default=1.0,
                     help='weight for regularizer')
 parser.add_argument('--recon_sigma', type=float, default=1.0,
-                    help='sigma value in reconstruction term')
+                    help='sigma value used in reconstruction term')
 parser.add_argument('--flat', type=str, default='y',
                     help='use gamma-pow regularizer')
 parser.add_argument('--num_components', type=int, default=500,
@@ -47,7 +47,7 @@ def load_model(model_name,img_shape,DEVICE, args):
     if model_name == 'VAE':
        return VAE.VAE(img_shape, DEVICE,args)
     elif model_name == 'TtVAE':
-        return TtAE.TtAE(img_shape, DEVICE, args)
+        return TtVAE.TtVAE(img_shape, DEVICE, args)
     elif model_name == 'VampPrior':
         return VampPrior.VampPrior(img_shape, DEVICE, args)
     elif model_name == "TVAE":
