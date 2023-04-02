@@ -11,7 +11,7 @@ class TtVAE(baseline.VAE_Baseline):
     def __init__(self, image_shape, DEVICE, args):
         super(TtVAE, self).__init__(image_shape, DEVICE, args)
         self.opt = optim.Adam(list(self.parameters()), lr=self.args.lr, eps=1e-6)
-        self.scheduler = optim.lr_scheduler.ExponentialLR(self.opt, gamma = 0.99)
+        self.scheduler = optim.lr_scheduler.ExponentialLR(self.opt, gamma = self.args.weight_decay)
         self.pdim = self.C * self.H * self.W
         self.qdim = self.args.qdim
             
@@ -101,4 +101,5 @@ class TtVAE(baseline.VAE_Baseline):
         prior_t = self.args.recon_sigma * prior_z * torch.sqrt(self.args.nu / v)
         imgs = self.decoder(prior_t.to(self.DEVICE)).detach().cpu()
         imgs = imgs*0.5 + 0.5
+        imgs = torch.clamp(imgs,min=0,max=1)
         return imgs
