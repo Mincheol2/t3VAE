@@ -8,7 +8,7 @@ from torchvision import datasets, transforms
 from simul_loss import log_t_normalizing_const, gamma_regularizer
 
 class Encoder(nn.Module):
-    def __init__(self, p_dim, q_dim, nu, device, num_layers = 32, recon_sigma = 0.5):
+    def __init__(self, p_dim, q_dim, nu, device, num_layers, recon_sigma):
         super(Encoder, self).__init__()
         self.p_dim = p_dim
         self.q_dim = q_dim
@@ -39,9 +39,6 @@ class Encoder(nn.Module):
             const_2bar1_term_2_log = -self.gamma / (1+self.gamma) * log_tau_base
             self.const_2bar1 = const_2bar1_term_1 * const_2bar1_term_2_log.exp()
             
-            
-            ## 230308 : add new constant nu*tau
-            ## 230320 : revise tau
             log_tau = 2 / (self.nu + self.p_dim - 2 ) * log_tau_base
             self.tau = log_tau.exp()
     
@@ -55,7 +52,7 @@ class Encoder(nn.Module):
                 Sampling algorithm
                 Let nu_prime = nu + p_dim
                 1. Generate v ~ chiq(nu_prime) and eps ~ N(0, I), independently.
-                2. Caculate x = mu + std * eps / (sqrt(v/nu_prime)), where std = sqrt(nu/(nu_prime) * var)
+                2. Caculate x = mu + std * eps / (sqrt(nu_prime/nu)), where std = sqrt(nu/(nu_prime) * var)
             '''
             nu_prime = self.nu + self.q_dim
             MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.q_dim), torch.eye(self.q_dim))
@@ -88,7 +85,7 @@ class Encoder(nn.Module):
         return reg_loss
 
 class Decoder(nn.Module):
-    def __init__(self, p_dim, q_dim, nu, device, num_layers = 32, recon_sigma = 0.5):
+    def __init__(self, p_dim, q_dim, nu, device, num_layers, recon_sigma):
         super(Decoder, self).__init__()
         self.p_dim = p_dim
         self.q_dim = q_dim
@@ -110,6 +107,10 @@ class Decoder(nn.Module):
     
     
     def sampling(self, z):
+        '''
+        For given z_1,..., z_B \in R^q, we wish to sample x_1,...,x_B from
+        x_i ~ t_p(f_theta(z_i),  ((nu + ||z_i||^2) / (nu+q)) * sigma^2 * I_p,  nu+q)
+        '''
         f_theta = self.forward(z)
 
         if self.nu == 0:
@@ -120,15 +121,17 @@ class Decoder(nn.Module):
             MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.p_dim), torch.eye(self.p_dim))
             chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu_prime]))
             
-            # Student T dist : [B, z_dim]
+            # Student T dist : [B, p_dim]
+            # eps = [B, p_dim]
             eps = MVN_dist.sample(sample_shape=torch.tensor([f_theta.shape[0]])).to(self.device)
+            # std_const
             std_const = torch.sqrt((self.nu * torch.ones(f_theta.shape[0]).to(self.device) + torch.norm(z,dim=1).pow(2)) / nu_prime)
             std_const = std_const.unsqueeze(1).repeat(1,self.p_dim).to(self.device)
             std = self.recon_sigma * std_const
             v = chi_dist.sample().to(self.device)
-            print("std:",std.shape)
-            print("v:",v)
-            print("const:", std * (eps * torch.sqrt(nu_prime / v)))
+            # print("std:",std.shape)
+            # print("v:",v)
+            # print("const:", std * (eps * torch.sqrt(nu_prime / v)))
             return f_theta + std * (eps * torch.sqrt(nu_prime / v))
 
     def loss(self, recon_x, x):
@@ -138,34 +141,38 @@ class Decoder(nn.Module):
 
 
 class gammaAE():
-    def __init__(self, dataset, p_dim, q_dim, nu, DEVICE, num_layers = 20, 
-                 recon_sigma = 0.5, lr = 5e-4, batch_size = 64):
-        self.dataset = dataset
+    def __init__(self, train_dataset, test_data, p_dim, q_dim, nu, recon_sigma, device, num_layers,  
+                 lr = 1e-3, batch_size = 64, eps = 1e-6, weight_decay = 1e-5):
+        self.train_dataset = train_dataset
+        self.test_data = test_data.to(device)
         self.p_dim = p_dim
         self.q_dim = q_dim
         self.nu = nu
-        self.DEVICE = DEVICE
-        self.num_layers = num_layers
         self.recon_sigma = recon_sigma
+        self.device = device
+        self.num_layers = num_layers
         self.lr = lr
         self.batch_size = batch_size
+        self.eps = eps
+        self.weight_decay = weight_decay
 
-        self.encoder = Encoder(self.p_dim, self.q_dim, self.nu, 
-                               self.DEVICE, self.num_layers, self.recon_sigma).to(self.DEVICE)
-        self.decoder = Decoder(self.p_dim, self.q_dim, self.nu, 
-                               self.DEVICE, self.num_layers, self.recon_sigma).to(self.DEVICE)
-        self.opt = optim.Adam(list(self.encoder.parameters()) +
-                 list(self.decoder.parameters()), lr=self.lr, eps=1e-6, weight_decay=1e-5)
+        self.encoder = Encoder(p_dim, q_dim, nu, device, num_layers, recon_sigma).to(device)
+        self.decoder = Decoder(p_dim, q_dim, nu, device, num_layers, recon_sigma).to(device)
+        self.opt = optim.Adam(list(self.encoder.parameters()) + list(self.decoder.parameters()), 
+                              lr=lr, eps=eps, weight_decay=weight_decay)
 
+        self.train_loader = torch.utils.data.DataLoader(self.train_dataset, batch_size=train_batch_size, shuffle=True)
 
-        self.trainloader = torch.utils.data.DataLoader(self.dataset, batch_size = self.batch_size, shuffle = True)
-
-    def train(self, epoch):
+    def train(self):
         self.encoder.train()
         self.decoder.train()
-        total_loss = []
-        for batch_idx, data in enumerate(self.trainloader):
-            data = data[0].to(self.DEVICE)
+
+        total_loss_list = []
+        recon_loss_list = []
+        regul_loss_list = []
+
+        for batch_idx, data in enumerate(self.train_loader):
+            data = data[0].to(self.device)
             self.opt.zero_grad()
             z, mu, logvar = self.encoder(data)
             reg_loss = self.encoder.loss(mu, logvar)
@@ -174,6 +181,22 @@ class gammaAE():
             current_loss = reg_loss + recon_loss
             current_loss.backward()
 
-            total_loss.append(current_loss.item())
+            total_loss_list.append(current_loss.item())
+            recon_loss_list.append(recon_loss.item())
+            regul_loss_list.append(reg_loss.item())
             
             self.opt.step()
+
+        return total_loss_list, recon_loss_list, regul_loss_list
+
+    def test(self):
+        self.encoder.eval()
+        self.decoder.eval()
+
+        z, mu, logvar = self.encoder(self.test_data)
+        reg_loss = self.encoder.loss(mu, logvar)
+        recon_data = self.decoder(z)
+        recon_loss = self.decoder.loss(recon_data, self.test_data.view(-1,self.p_dim))
+        current_loss = reg_loss + recon_loss
+
+        return current_loss, recon_loss, reg_loss

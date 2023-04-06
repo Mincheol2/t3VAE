@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 def mmd_penalty(z_hat, z, kernel="RBF", sigma2_p=1):
     n = z.shape[0]
@@ -40,3 +41,10 @@ def mmd_penalty(z_hat, z, kernel="RBF", sigma2_p=1):
             res2 = res2.sum()*2./(n*n)
             stat = stat + res1 - res2
         return stat
+
+def mmd_acceptance_region(mmd_stat, n, alpha=0.05) : 
+    return 4. * np.sqrt(-np.log(alpha) / m)
+
+def mmd_prob_bound(mmd_stat, n) : 
+    return np.exp(-mmd_stat**2 * int(n * 0.5) / 8)
+
