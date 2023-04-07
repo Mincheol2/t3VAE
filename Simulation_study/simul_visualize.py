@@ -6,154 +6,160 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-def total_visualize_PCA(data, gAE_recon, gAE_gen, VAE_recon, VAE_gen, size = [12,8]) :
-    data = data.cpu().numpy()
-    pca = PCA(n_components=3)
-    pca.fit(data)
-    data_pca = pca.transform(data) 
-    gAE_recon_pca = pca.transform(gAE_recon.numpy()) 
-    gAE_gen_pca = pca.transform(gAE_gen.numpy()) 
-    VAE_recon_pca = pca.transform(VAE_recon.numpy()) 
-    VAE_gen_pca = pca.transform(VAE_gen.numpy()) 
+class visualize() : 
+    def __init__(self, p_dim) :
+        self.visualize = visualize_PCA
+        if p_dim == 3 : 
+            self.visualize = visualize_3D
+        elif p_dim == 2 : 
+            self.visualize = visualize_2D
 
+
+def visualize_PCA(train_data, test_data, gAE_gen, VAE_gen, gAE_recon, VAE_recon, size = [9,6]) :
+    train_data = train_data.cpu().numpy()
+    test_data = test_data.cpu().numpy()
+    
+    pca = PCA(n_components=3)
+    pca.fit(test_data)
+
+    # PCA
+    train_data = pca.transform(train_data) 
+    test_data = pca.transform(test_data) 
+    gAE_gen = pca.transform(gAE_gen.cpu().numpy()) 
+    VAE_gen = pca.transform(VAE_gen.cpu().numpy()) 
+    gAE_recon = pca.transform(gAE_recon.cpu().numpy()) 
+    VAE_recon = pca.transform(VAE_recon.cpu().numpy()) 
+
+    # plot
     fig = plt.figure(figsize = (size[0], size[1]))
 
     ax = fig.add_subplot(2,3,1, projection='3d')
-    ax.scatter(data_pca[:,0], data_pca[:,1], data_pca[:,2])
+    ax.scatter(test_data[:,0], test_data[:,1], test_data[:,2])
     domain = ax.axis()
-    plt.title('sample')
+    zlim = ax.get_zlim()
+    plt.title('Test data')
+
+    ax = fig.add_subplot(2,3,4, projection='3d')
+    ax.scatter(train_data[:,0], train_data[:,1], train_data[:,2])
+    ax.axis(domain)
+    ax.set_zlim(zlim)
+    plt.title('Train data')
 
     ax = fig.add_subplot(2,3,2, projection='3d')
-    ax.scatter(VAE_gen[:,0], VAE_gen[:,1], VAE_gen[:,2])
+    ax.scatter(gAE_gen[:,0], gAE_gen[:,1], gAE_gen[:,2])
     ax.axis(domain)
-    plt.title('gammaAE generation')
-
-    ax = fig.add_subplot(2,3,3, projection='3d')
-    ax.scatter(data_pca[:,0], data_pca[:,1], data_pca[:,2])
-    ax.axis(domain)
-    plt.title('VAE generation')
+    ax.set_zlim(zlim)
+    plt.title('gAE generation')
 
     ax = fig.add_subplot(2,3,5, projection='3d')
+    ax.scatter(VAE_gen[:,0], VAE_gen[:,1], VAE_gen[:,2])
+    ax.axis(domain)
+    ax.set_zlim(zlim)
+    plt.title('VAE generation')
+
+    ax = fig.add_subplot(2,3,3, projection='3d')
     ax.scatter(gAE_recon[:,0], gAE_recon[:,1], gAE_recon[:,2])
     ax.axis(domain)
-    plt.title('gammaAE reconstruction')
+    ax.set_zlim(zlim)
+    plt.title('gAE reconstruction')
 
     ax = fig.add_subplot(2,3,6, projection='3d')
     ax.scatter(VAE_recon[:,0], VAE_recon[:,1], VAE_recon[:,2])
     ax.axis(domain)
+    ax.set_zlim(zlim)
     plt.title('VAE reconstruction')
 
     return fig
 
-def total_visualize_3D(data, gAE_recon, gAE_gen, VAE_recon, VAE_gen, axis = [0,1,2], size = [12,8]) :
+def visualize_3D(train_data, test_data, gAE_gen, VAE_gen, gAE_recon, VAE_recon, size = [9,6]) :
+    train_data = train_data.cpu().numpy()
+    test_data = test_data.cpu().numpy()
+    gAE_gen = gAE_gen.cpu().numpy()
+    VAE_gen = VAE_gen.cpu().numpy()
+    gAE_recon = gAE_recon.cpu().numpy()
+    VAE_recon = VAE_recon.cpu().numpy()
+
+    # plot
     fig = plt.figure(figsize = (size[0], size[1]))
+
     ax = fig.add_subplot(2,3,1, projection='3d')
-    ax.scatter(data.cpu().numpy()[:,axis[0]], 
-               data.cpu().numpy()[:,axis[1]], 
-               data.cpu().numpy()[:,axis[2]])
+    ax.scatter(test_data[:,0], test_data[:,1], test_data[:,2])
     domain = ax.axis()
-    plt.title('sample')
+    zlim = ax.get_zlim()
+    plt.title('Test data')
+
+    ax = fig.add_subplot(2,3,4, projection='3d')
+    ax.scatter(train_data[:,0], train_data[:,1], train_data[:,2])
+    ax.axis(domain)
+    ax.set_zlim(zlim)
+    plt.title('Train data')
 
     ax = fig.add_subplot(2,3,2, projection='3d')
-    ax.scatter(gAE_gen.numpy()[:,axis[0]], 
-               gAE_gen.numpy()[:,axis[1]], 
-               gAE_gen.numpy()[:,axis[2]])
+    ax.scatter(gAE_gen[:,0], gAE_gen[:,1], gAE_gen[:,2])
     ax.axis(domain)
-    plt.title('gammaAE generation')
-
-    ax = fig.add_subplot(2,3,3, projection='3d')
-    ax.scatter(VAE_gen.numpy()[:,axis[0]], 
-               VAE_gen.numpy()[:,axis[1]], 
-               VAE_gen.numpy()[:,axis[2]])
-    ax.axis(domain)
-    plt.title('VAE generation')
+    ax.set_zlim(zlim)
+    plt.title('gAE generation')
 
     ax = fig.add_subplot(2,3,5, projection='3d')
-    ax.scatter(gAE_recon.numpy()[:,axis[0]], 
-               gAE_recon.numpy()[:,axis[1]], 
-               gAE_recon.numpy()[:,axis[2]])
+    ax.scatter(VAE_gen[:,0], VAE_gen[:,1], VAE_gen[:,2])
     ax.axis(domain)
-    plt.title('gammaAE reconstruction')
+    ax.set_zlim(zlim)
+    plt.title('VAE generation')
+
+    ax = fig.add_subplot(2,3,3, projection='3d')
+    ax.scatter(gAE_recon[:,0], gAE_recon[:,1], gAE_recon[:,2])
+    ax.axis(domain)
+    ax.set_zlim(zlim)
+    plt.title('gAE reconstruction')
 
     ax = fig.add_subplot(2,3,6, projection='3d')
-    ax.scatter(VAE_recon.numpy()[:,axis[0]], 
-               VAE_recon.numpy()[:,axis[1]], 
-               VAE_recon.numpy()[:,axis[2]])
+    ax.scatter(VAE_recon[:,0], VAE_recon[:,1], VAE_recon[:,2])
     ax.axis(domain)
+    ax.set_zlim(zlim)
     plt.title('VAE reconstruction')
 
     return fig
-    
-def total_visualize_2D(data, gAE_recon, gAE_gen, VAE_recon, VAE_gen, axis = [0,1], size = [12,8]) :
+
+
+def visualize_2D(train_data, test_data, gAE_gen, VAE_gen, gAE_recon, VAE_recon, size = [9,6]) :
+    train_data = train_data.cpu().numpy()
+    test_data = test_data.cpu().numpy()
+    gAE_gen = gAE_gen.cpu().numpy()
+    VAE_gen = VAE_gen.cpu().numpy()
+    gAE_recon = gAE_recon.cpu().numpy()
+    VAE_recon = VAE_recon.cpu().numpy()
+
+    # plot
     fig = plt.figure(figsize = (size[0], size[1]))
+
     ax = fig.add_subplot(2,3,1)
-    ax.scatter(data.cpu().numpy()[:,axis[0]], 
-               data.cpu().numpy()[:,axis[1]])
+    ax.scatter(test_data[:,0], test_data[:,1])
     domain = ax.axis()
-    plt.title('sample')
+    plt.title('Test data')
+
+    ax = fig.add_subplot(2,3,4)
+    ax.scatter(train_data[:,0], train_data[:,1])
+    ax.axis(domain)
+    plt.title('Train data')
 
     ax = fig.add_subplot(2,3,2)
-    ax.scatter(gAE_gen.numpy()[:,axis[0]], 
-               gAE_gen.numpy()[:,axis[1]])
+    ax.scatter(gAE_gen[:,0], gAE_gen[:,1])
     ax.axis(domain)
-    plt.title('gammaAE generation')
+    plt.title('gAE generation')
 
-    ax = fig.add_subplot(2,3,3)
-    ax.scatter(VAE_gen.numpy()[:,axis[0]], 
-               VAE_gen.numpy()[:,axis[1]])
+    ax = fig.add_subplot(2,3,5)
+    ax.scatter(VAE_gen[:,0], VAE_gen[:,1])
     ax.axis(domain)
     plt.title('VAE generation')
 
-    ax = fig.add_subplot(2,3,5)
-    ax.scatter(gAE_recon.numpy()[:,axis[0]], 
-               gAE_recon.numpy()[:,axis[1]])
+    ax = fig.add_subplot(2,3,3)
+    ax.scatter(gAE_recon[:,0], gAE_recon[:,1])
     ax.axis(domain)
-    plt.title('gammaAE reconstruction')
+    plt.title('gAE reconstruction')
 
     ax = fig.add_subplot(2,3,6)
-    ax.scatter(VAE_recon.numpy()[:,axis[0]], 
-               VAE_recon.numpy()[:,axis[1]])
+    ax.scatter(VAE_recon[:,0], VAE_recon[:,1])
     ax.axis(domain)
     plt.title('VAE reconstruction')
 
     return fig
-    
-# def visualize_PCA(data, size = [6,8], TITLE = 'Sample') : 
-#     data = data.cpu().numpy()
-#     pca = PCA(n_components=3)
-#     pca.fit(data)
-#     data_pca = pca.transform(data) 
-    
-#     fig = plt.figure(figsize=(size[0], size[1]))
-#     ax = fig.add_subplot(projection='3d')
-
-#     ax.scatter(data_pca[:,0], data_pca[:,1], data_pca[:,2])
-
-#     plt.title(TITLE)
-
-#     return fig
-
-# def visualize_3D(data, axis = [0,1,2], size = [6,8], TITLE = 'Sample') : 
-#     data = data.cpu().numpy()
-#     fig = plt.figure(figsize=(size[0], size[1]))
-#     ax = fig.add_subplot(projection='3d')
-
-#     ax.scatter(data[:,axis[0]], 
-#                data[:,axis[1]], 
-#                data[:,axis[2]])
-
-#     plt.title(TITLE)
-
-#     return fig
-
-# def visualize_2D(data, axis = [0,1], size = [6,8], TITLE = 'Sample') : 
-#     data = data.cpu().numpy()
-#     fig = plt.figure(figsize=(size[0], size[1]))
-#     ax = fig.add_subplot()
-
-#     ax.scatter(data[:,axis[0]], 
-#                data[:,axis[1]])
-
-#     plt.title(TITLE)
-
-#     return fig

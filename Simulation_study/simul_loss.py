@@ -20,4 +20,4 @@ def gamma_regularizer(mu, logvar, p_dim, const_2bar1, gamma, tau, nu):
     trace_var = nu / (nu + p_dim - 2) * torch.sum(logvar.exp(),dim=1)
     log_det_var = -gamma / (2+2*gamma) * torch.sum(logvar,dim=1)
 
-    return torch.sum(mu_norm_sq + trace_var - nu * const_2bar1 * log_det_var.exp() + nu * tau)
+    return torch.mean(mu_norm_sq + trace_var - nu * const_2bar1 * log_det_var.exp() + nu * tau)

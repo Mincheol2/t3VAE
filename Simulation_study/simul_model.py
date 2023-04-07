@@ -63,7 +63,7 @@ class Encoder(nn.Module):
             eps = MVN_dist.sample(sample_shape=torch.tensor([mu.shape[0]])).to(self.device)
             
             std = np.sqrt(self.nu / nu_prime) * torch.exp(0.5 * logvar)
-            v = chi_dist.sample().to(self.device)
+            v = chi_dist.sample(torch.tensor([mu.shape[0]])).to(self.device)
             return mu + std * eps * torch.sqrt(nu_prime / v)
 
     def forward(self, x):
@@ -78,7 +78,7 @@ class Encoder(nn.Module):
     def loss(self, mu, logvar):
         if self.nu == 0:
             # KL divergence
-            reg_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+            reg_loss = -0.5 * torch.mean(torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1))
         else:
             # gammaAE regularizer
             reg_loss = gamma_regularizer(mu, logvar, self.p_dim, self.const_2bar1, self.gamma, self.tau, self.nu)
@@ -126,11 +126,11 @@ class Decoder(nn.Module):
             std_const = torch.sqrt((self.nu * torch.ones(f_theta.shape[0]).to(self.device) + torch.norm(z,dim=1).pow(2)) / nu_prime)
             std_const = std_const.unsqueeze(1).repeat(1,self.p_dim).to(self.device)
             std = self.recon_sigma * std_const
-            v = chi_dist.sample().to(self.device)
+            v = chi_dist.sample(sample_shape=torch.tensor([f_theta.shape[0]])).to(self.device)
             return f_theta + std * (eps * torch.sqrt(nu_prime / v))
 
     def loss(self, recon_x, x):
-        recon_loss = F.mse_loss(recon_x, x, reduction = 'sum') / self.recon_sigma**2
+        recon_loss = F.mse_loss(recon_x, x, reduction = 'mean') / self.recon_sigma**2
         
         return recon_loss
 
@@ -164,10 +164,6 @@ class gammaAE():
 
         denom_train = int(len(self.train_loader.dataset)/self.batch_size) + 1
 
-        # total_loss_list = []
-        # recon_loss_list = []
-        # regul_loss_list = []
-
         for batch_idx, data in enumerate(self.train_loader):
             data = data[0].to(self.device)
             self.opt.zero_grad()
@@ -178,18 +174,12 @@ class gammaAE():
             total_loss = reg_loss + recon_loss
             total_loss.backward()
 
-            current_step_train = epoch + 1. * batch_idx / denom_train
+            current_step_train = epoch * denom_train + batch_idx
             writer.add_scalar("Train/Reconstruction Error", recon_loss.item(), current_step_train)
             writer.add_scalar("Train/Regularizer", reg_loss.item(), current_step_train)
             writer.add_scalar("Train/Total Loss" , total_loss.item(), current_step_train)
 
-            # total_loss_list.append(total_loss.item())
-            # recon_loss_list.append(recon_loss.item())
-            # regul_loss_list.append(reg_loss.item())
-            
             self.opt.step()
-
-        # return total_loss_list, recon_loss_list, regul_loss_list
 
     def test(self, epoch, writer):
         self.encoder.eval()
@@ -205,16 +195,14 @@ class gammaAE():
         writer.add_scalar("Test/Regularizer", reg_loss.item(), epoch)
         writer.add_scalar("Test/Total Loss" , total_loss.item(), epoch)
 
-        # return total_loss, recon_loss, reg_loss
-
     def generate(self, N = 1000) : 
         MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.q_dim), torch.eye(self.q_dim))
         prior = MVN_dist.sample(sample_shape=torch.tensor([N]))
 
-        if nu != 0 : 
-            chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu]))
-            v = chi_dist.sample()
-            prior *= torch.sqrt(nu/v)
+        if self.nu != 0 : 
+            chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.nu]))
+            v = chi_dist.sample(sample_shape=torch.tensor([N]))
+            prior *= torch.sqrt(self.nu/v)
         
         prior = prior.to(self.device)
         return self.decoder.sampling(prior)
