@@ -4,7 +4,8 @@ import torch.nn as nn
 from torch.nn import functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torchvision import datasets, transforms
+from torch.utils.tensorboard import SummaryWriter
+from torchvision import datasets
 from simul_loss import log_t_normalizing_const, gamma_regularizer
 
 class Encoder(nn.Module):
@@ -121,17 +122,11 @@ class Decoder(nn.Module):
             MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.p_dim), torch.eye(self.p_dim))
             chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu_prime]))
             
-            # Student T dist : [B, p_dim]
-            # eps = [B, p_dim]
             eps = MVN_dist.sample(sample_shape=torch.tensor([f_theta.shape[0]])).to(self.device)
-            # std_const
             std_const = torch.sqrt((self.nu * torch.ones(f_theta.shape[0]).to(self.device) + torch.norm(z,dim=1).pow(2)) / nu_prime)
             std_const = std_const.unsqueeze(1).repeat(1,self.p_dim).to(self.device)
             std = self.recon_sigma * std_const
             v = chi_dist.sample().to(self.device)
-            # print("std:",std.shape)
-            # print("v:",v)
-            # print("const:", std * (eps * torch.sqrt(nu_prime / v)))
             return f_theta + std * (eps * torch.sqrt(nu_prime / v))
 
     def loss(self, recon_x, x):
@@ -161,15 +156,17 @@ class gammaAE():
         self.opt = optim.Adam(list(self.encoder.parameters()) + list(self.decoder.parameters()), 
                               lr=lr, eps=eps, weight_decay=weight_decay)
 
-        self.train_loader = torch.utils.data.DataLoader(self.train_dataset, batch_size=train_batch_size, shuffle=True)
+        self.train_loader = torch.utils.data.DataLoader(self.train_dataset, batch_size=batch_size, shuffle=True)
 
-    def train(self):
+    def train(self, epoch, writer):
         self.encoder.train()
         self.decoder.train()
 
-        total_loss_list = []
-        recon_loss_list = []
-        regul_loss_list = []
+        denom_train = int(len(self.train_loader.dataset)/self.batch_size) + 1
+
+        # total_loss_list = []
+        # recon_loss_list = []
+        # regul_loss_list = []
 
         for batch_idx, data in enumerate(self.train_loader):
             data = data[0].to(self.device)
@@ -178,18 +175,23 @@ class gammaAE():
             reg_loss = self.encoder.loss(mu, logvar)
             recon_data = self.decoder(z)
             recon_loss = self.decoder.loss(recon_data, data.view(-1,self.p_dim))
-            current_loss = reg_loss + recon_loss
-            current_loss.backward()
+            total_loss = reg_loss + recon_loss
+            total_loss.backward()
 
-            total_loss_list.append(current_loss.item())
-            recon_loss_list.append(recon_loss.item())
-            regul_loss_list.append(reg_loss.item())
+            current_step_train = epoch + 1. * batch_idx / denom_train
+            writer.add_scalar("Train/Reconstruction Error", recon_loss.item(), current_step_train)
+            writer.add_scalar("Train/Regularizer", reg_loss.item(), current_step_train)
+            writer.add_scalar("Train/Total Loss" , total_loss.item(), current_step_train)
+
+            # total_loss_list.append(total_loss.item())
+            # recon_loss_list.append(recon_loss.item())
+            # regul_loss_list.append(reg_loss.item())
             
             self.opt.step()
 
-        return total_loss_list, recon_loss_list, regul_loss_list
+        # return total_loss_list, recon_loss_list, regul_loss_list
 
-    def test(self):
+    def test(self, epoch, writer):
         self.encoder.eval()
         self.decoder.eval()
 
@@ -197,6 +199,25 @@ class gammaAE():
         reg_loss = self.encoder.loss(mu, logvar)
         recon_data = self.decoder(z)
         recon_loss = self.decoder.loss(recon_data, self.test_data.view(-1,self.p_dim))
-        current_loss = reg_loss + recon_loss
+        total_loss = reg_loss + recon_loss
 
-        return current_loss, recon_loss, reg_loss
+        writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), epoch)
+        writer.add_scalar("Test/Regularizer", reg_loss.item(), epoch)
+        writer.add_scalar("Test/Total Loss" , total_loss.item(), epoch)
+
+        # return total_loss, recon_loss, reg_loss
+
+    def generate(self, N = 1000) : 
+        MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.q_dim), torch.eye(self.q_dim))
+        prior = MVN_dist.sample(sample_shape=torch.tensor([N]))
+
+        if nu != 0 : 
+            chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu]))
+            v = chi_dist.sample()
+            prior *= torch.sqrt(nu/v)
+        
+        prior = prior.to(self.device)
+        return self.decoder.sampling(prior)
+
+    def reconstruct(self, x) : 
+        return self.decoder.sampling(self.encoder(x)[0])

@@ -1,6 +1,11 @@
+import os
 import torch
 import random
 import numpy as np
+
+def make_result_dir(dirname):
+    os.makedirs(dirname,exist_ok=True)
+    os.makedirs(dirname + '/generations',exist_ok=True)
 
 def make_reproducibility(seed):
     random.seed(seed)
@@ -9,7 +14,7 @@ def make_reproducibility(seed):
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
-def sampling(N, mu, cov, nu, device):
+def t_sampling(N, mu, cov, nu, device):
     '''
     N      : sample size
     D      : dimension
@@ -22,7 +27,6 @@ def sampling(N, mu, cov, nu, device):
     MVN_dist = torch.distributions.MultivariateNormal(torch.zeros_like(mu), cov)
     eps = MVN_dist.sample(sample_shape=torch.tensor([N]))
     
-    # if nu !=0, we
     if nu != 0 : 
         chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu]))
         v = chi_dist.sample()
@@ -31,7 +35,7 @@ def sampling(N, mu, cov, nu, device):
     return (mu + eps).to(device)
 
 
-def simulation(device, p_dim = 3, SEED = None, K = 1, default_N = 1000, default_nu = 5, N_list = None, mu_list = None, var_list = None, nu_list = None) : 
+def sample_generation(device, p_dim = 3, SEED = None, K = 1, default_N = 1000, default_nu = 5, N_list = None, mu_list = None, var_list = None, nu_list = None) : 
     if SEED is not None : 
         make_reproducibility(SEED)
     if N_list is None : 
@@ -44,7 +48,7 @@ def simulation(device, p_dim = 3, SEED = None, K = 1, default_N = 1000, default_
     if nu_list is None : 
         nu_list = [default_nu for ind in range(K)]
     
-    result_list = [sampling(N_list[ind], mu_list[ind], var_list[ind], nu_list[ind], device) for ind in range(K)]
+    result_list = [t_sampling(N_list[ind], mu_list[ind], var_list[ind], nu_list[ind], device) for ind in range(K)]
     return torch.cat(result_list)
 
 class MYTensorDataset(torch.utils.data.Dataset) :
