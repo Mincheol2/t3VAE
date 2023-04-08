@@ -66,7 +66,7 @@ class TtVAE(baseline.VAE_Baseline):
         eps = MVN_dist.sample(sample_shape=torch.tensor([mu.shape[0]])).to(self.DEVICE)
         std = torch.exp(0.5 * logvar)
         std = np.sqrt(self.args.nu / nu_prime) * std
-        v = chi_dist.sample().to(self.DEVICE)
+        v = chi_dist.sample(sample_shape=torch.tensor([mu.shape[0]])).to(self.DEVICE)
         return mu + std * eps * torch.sqrt(nu_prime / v)
 
     
@@ -97,7 +97,7 @@ class TtVAE(baseline.VAE_Baseline):
         MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.args.qdim), torch.eye(self.args.qdim))
         chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.args.nu]))
         prior_z = MVN_dist.sample(sample_shape=torch.tensor([64])).to(self.DEVICE)
-        v = chi_dist.sample().to(self.DEVICE)
+        v = chi_dist.sample(sample_shape=torch.tensor([64])).to(self.DEVICE)
         prior_t = self.args.recon_sigma * prior_z * torch.sqrt(self.args.nu / v)
         imgs = self.decoder(prior_t.to(self.DEVICE)).detach().cpu()
         imgs = imgs*0.5 + 0.5
