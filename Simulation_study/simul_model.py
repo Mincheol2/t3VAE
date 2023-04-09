@@ -77,10 +77,8 @@ class Encoder(nn.Module):
 
     def loss(self, mu, logvar):
         if self.nu == 0:
-            # KL divergence
-            reg_loss = -0.5 * torch.mean(torch.sum(1 + logvar - mu.pow(2) - logvar.exp(), dim=1))
+            reg_loss = torch.mean(torch.sum(mu.pow(2) + logvar.exp() - logvar - 1, dim=1))
         else:
-            # gammaAE regularizer
             reg_loss = gamma_regularizer(mu, logvar, self.p_dim, self.const_2bar1, self.gamma, self.tau, self.nu)
         
         return reg_loss

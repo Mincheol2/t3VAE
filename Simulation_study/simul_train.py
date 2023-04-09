@@ -33,7 +33,7 @@ def simulation(index, K, nu_list, train_N_list, test_N_list, train_data_seed, te
     dirname = f'./Results_{index}'
     make_result_dir(dirname)
     generation_writer = SummaryWriter(dirname + '/generations')
-    criterion_writer = SummaryWriter(dirname + '/criterion')
+    # criterion_writer = SummaryWriter(dirname + '/criterion')
     gAE_writer = SummaryWriter(dirname + '/gAE')
     VAE_writer = SummaryWriter(dirname + '/VAE')
 
@@ -87,13 +87,6 @@ def simulation(index, K, nu_list, train_N_list, test_N_list, train_data_seed, te
 
             # Visualization
             visualization = visualize_module.visualize(train_data, test_data, gAE_gen, VAE_gen, gAE_recon, VAE_recon)
-            # visualization = None
-            # if p_dim == 2 : 
-            #     visualization = total_visualize_2D(train_data, test_data, gAE_gen, VAE_gen, gAE_recon, VAE_recon)
-            # elif p_dim == 3: 
-            #     visualization = total_visualize_3D(train_data, test_data, gAE_gen, VAE_gen, gAE_recon, VAE_recon)
-            # else : 
-            #     visualization = total_visualize_PCA(train_data, test_data, gAE_gen, VAE_gen, gAE_recon, VAE_recon)
 
             generation_writer.add_figure("Generation", visualization, epoch)
             filename = f'{dirname}/generations/epoch{epoch}.png'
@@ -103,11 +96,11 @@ def simulation(index, K, nu_list, train_N_list, test_N_list, train_data_seed, te
             gAE_mmd = mmd_penalty(torch.as_tensor(gAE_gen), test_data.cpu())
             VAE_mmd = mmd_penalty(torch.as_tensor(VAE_gen), test_data.cpu())
 
-            mmd_criterion = mmd_acceptance_region(test_N)
+            # mmd_criterion = mmd_acceptance_region(test_N)
 
             gAE_writer.add_scalar("Test/MMD score", gAE_mmd.item(), epoch)
             VAE_writer.add_scalar("Test/MMD score", VAE_mmd.item(), epoch)
-            criterion_writer.add_scalar("Test/MMD score", mmd_criterion, epoch)
+            # criterion_writer.add_scalar("Test/MMD score", mmd_criterion, epoch)
 
 
     return None

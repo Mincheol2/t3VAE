@@ -1,1 +1,1 @@
-python3 Hello_world.py
+python3 simul_main.py
