@@ -15,7 +15,7 @@ class VAE_Baseline(nn.Module):
         self.scheduler = None
         ### Encoder layers ##
         
-        encoder_hiddens = [32, 64, 128, 256, 512]
+        encoder_hiddens = [128, 256, 512, 1024, 2048]
         layers = []
         input_ch = self.C
         for dim in encoder_hiddens:
@@ -24,7 +24,7 @@ class VAE_Baseline(nn.Module):
                     nn.Conv2d(input_ch, dim,
                               kernel_size= 3, stride= 2, padding  = 1),
                     nn.BatchNorm2d(dim),
-                    nn.LeakyReLU())
+                    nn.ReLU())
             )
             input_ch = dim
 
@@ -51,7 +51,7 @@ class VAE_Baseline(nn.Module):
                     nn.ConvTranspose2d(input_ch, dim,
                     kernel_size = 3, stride = 2, padding=1, output_padding=1),
                     nn.BatchNorm2d(dim),
-                    nn.LeakyReLU())
+                    nn.ReLU())
             )
             input_ch = dim
 
@@ -61,7 +61,7 @@ class VAE_Baseline(nn.Module):
                             nn.ConvTranspose2d(self.decoder_hiddens[-1], self.decoder_hiddens[-1],
                                                             kernel_size=3, stride=2, padding=1, output_padding=1),
                             nn.BatchNorm2d(self.decoder_hiddens[-1]),
-                            nn.LeakyReLU(),
+                            nn.ReLU(),
                             nn.ConvTranspose2d(self.decoder_hiddens[-1], self.C,
                                                kernel_size=3, padding=1),
                             nn.Tanh()

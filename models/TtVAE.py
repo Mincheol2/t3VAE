@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import torch.nn as nn
 import torchvision
 import torch.optim as optim
 from torch.nn import functional as F
@@ -10,8 +11,6 @@ from models import baseline
 class TtVAE(baseline.VAE_Baseline):
     def __init__(self, image_shape, DEVICE, args):
         super(TtVAE, self).__init__(image_shape, DEVICE, args)
-        self.opt = optim.Adam(list(self.parameters()), lr=self.args.lr, eps=1e-6)
-        self.scheduler = optim.lr_scheduler.ExponentialLR(self.opt, gamma = self.args.weight_decay)
         self.pdim = self.C * self.H * self.W
         self.qdim = self.args.qdim
             
@@ -34,13 +33,19 @@ class TtVAE(baseline.VAE_Baseline):
         self.const_2bar1 = const_2bar1_term_1 * const_2bar1_term_2_log.exp()
         log_tau = 2 / (self.args.nu + self.pdim - 2) * log_tau_base
         self.tau = log_tau.exp()
+
+        
+        ## For generating t samples
+        self.nu_prime = self.args.nu + self.pdim
+        self.MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.args.qdim), torch.eye(self.args.qdim))
+        self.chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.nu_prime]))
         
     
     def encoder(self, x):
         x = self.cnn_layers(x)
         x = torch.flatten(x, start_dim = 1)
         mu = self.mu_layer(x)
-        logvar = self.mu_layer(x)
+        logvar = self.logvar_layer(x)
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
         
@@ -58,16 +63,13 @@ class TtVAE(baseline.VAE_Baseline):
             1. Generate v ~ chiq(nu_prime) and eps ~ N(0, I), independently.
             2. Caculate x = mu + std * eps / (sqrt(v/nu_prime)), where std = sqrt(nu/(nu_prime) * var)
         '''
-        nu_prime = self.args.nu + self.pdim
-        MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.args.qdim), torch.eye(self.args.qdim))
-        chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu_prime]))
         
         # Student T dist : [B, z_dim]
-        eps = MVN_dist.sample(sample_shape=torch.tensor([mu.shape[0]])).to(self.DEVICE)
+        eps = self.MVN_dist.sample(sample_shape=torch.tensor([mu.shape[0]])).to(self.DEVICE)
         std = torch.exp(0.5 * logvar)
-        std = np.sqrt(self.args.nu / nu_prime) * std
-        v = chi_dist.sample(sample_shape=torch.tensor([mu.shape[0]])).to(self.DEVICE)
-        return mu + std * eps * torch.sqrt(nu_prime / v)
+        std = np.sqrt(self.args.nu / self.nu_prime) * std
+        v = self.chi_dist.sample(sample_shape=torch.tensor([mu.shape[0]])).to(self.DEVICE)
+        return mu + std * eps * torch.sqrt(self.nu_prime / v)
 
     
     def forward(self, x):
@@ -85,19 +87,18 @@ class TtVAE(baseline.VAE_Baseline):
         mu_norm_sq = torch.linalg.norm(mu, ord=2, dim=1).pow(2)
         trace_var = self.args.nu / (self.args.nu + self.pdim - 2) * torch.sum(logvar.exp(),dim=1)
         log_det_var = -self.gamma / (2+2*self.gamma) * torch.sum(logvar,dim=1)
-        reg_loss = self.args.reg_weight * torch.mean(mu_norm_sq + trace_var - self.args.nu * self.const_2bar1 * log_det_var.exp() + self.args.nu * self.tau, dim=0)
+        reg_loss = torch.mean(mu_norm_sq + trace_var - self.args.nu * self.const_2bar1 * log_det_var.exp(), dim=0) + self.args.nu * self.tau
 
         ## recon loss (same as VAE) ##
         recon_loss = F.mse_loss(recon_x, x) / self.args.recon_sigma**2
-        total_loss = reg_loss + recon_loss
+        total_loss = self.args.reg_weight * reg_loss + recon_loss
 
         return reg_loss, recon_loss, total_loss
 
     def generate(self):
-        MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.args.qdim), torch.eye(self.args.qdim))
-        chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.args.nu]))
-        prior_z = MVN_dist.sample(sample_shape=torch.tensor([64])).to(self.DEVICE)
-        v = chi_dist.sample(sample_shape=torch.tensor([64])).to(self.DEVICE)
+        prior_chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.args.nu]))
+        prior_z = self.MVN_dist.sample(sample_shape=torch.tensor([64])).to(self.DEVICE)
+        v = prior_chi_dist.sample(sample_shape=torch.tensor([64])).to(self.DEVICE)
         prior_t = self.args.recon_sigma * prior_z * torch.sqrt(self.args.nu / v)
         imgs = self.decoder(prior_t.to(self.DEVICE)).detach().cpu()
         imgs = imgs*0.5 + 0.5

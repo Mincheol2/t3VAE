@@ -10,14 +10,14 @@ class VAE(baseline.VAE_Baseline):
     def __init__(self, image_shape, DEVICE, args):
         super(VAE, self).__init__(image_shape, DEVICE,args)
         self.opt = optim.Adam(list(self.parameters()), lr=args.lr, eps=1e-6)
-        self.scheduler = optim.lr_scheduler.ExponentialLR(self.opt, gamma = 0.99)
+        self.scheduler = optim.lr_scheduler.ExponentialLR(self.opt, gamma = self.args.scheduler_gamma)
             
     
     def encoder(self, x):
         x = self.cnn_layers(x)
         x = torch.flatten(x, start_dim = 1)
         mu = self.mu_layer(x)
-        logvar = self.mu_layer(x)
+        logvar = self.logvar_layer(x)
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
         

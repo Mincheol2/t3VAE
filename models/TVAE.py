@@ -40,7 +40,7 @@ class TVAE(baseline.VAE_Baseline):
         x = self.cnn_layers(x)
         x = torch.flatten(x, start_dim = 1)
         mu = self.mu_layer(x)
-        logvar = self.mu_layer(x)
+        logvar = self.logvar_layer(x)
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
         
