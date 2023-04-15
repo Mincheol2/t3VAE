@@ -10,6 +10,8 @@ from torch.utils.tensorboard import SummaryWriter
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import peak_signal_noise_ratio as psnr
 from sklearn.metrics import mean_squared_error as mse
+import torch.optim as optim
+import seaborn as sns
 
 from models import *
 from dataloader import *
@@ -42,7 +44,11 @@ parser.add_argument('--flat', type=str, default='y',
                     help='use gamma-pow regularizer')
 parser.add_argument('--num_components', type=int, default=500,
                     help='number of pseudoinput components (Only used in VampPrior)')
-                    
+parser.add_argument('--weight_decay', type=float, default=0,
+                    help='Exponential weight decay option')
+parser.add_argument('--scheduler_gamma', type=float, default=0.99,
+                    help='Scheduler_gamma option')
+   
 def load_model(model_name,img_shape,DEVICE, args):
     if model_name == 'VAE':
        return VAE.VAE(img_shape, DEVICE,args)
@@ -57,19 +63,24 @@ def load_model(model_name,img_shape,DEVICE, args):
     
 def make_result_dir(dirname):
     os.makedirs(dirname,exist_ok=True)
-    os.makedirs(dirname + '/interpolations',exist_ok=True)
+    os.makedirs(dirname + '/sharpness_dist',exist_ok=True)
     os.makedirs(dirname + '/generations',exist_ok=True)
     
 
 def make_reproducibility(seed):
     random.seed(seed)
     np.random.seed(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     torch.manual_seed(seed)
-    torch.backends.cudnn.benchmark = False
+    torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
 
 
 def measure_sharpness(imgs):
+    if len(imgs.shape) == 3: #[C, H, W]
+        imgs = imgs.unsqueeze(0)
+
     N = imgs.shape[0]
     sharpness = 0 
     for img in imgs:
@@ -84,6 +95,14 @@ def measure_sharpness(imgs):
 
     return sharpness / N 
 
+def origin_sharpness(testloader):
+    origin_sharpness_list = []
+    for images, _ in testloader:
+        for img in images:
+            origin_sharpness_list.append(measure_sharpness(img))
+    
+    return np.array(origin_sharpness_list)
+
 if __name__ == "__main__":
     ## init ##
     args = parser.parse_args()
@@ -92,14 +111,14 @@ if __name__ == "__main__":
     make_reproducibility(args.seed)
     if args.dirname == "":
         args.dirname = './'+args.dataset+ f'_{args.model}_seed:{args.seed}_qdim:{args.qdim}'
-        if args.model == 'TtAE':
+        if args.model == 'TtVAE':
             args.dirname += f'nu:{args.nu}'
     
     make_result_dir(args.dirname)
     writer = SummaryWriter(args.dirname + '/Tensorboard_results')
     
     print(f"Current framework : {args.model}")
-    if args.model == 'TtAE':
+    if args.model == 'TtVAE':
         if args.nu <= 2:
             raise Exception("Degree of freedom nu must be larger than 2")
         print(f'nu : {args.nu}')
@@ -121,6 +140,13 @@ if __name__ == "__main__":
     denom_train = len(trainloader.dataset)/args.batch_size
     denom_test = len(testloader.dataset)/args.batch_size
 
+    opt = optim.Adam(model.parameters(), lr=args.lr, weight_decay = args.weight_decay)
+    scheduler = optim.lr_scheduler.ExponentialLR(opt, gamma = args.scheduler_gamma)
+    
+    ## Precomputing sharpness of the origin dataset ##
+    origin_sharpness_arr = origin_sharpness(testloader)
+
+
     ## Train & Test ##
     for epoch in epoch_tqdm:
         ## Train ##
@@ -129,19 +155,19 @@ if __name__ == "__main__":
         tqdm_trainloader = tqdm(trainloader)
         for batch_idx, (x, _) in enumerate(tqdm_trainloader):
             x = x.to(DEVICE)
-            model.opt.zero_grad()
+            opt.zero_grad()
             recon_x, z, mu, logvar = model.forward(x)
             reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
             total_loss.backward()
-            model.opt.step()
-            if batch_idx % 200 == 0:
-                current_step_train = batch_idx + epoch *denom_train
-                writer.add_scalar("Train/Reconstruction Error", recon_loss.item(), current_step_train)
-                writer.add_scalar("Train/Regularizer", reg_loss.item(), current_step_train)
-                writer.add_scalar("Train/Total Loss" , total_loss.item(), current_step_train)
+            opt.step()
+            # if batch_idx % 200 == 0:
+                # current_step_train = batch_idx + epoch *denom_train
+                # writer.add_scalar("Train/Reconstruction Error", recon_loss.item(), current_step_train)
+                # writer.add_scalar("Train/Regularizer", reg_loss.item(), current_step_train)
+                # writer.add_scalar("Train/Total Loss" , total_loss.item(), current_step_train)
             tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.6f} recon={recon_loss:.6f} total={total_loss:.6f}')
-        if model.scheduler is not None:
-            model.scheduler.step()        
+        
+        scheduler.step()        
         
         
         ## Test ##
@@ -152,8 +178,7 @@ if __name__ == "__main__":
                 x = x.to(DEVICE)
                 recon_x, z, mu, logvar = model.forward(x)
                 reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
-                            
-                ## Add metrics to tensorboard ##
+                # Add metrics to tensorboard ##
                 if batch_idx % 200 == 0:
                     ## Caculate SSIM, PSNR, RMSE ##
                     img1 = x.cpu().numpy()
@@ -195,16 +220,31 @@ if __name__ == "__main__":
             
             sample_img_board = sample_imgs[:nb_recons] *0.5 +0.5
             test_img_board = test_imgs[:nb_recons] *0.5 +0.5
+            sample_img_board = torch.clamp(sample_img_board,min=0,max=1)
+            test_img_board = torch.clamp(test_img_board,min=0,max=1)
             comparison = torch.cat([sample_img_board.cpu() , test_img_board])
 
             grid = torchvision.utils.make_grid(comparison.cpu())
             writer.add_image(f"Test image - Above {nb_recons}: Real images, below {nb_recons} : reconstruction images", grid, epoch)
         
             
-            ## generation ##
-            gen_imgs = model.generate()
-            gen_grid = torchvision.utils.make_grid(gen_imgs)
-            writer.add_scalar("Test/Generation Sharpness", measure_sharpness(gen_imgs), epoch)
-            filename = f'{args.dirname}/generations/generation_{epoch}.png'
-            torchvision.utils.save_image(gen_grid, filename)
+        ## generation ##
+        gen_imgs = model.generate().cpu().data
+        filename = f'{args.dirname}/generations/generation_{epoch}.png'
+        torchvision.utils.save_image(gen_imgs, filename,normalize=True, nrow=12)
+
+        ## Sharpness distribution ##
+        # 144 * 10 : 1440 samples generation
+        gen_sharpness = []
+        for _ in range(10):
+            gen_imgs = model.generate().cpu().data
+            for img in gen_imgs:
+                gen_sharpness.append(measure_sharpness(img))
+
+        result_plot = sns.kdeplot(origin_sharpness_arr, color='b')
+        result_plot = sns.kdeplot(gen_sharpness, color='r')
+        result_plot.legend(labels=["Original","Generation"])
+        fig = result_plot.get_figure()
+        fig.savefig(f'{args.dirname}/sharpness_dist/dist_{epoch}.png')
+
     writer.close()

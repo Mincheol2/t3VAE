@@ -47,35 +47,31 @@ class load_dataset():
         celeb_total_nb = 202530
 
         # We manually split the train/test set.
-        # Train set : 60000 / Test set : 10000
-        # For comparison, we select indices previously.
 
-        # indices = np.random.choice(celeb_total_nb, 70000,replace=False)
-        # train_indices = indices[:60000]
-        # test_indices = indices[60000:]
+        indices = np.random.permutation(celeb_total_nb) + 1
+        train_indices = indices[:60000]
+        test_indices = indices[60000:70001]
 
-        train_indices = range(1,60001) # 1~60000
-        test_indices = range(60001, 70001) # 60001~70000
         if dataset_name == "celeb_crop64":
             for idx in train_indices:
-                img_path = f"/data_intern/celeba_crop64/{idx:06d}.jpg"
+                img_path = f"/data_intern/celeba/celeba_crop64/{idx:06d}.jpg"
                 train_img_list.append(img_path)
             for idx in test_indices:
-                img_path = f"/data_intern/celeba_crop64/{idx:06d}.jpg"
+                img_path = f"/data_intern/celeba/celeba_crop64/{idx:06d}.jpg"
                 test_img_list.append(img_path)
         elif dataset_name == "celeb_crop128":
             for idx in train_indices:
-                img_path = f"/data_intern/celeba_crop128/{idx:06d}.jpg"
+                img_path = f"/data_intern/celeba/celeba_crop128/{idx:06d}.jpg"
                 train_img_list.append(img_path)
             for idx in test_indices:
-                img_path = f"/data_intern/celeba_crop128/{idx:06d}.jpg"
+                img_path = f"/data_intern/celeba/celeba_crop128/{idx:06d}.jpg"
                 test_img_list.append(img_path)
         elif dataset_name == "celebA":
             for idx in train_indices:
-                img_path = f"/data_intern/img_align_celeba/{idx:06d}.jpg"
+                img_path = f"/data_intern/celeba/img_align_celeba/{idx:06d}.jpg"
                 train_img_list.append(img_path)
             for idx in test_indices:
-                img_path = f"/data_intern/img_align_celeba/{idx:06d}.jpg"
+                img_path = f"/data_intern/celeba/img_align_celeba/{idx:06d}.jpg"
                 test_img_list.append(img_path)
         else:
             raise Exception("Use proper size.")
