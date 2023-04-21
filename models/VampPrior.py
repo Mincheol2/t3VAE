@@ -11,20 +11,18 @@ from models import baseline
 class VampPrior(baseline.VAE_Baseline):
     def __init__(self, image_shape, DEVICE, args):
         super(VampPrior, self).__init__(image_shape, DEVICE,args)
-        self.opt = optim.Adam(list(self.parameters()), lr=self.args.lr, eps=1e-6)
-        self.scheduler = optim.lr_scheduler.ExponentialLR(self.opt, gamma = 0.99)
         self.pdim = self.C * self.H * self.W
         
         # Vampprior : use pseudo input layer
         
         # deterministic input
-        self.idle_input = torch.eye(self.args.num_components, requires_grad= False).to(self.DEVICE)
+        self.idle_input = torch.eye(self.args.num_components, requires_grad=False).to(self.DEVICE)
         self.pseudo_input_layer = nn.Sequential(nn.Linear(self.args.num_components, self.pdim),
                                           nn.Hardtanh(min_val=0.0, max_val=1.0)
                                           )
         
         # the default mean and std value initialization in the VampPrior's GitHub code
-        torch.nn.init.normal_(self.pseudo_input_layer[0].weight, mean=-0.05, std=0.01)
+        # torch.nn.init.normal_(self.pseudo_input_layer[0].weight, mean=-0.05, std=0.01)
 
     
     def encoder(self, x):
@@ -53,18 +51,30 @@ class VampPrior(baseline.VAE_Baseline):
         return x_recon, z, mu, logvar
         
     def loss(self, x, recon_x, z, mu, logvar):
-        prior_mu, prior_logvar = self.make_vampprior()
+        N = x.shape[0]
+        x = x.view(N,-1)
+        recon_x = recon_x.view(N,-1)
+        prior_mu, prior_logvar = self.make_vampprior() # [1, K, qdim]
         prior_var = prior_logvar.exp()
-        E_log_q = torch.mean(torch.sum(-0.5 * (logvar + (z - mu) ** 2 / logvar.exp()), dim = 1), dim = 0)
 
-        z = z.unsqueeze(dim=1)
+        
+        z = z.unsqueeze(dim=1) # [B, 1, qdim]
+
+        # compute dim2 : qdim
         E_log_p = torch.sum(-0.5 * (prior_logvar + (z - prior_mu) ** 2/ prior_var),
                               dim = 2) - torch.tensor(np.log(self.args.num_components)).float()
-        E_log_p = torch.logsumexp(E_log_p, dim = 1)
         
-        reg_loss = torch.mean(E_log_q, dim=0) - torch.mean(E_log_p, dim=0)
-        reg_loss = self.args.reg_weight * reg_loss
+        # compute dim1 : 1 -> K (dimension broadcasting)
+        E_log_p = torch.logsumexp(E_log_p, dim = 1) # For numerical stability
+        
+        E_log_q = torch.mean(torch.sum(-0.5 * (logvar + (z - mu) ** 2 / logvar.exp()), dim = 1), dim = 0)
+
+
+        reg_loss = torch.mean(E_log_q - E_log_p, dim=0)
+        reg_loss = 2 * self.args.reg_weight * reg_loss
         recon_loss = F.mse_loss(recon_x, x) / self.args.recon_sigma**2
+        print(recon_loss.shape)
+        exit()
         total_loss = reg_loss + recon_loss
         
         return reg_loss, recon_loss, total_loss
@@ -72,18 +82,21 @@ class VampPrior(baseline.VAE_Baseline):
     def make_vampprior(self):
         x = self.pseudo_input_layer(self.idle_input)
         x = x.view(-1, self.C, self.H, self.W)
-        *_, prior_mu, prior_logvar = self.forward(x)
+        *_, prior_mu, prior_logvar = self.encoder(x)
 
         prior_mu = prior_mu.unsqueeze(0)
         prior_logvar = prior_logvar.unsqueeze(0)
         
-        return prior_mu, prior_logvar # dim : [1, K, qdim]
+        return prior_mu, prior_logvar # dim : [1, K, qdim], K = num_components
 
     def generate(self):
-        # pseudo input prior
-        x = self.pseudo_input_layer(self.idle_input)
-        _ ,mu, logvar = self.encoder(x)
-        prior_z = self.reparameterize(mu, logvar)
+        # make pseudo input prior with pseudo_input_layer
+        x = self.pseudo_input_layer(self.idle_input)[:144]
+        x = x.view(-1, self.C, self.H, self.W)
+        prior_z , *_ = self.encoder(x)
+
+
+
         VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
         VAE_gen = VAE_gen * 0.5 + 0.5
         return VAE_gen

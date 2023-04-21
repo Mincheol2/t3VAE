@@ -96,17 +96,12 @@ class TtVAE(baseline.VAE_Baseline):
         return reg_loss, recon_loss, total_loss
 
     def generate(self):
-        # prior_chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.args.nu]))
-        # prior_z = self.MVN_dist.sample(sample_shape=torch.tensor([144])).to(self.DEVICE)
-        # v = prior_chi_dist.sample(sample_shape=torch.tensor([144])).to(self.DEVICE)
-        # prior_t = self.args.recon_sigma * prior_z * torch.sqrt(self.args.nu / v)
-        # imgs = self.decoder(prior_t.to(self.DEVICE)).detach().cpu()
-        # imgs = imgs*0.5 + 0.5
-        # imgs = torch.clamp(imgs,min=0,max=1)
+        prior_chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.args.nu]))
+        prior_z = self.MVN_dist.sample(sample_shape=torch.tensor([144])).to(self.DEVICE)
+        v = prior_chi_dist.sample(sample_shape=torch.tensor([144])).to(self.DEVICE)
+        prior_t = self.args.recon_sigma * prior_z * torch.sqrt(self.args.nu / v)
+        imgs = self.decoder(prior_t.to(self.DEVICE)).detach().cpu()
+        imgs = imgs*0.5 + 0.5
+        imgs = torch.clamp(imgs,min=0,max=1)
 
-        prior_z = torch.randn(144, self.args.qdim)
-        prior_z = self.args.recon_sigma * prior_z
-        VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
-        imgs = VAE_gen *0.5 + 0.5 # [-1 ~ 1] -> [0~1]
-        
         return imgs
