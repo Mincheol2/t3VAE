@@ -56,27 +56,20 @@ class VampPrior(baseline.VAE_Baseline):
         recon_x = recon_x.view(N,-1)
         prior_mu, prior_logvar = self.make_vampprior() # [1, K, qdim]
         prior_var = prior_logvar.exp()
-
+        E_log_q = torch.sum(-0.5 * (logvar + (z - mu) ** 2 / logvar.exp()), dim = 1)
         
+        ## Compute E[logp(x)]
         z = z.unsqueeze(dim=1) # [B, 1, qdim]
-
         # compute dim2 : qdim
         E_log_p = torch.sum(-0.5 * (prior_logvar + (z - prior_mu) ** 2/ prior_var),
                               dim = 2) - torch.tensor(np.log(self.args.num_components)).float()
         
         # compute dim1 : 1 -> K (dimension broadcasting)
         E_log_p = torch.logsumexp(E_log_p, dim = 1) # For numerical stability
-        
-        E_log_q = torch.mean(torch.sum(-0.5 * (logvar + (z - mu) ** 2 / logvar.exp()), dim = 1), dim = 0)
 
-
-        reg_loss = torch.mean(E_log_q - E_log_p, dim=0)
-        reg_loss = 2 * self.args.reg_weight * reg_loss
+        reg_loss = 2 * torch.mean(E_log_q - E_log_p, dim=0)
         recon_loss = F.mse_loss(recon_x, x) / self.args.recon_sigma**2
-        print(recon_loss.shape)
-        exit()
-        total_loss = reg_loss + recon_loss
-        
+        total_loss = self.args.reg_weight * reg_loss + recon_loss
         return reg_loss, recon_loss, total_loss
 
     def make_vampprior(self):

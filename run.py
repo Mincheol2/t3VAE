@@ -12,9 +12,11 @@ from skimage.metrics import peak_signal_noise_ratio as psnr
 from sklearn.metrics import mean_squared_error as mse
 import torch.optim as optim
 import seaborn as sns
-
+from torchmetrics import MultiScaleStructuralSimilarityIndexMeasure
+from torchmetrics.image.fid import FrechetInceptionDistance
 from models import *
 from dataloader import *
+
 
 
 parser = argparse.ArgumentParser(description='gammaAE')
@@ -42,11 +44,11 @@ parser.add_argument('--recon_sigma', type=float, default=1.0,
                     help='sigma value used in reconstruction term')
 parser.add_argument('--flat', type=str, default='y',
                     help='use gamma-pow regularizer')
-parser.add_argument('--num_components', type=int, default=500,
+parser.add_argument('--num_components', type=int, default=50,
                     help='number of pseudoinput components (Only used in VampPrior)')
 parser.add_argument('--weight_decay', type=float, default=0,
                     help='Exponential weight decay option')
-parser.add_argument('--scheduler_gamma', type=float, default=0.99,
+parser.add_argument('--scheduler_gamma', type=float, default=1,
                     help='Scheduler_gamma option')
    
 def load_model(model_name,img_shape,DEVICE, args):
@@ -101,7 +103,8 @@ def origin_sharpness(testloader):
         for img in images:
             origin_sharpness_list.append(measure_sharpness(img))
     
-    return np.array(origin_sharpness_list)
+    # 1e2 scale
+    return 100 *np.array(origin_sharpness_list)
 
 if __name__ == "__main__":
     ## init ##
@@ -145,7 +148,10 @@ if __name__ == "__main__":
     
     ## Precomputing sharpness of the origin dataset ##
     origin_sharpness_arr = origin_sharpness(testloader)
-
+    ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(gaussian_kernel=False, sigma=0.5, data_range=1.0, kernel_size=3)
+    # FID used InceptionV3 with 4 CNN layers 
+    # Ensure that H/(2**4) and W/(2**4) >= kernel_size.
+    fid = FrechetInceptionDistance(kernel_size=3, normalize=True, data_range=1.0).to(DEVICE)
 
     ## Train & Test ##
     for epoch in epoch_tqdm:
@@ -160,13 +166,7 @@ if __name__ == "__main__":
             reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
             total_loss.backward()
             opt.step()
-            # if batch_idx % 200 == 0:
-                # current_step_train = batch_idx + epoch *denom_train
-                # writer.add_scalar("Train/Reconstruction Error", recon_loss.item(), current_step_train)
-                # writer.add_scalar("Train/Regularizer", reg_loss.item(), current_step_train)
-                # writer.add_scalar("Train/Total Loss" , total_loss.item(), current_step_train)
             tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.6f} recon={recon_loss:.6f} total={total_loss:.6f}')
-        
         scheduler.step()        
         
         
@@ -175,30 +175,39 @@ if __name__ == "__main__":
         with torch.no_grad():
             tqdm_testloader = tqdm(testloader)
             for batch_idx, (x, _) in enumerate(tqdm_testloader):
+                N = x.shape[0]
                 x = x.to(DEVICE)
                 recon_x, z, mu, logvar = model.forward(x)
                 reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
                 # Add metrics to tensorboard ##
                 if batch_idx % 200 == 0:
-                    ## Caculate SSIM, PSNR, RMSE ##
-                    img1 = x.cpu().numpy()
-                    img2 = recon_x.cpu().numpy()
+                    # ## Caculate SSIM, PSNR, RMSE ##
+                    img1 = recon_x.cpu().numpy() # reconstructions
+                    img2 = x.cpu().numpy() # targets
                     ssim_test = 0
                     psnr_test = 0
-                    mse_test = 0
-                    N = img1.shape[0]
+                    # mse_test = 0
                     for i in range(N):
                         # torch : [C, H, W] --> numpy : [H, W, C]
                         ssim_test += ssim(img1[i], img2[i], channel_axis=0, data_range=2.0)
                         psnr_test += psnr(img1[i], img2[i])
-                        mse_test += mse(img1[i].flatten(), img2[i].flatten())
+                        # mse_test += mse(img1[i].flatten(), img2[i].flatten())
+                    
+
+                    # # ## Caculate MS-SSIM, FID with torchmetrics ##
+                    ms_ssim_test = 0
+                    img1 = recon_x.cpu()
+                    img2 = x.cpu()
+                    ms_ssim_test = ms_ssim(img1, img2)
                     ssim_test /= N
                     psnr_test /= N
-                    mse_test /= N
+                    # mse_test /= N
                     current_step = batch_idx + epoch * denom_test
                     writer.add_scalar("Test/SSIM", ssim_test.item(), current_step)
-                    writer.add_scalar("Test/PSNR", psnr_test.item(), current_step)
-                    writer.add_scalar("Test/MSE", mse_test.item(), current_step )
+                    # writer.add_scalar("Test/PSNR", psnr_test.item(), current_step)
+                    # writer.add_scalar("Test/MSE", mse_test.item(), current_step )
+                    writer.add_scalar("Test/recon_MS-SSIM", ms_ssim_test.item(), current_step )
+                    
                     writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), current_step )
                     writer.add_scalar("Test/Regularizer", reg_loss.item(), current_step)
                     writer.add_scalar("Test/Total Loss" , total_loss.item(), current_step)
@@ -214,33 +223,46 @@ if __name__ == "__main__":
             ### Reconstruction ###
             nb_recons = 32
             test_imgs, *_ = model.forward(sample_imgs)
+            test_imgs = test_imgs *0.5 + 0.5
+            fid.update(sample_imgs.to(DEVICE) * 0.5 + 0.5, real=False)
+            fid.update(test_imgs, real=True)
+            fid_test = fid.compute()
+            writer.add_scalar("Test/recon_FID", fid_test.item(), current_step)
+            fid.reset()
+        
             test_imgs = test_imgs.detach().cpu()
-
             writer.add_scalar("Test/Reconstruction Sharpness", measure_sharpness(test_imgs), epoch)
             
-            sample_img_board = sample_imgs[:nb_recons] *0.5 +0.5
-            test_img_board = test_imgs[:nb_recons] *0.5 +0.5
-            sample_img_board = torch.clamp(sample_img_board,min=0,max=1)
-            test_img_board = torch.clamp(test_img_board,min=0,max=1)
+            sample_img_board = sample_imgs[:nb_recons] *0.5 + 0.5
+            test_img_board = test_imgs[:nb_recons]
             comparison = torch.cat([sample_img_board.cpu() , test_img_board])
-
             grid = torchvision.utils.make_grid(comparison.cpu())
             writer.add_image(f"Test image - Above {nb_recons}: Real images, below {nb_recons} : reconstruction images", grid, epoch)
-        
             
-        ## generation ##
-        gen_imgs = model.generate().cpu().data
-        filename = f'{args.dirname}/generations/generation_{epoch}.png'
-        torchvision.utils.save_image(gen_imgs, filename,normalize=True, nrow=12)
+            ## generation ##
+            gen_imgs = model.generate().to(DEVICE)
+            filename = f'{args.dirname}/generations/generation_{epoch}.png'
+            for images, _ in testloader:
+                real_imgs = 0.5*images +0.5
+                break
+
+            fid.update(gen_imgs[:args.batch_size], real=False)
+            fid.update(real_imgs.to(DEVICE), real=True)
+            fid_test = fid.compute()
+            fid.reset()
+            writer.add_scalar("Test/gen_FID", fid_test.item(), current_step)
+                        
+            torchvision.utils.save_image(gen_imgs, filename,normalize=True, nrow=12)
 
         ## Sharpness distribution ##
-        # 144 * 10 : 1440 samples generation
+        # 144 * 10 : 1440 generation samples 
         gen_sharpness = []
         for _ in range(10):
             gen_imgs = model.generate().cpu().data
             for img in gen_imgs:
                 gen_sharpness.append(measure_sharpness(img))
 
+        gen_sharpness = np.array(gen_sharpness) * 100 # 1e2 scale
         result_plot = sns.kdeplot(origin_sharpness_arr, color='b')
         result_plot = sns.kdeplot(gen_sharpness, color='r')
         result_plot.legend(labels=["Original","Generation"])
