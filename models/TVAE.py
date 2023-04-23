@@ -11,8 +11,6 @@ from models import baseline
 class TVAE(baseline.VAE_Baseline):
     def __init__(self, image_shape, DEVICE, args):
         super(TVAE, self).__init__(image_shape, DEVICE,args)
-        self.opt = optim.Adam(list(self.parameters()), lr=args.lr, eps=1e-6)
-        self.scheduler = optim.lr_scheduler.ExponentialLR(self.opt, gamma = 0.99)
         self.pdim = self.C * self.H * self.W
         '''
             T-VAE : add three-level layers and parameter layers : mu, lambda, nu
@@ -26,13 +24,9 @@ class TVAE(baseline.VAE_Baseline):
         self.lognu = 0
 
         # parameter layers
-        n_h = n_latent//8
         self.parameter_loglambda_layer = nn.Linear(n_latent, 1) # scale params
         self.parameter_lognu_layer = nn.Linear(n_latent, 1) # degree of freedom
 
-        ## One-dim case
-        # self.parameter_loglambda_layer = nn.Linear(n_h, self.pdim) # scale params
-        # self.parameter_lognu_layer = nn.Linear(n_h, self.pdim) # degree of freedom
     
         self.MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.pdim), torch.eye(self.pdim))
 
@@ -49,21 +43,21 @@ class TVAE(baseline.VAE_Baseline):
         z = z.reshape(-1,self.decoder_hiddens[0],math.ceil(self.H / 2**self.n),math.ceil(self.W / 2**self.n))
         z = self.tp_cnn_layers(z)
         recon_x = self.final_layer(z) 
-        z = z.flatten(start_dim=1)
-        self.loglambda = self.parameter_loglambda_layer(z)
-        self.lognu = self.parameter_lognu_layer(z)
         
         ## parameter layers ##
-
-        nu_z = torch.clamp(self.lognu.exp(), min=1)
-        lambda_z = torch.clamp(self.loglambda.exp(), min=1e-8)
+        z = z.flatten(start_dim=1)
+        self.loglambda = self.parameter_loglambda_layer(z) # [B, 1]
+        self.lognu = torch.clamp(self.parameter_lognu_layer(z), min=np.log(2+1e-6)) # [B, 1]
+        
+        
+        nu_z = torch.clamp(self.lognu.exp(), min=2 + 1e-8) # nu> 2
+        lambda_z = self.loglambda.exp()
         eps = self.MVN_dist.sample(sample_shape=torch.tensor([recon_x.shape[0]])).to(self.DEVICE)
         
         chi_dist = torch.distributions.chi2.Chi2(nu_z)
-        v = chi_dist.sample().to(self.DEVICE)
-        t_sample = eps * torch.sqrt(nu_z / v)
+        v = chi_dist.sample().to(self.DEVICE) # [B, 1]
+        t_sample = eps * torch.sqrt(nu_z / v) # [B, pdim] *[B, 1]
         t_sample = t_sample / torch.sqrt(lambda_z)
-
         recon_x = recon_x + t_sample.view(-1,self.C,self.H,self.W)
 
         return recon_x
@@ -82,19 +76,30 @@ class TVAE(baseline.VAE_Baseline):
         N = x.shape[0]
         reg_loss = self.args.reg_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
         
-        lambda_z = torch.clamp(self.loglambda.exp(), min=1e-8)
-        nu_z = torch.clamp(self.lognu.exp(), min=1e-8)
+        lambda_z = self.loglambda.exp()
+        nu_z  = self.lognu.exp() 
 
-        lgamma_term = torch.lgamma((nu_z + self.pdim)/2) - torch.lgamma(nu_z/2)
-        log_term = self.pdim/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
+        # lgamma_term = torch.lgamma((nu_z + self.pdim)/2) - torch.lgamma(nu_z/2)
+        # log_term = self.pdim/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
+        # lgamma_term = lgamma_term.to(self.DEVICE)
+
+        # x_flat = torch.flatten(x,start_dim = 1)
+        # locale_mu = recon_x.flatten(start_dim=1)
+
+        # x_norm_sq = torch.linalg.norm(x_flat-locale_mu, ord=2, dim=1).pow(2).unsqueeze(1)
+        # log_recon = (nu_z + self.pdim)/2 * torch.log(1 + lambda_z / nu_z * x_norm_sq)
+
+        lgamma_term = torch.lgamma((nu_z +1)/2) - torch.lgamma(nu_z/2)
+        log_term = 1/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
         lgamma_term = lgamma_term.to(self.DEVICE)
 
-        x_flat = torch.flatten(x,start_dim = 1)
+        x_flat = x.flatten(start_dim = 1)
         locale_mu = recon_x.flatten(start_dim=1)
 
         x_norm_sq = torch.linalg.norm(x_flat-locale_mu, ord=2, dim=1).pow(2).unsqueeze(1)
-        log_recon = (nu_z + self.pdim)/2 * torch.log(1 + lambda_z / nu_z * x_norm_sq)
+        log_recon = (nu_z + 1)/2 * torch.log(1 + lambda_z / nu_z * x_norm_sq)
 
+        # print(lambda_z, nu_z)
         recon_loss = - torch.mean(lgamma_term + log_term - log_recon)
 
         # One dim case
@@ -106,6 +111,6 @@ class TVAE(baseline.VAE_Baseline):
     def generate(self):
         prior_z = torch.randn(64, self.args.qdim)
         prior_z = self.args.recon_sigma * prior_z
-        VAE_gen = self.gidecoder(prior_z.to(self.DEVICE)).detach().cpu()
+        VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
         VAE_gen = VAE_gen *0.5 + 0.5
         return VAE_gen
