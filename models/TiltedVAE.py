@@ -85,8 +85,12 @@ class TiltedVAE(baseline.VAE_Baseline):
         return reg_loss, recon_loss, total_loss
 
     def generate(self):
-        prior_z = torch.randn(144, self.args.qdim)
-        prior_z = self.args.recon_sigma * prior_z
-        VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
+        # TODO : tilted prior
+        z_sample = torch.randn(144, self.args.qdim)
+        exp_tau_znorm = torch.exp(self.tilt * torch.linalg.norm(z_sample,dim=1, ord=2))
+        tilted_prior = torch.mean(exp_tau_znorm) # Monte Carlo.
+        # tilted_prior = self.args.recon_sigma * tilted_prior
+        
+        VAE_gen = self.decoder(tilted_prior.to(self.DEVICE)).detach().cpu()
         VAE_gen = VAE_gen *0.5 + 0.5 # [-1 ~ 1] -> [0~1]
         return VAE_gen
