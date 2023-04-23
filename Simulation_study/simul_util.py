@@ -41,15 +41,15 @@ def t_sampling(N, mu, cov, nu, device):
 def sample_generation(device, p_dim = 3, SEED = None, K = 1, default_N = 1000, default_nu = 5, N_list = None, mu_list = None, var_list = None, nu_list = None) : 
     if SEED is not None : 
         make_reproducibility(SEED)
-    if N_list is None : 
-        N_list = [default_N for ind in range(K)]
-    if mu_list is None : 
-        mu_list = [torch.randn(p_dim) for ind in range(K)]
-    if var_list is None : 
-        var_list = [torch.randn(2 * p_dim, p_dim) for ind in range(K)]
-        var_list = [X.T @ X for X in var_list]
-    if nu_list is None : 
-        nu_list = [default_nu for ind in range(K)]
+    # if N_list is None : 
+    #     N_list = [default_N for ind in range(K)]
+    # if mu_list is None : 
+    #     mu_list = [torch.randn(p_dim) for ind in range(K)]
+    # if var_list is None : 
+    #     var_list = [torch.randn(2 * p_dim, p_dim) for ind in range(K)]
+    #     var_list = [X.T @ X for X in var_list]
+    # if nu_list is None : 
+    #     nu_list = [default_nu for ind in range(K)]
     
     result_list = [t_sampling(N_list[ind], mu_list[ind], var_list[ind], nu_list[ind], device) for ind in range(K)]
     return torch.cat(result_list)

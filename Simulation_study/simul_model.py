@@ -29,7 +29,7 @@ class Encoder(nn.Module):
         self.latent_var = nn.Linear(self.num_layers, self.q_dim)
         
             
-        #precomputing constants
+        # precomputing constants
         if self.nu != 0:
             
             self.gamma = -2 / (self.nu + self.p_dim + self.q_dim)

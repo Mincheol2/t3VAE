@@ -1,6 +1,7 @@
 import torch
 import numpy as np
-import pandas as pd
+# import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
 
 from sklearn.decomposition import PCA
@@ -13,11 +14,17 @@ class visualize() :
             self.visualize = visualize_3D
         elif p_dim == 2 : 
             self.visualize = visualize_2D
+        elif p_dim == 1 : 
+            self.visualize = visualize_density
 
 
 def visualize_PCA(train_data, test_data, gAE_gen, VAE_gen, gAE_recon, VAE_recon, size = [9,6]) :
     train_data = train_data.cpu().numpy()
     test_data = test_data.cpu().numpy()
+    gAE_gen = gAE_gen.cpu().numpy()
+    VAE_gen = VAE_gen.cpu().numpy()
+    gAE_recon = gAE_recon.cpu().numpy()
+    VAE_recon = VAE_recon.cpu().numpy()
     
     pca = PCA(n_components=3)
     pca.fit(test_data)
@@ -161,5 +168,55 @@ def visualize_2D(train_data, test_data, gAE_gen, VAE_gen, gAE_recon, VAE_recon, 
     ax.scatter(VAE_recon[:,0], VAE_recon[:,1])
     ax.axis(domain)
     plt.title('VAE reconstruction')
+
+    return fig
+
+def visualize_density(train_data, test_data, gAE_gen, VAE_gen, gAE_recon, VAE_recon, size = [9,6]) :
+    train_data = train_data.cpu().numpy()
+    test_data = test_data.cpu().numpy()
+    gAE_gen = gAE_gen.cpu().numpy()
+    VAE_gen = VAE_gen.cpu().numpy()
+    gAE_recon = gAE_recon.cpu().numpy()
+    VAE_recon = VAE_recon.cpu().numpy()
+
+    # plot
+    fig = plt.figure(figsize = (size[0], size[1]))
+
+    ax = fig.add_subplot(2,2,1)
+    sns.distplot(train_data, color = "green", label="Train", hist=False)
+    sns.distplot(test_data, color = "orange", label="Test", hist=False)
+    domain = ax.axis()
+    sns.distplot(gAE_gen, color = "blue", label="gAE generation")
+    ax.axis(domain)
+    ax.set_xlim(-20,20)
+    plt.title('gAE generation')
+    # plt.legend()
+
+    ax = fig.add_subplot(2,2,3)
+    sns.distplot(train_data, color = "green", label="Train", hist=False)
+    sns.distplot(test_data, color = "orange", label="Test", hist=False)
+    sns.distplot(VAE_gen, color = "blue", label="VAE generation")
+    ax.axis(domain)
+    ax.set_xlim(-20,20)
+    plt.title('VAE generation')    
+    # plt.legend()
+    
+    ax = fig.add_subplot(2,2,2)
+    sns.distplot(train_data, color = "green", label="Train", hist=False)
+    sns.distplot(test_data, color = "orange", label="Test", hist=False)
+    sns.distplot(gAE_recon, color = "blue", label="gAE reconstruction")
+    ax.axis(domain)
+    ax.set_xlim(-20,20)
+    plt.title('gAE reconstruction')    
+    # plt.legend()
+    
+    ax = fig.add_subplot(2,2,4)
+    sns.distplot(train_data, color = "green", label="Train", hist=False)
+    sns.distplot(test_data, color = "orange", label="Test", hist=False)
+    sns.distplot(VAE_recon, color = "blue", label="VAE reconstruction")
+    ax.axis(domain)
+    ax.set_xlim(-20,20)
+    plt.title('VAE reconstruction')
+    # plt.legend()
 
     return fig

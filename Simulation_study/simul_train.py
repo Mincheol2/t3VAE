@@ -1,13 +1,14 @@
 import os
 import random
 import numpy as np
-import pandas as pd
+# import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-
+# 
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -16,21 +17,21 @@ from torchvision import datasets
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from mmd import mmd_penalty, mmd_acceptance_region, mmd_prob_bound
+from mmd import mmd_unbiased_sq, mmd_uniform_bound, make_masking, mmd_bootstrap_test
 from simul_util import make_result_dir, make_reproducibility, t_sampling, sample_generation, MYTensorDataset
 from simul_loss import log_t_normalizing_const, gamma_regularizer
 from simul_model import Encoder, Decoder, gammaAE
-from simul_visualize import visualize, visualize_PCA, visualize_3D, visualize_2D
+from simul_visualize import visualize, visualize_PCA, visualize_3D, visualize_2D, visualize_density
 
-def simulation(index, K, nu_list, train_N_list, test_N_list, train_data_seed, test_data_seed, 
+def simulation(dir_name, K, nu_list, train_N_list, test_N_list, train_data_seed, test_data_seed, 
                p_dim, q_dim, nu, recon_sigma, model_init_seed, device, 
                epochs, num_layers, lr, batch_size, eps, weight_decay, 
-               b_list = None, var_list = None, param_seed = None) : 
+               b_list = None, var_list = None, param_seed = None, bootstrap_iter = 1999) : 
 
     # Step 0. Environment setup
     test_N = sum(test_N_list)
 
-    dirname = f'./Results_{index}'
+    dirname = f'./Results_{dir_name}'
     make_result_dir(dirname)
     generation_writer = SummaryWriter(dirname + '/generations')
     # criterion_writer = SummaryWriter(dirname + '/criterion')
@@ -79,11 +80,11 @@ def simulation(index, K, nu_list, train_N_list, test_N_list, train_data_seed, te
 
         if epoch % 10 == 0:
             # Generation & Randomly reconstruction
-            gAE_gen = gAE.generate(test_N).detach().cpu()
-            VAE_gen = VAE.generate(test_N).detach().cpu()
+            gAE_gen = gAE.generate(test_N).detach()
+            VAE_gen = VAE.generate(test_N).detach()
 
-            gAE_recon = gAE.reconstruct(test_data).detach().cpu()
-            VAE_recon = VAE.reconstruct(test_data).detach().cpu()
+            gAE_recon = gAE.reconstruct(test_data).detach()
+            VAE_recon = VAE.reconstruct(test_data).detach()
 
             # Visualization
             visualization = visualize_module.visualize(train_data, test_data, gAE_gen, VAE_gen, gAE_recon, VAE_recon)
@@ -93,13 +94,17 @@ def simulation(index, K, nu_list, train_N_list, test_N_list, train_data_seed, te
             visualization.savefig(filename)
 
             # MMD score
-            gAE_mmd = mmd_penalty(torch.as_tensor(gAE_gen), test_data.cpu())
-            VAE_mmd = mmd_penalty(torch.as_tensor(VAE_gen), test_data.cpu())
+            gAE_stat, gAE_p_value = mmd_bootstrap_test(gAE_gen, test_data, device = device, iteration = bootstrap_iter)
+            VAE_stat, VAE_p_value = mmd_bootstrap_test(VAE_gen, test_data, device = device, iteration = bootstrap_iter)
 
             # mmd_criterion = mmd_acceptance_region(test_N)
 
-            gAE_writer.add_scalar("Test/MMD score", gAE_mmd.item(), epoch)
-            VAE_writer.add_scalar("Test/MMD score", VAE_mmd.item(), epoch)
+            gAE_writer.add_scalar("Test/MMD score", gAE_stat, epoch)
+            gAE_writer.add_scalar("Test/MMD p-value", gAE_p_value, epoch)
+
+
+            VAE_writer.add_scalar("Test/MMD score", VAE_stat, epoch)
+            VAE_writer.add_scalar("Test/MMD p-value", VAE_p_value, epoch)
             # criterion_writer.add_scalar("Test/MMD score", mmd_criterion, epoch)
 
 
