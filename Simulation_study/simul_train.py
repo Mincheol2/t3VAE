@@ -31,7 +31,7 @@ def simulation(dir_name, K, nu_list, train_N_list, test_N_list, train_data_seed,
     # Step 0. Environment setup
     test_N = sum(test_N_list)
 
-    dirname = f'./Results_{dir_name}'
+    dirname = f'./{dir_name}'
     make_result_dir(dirname)
     generation_writer = SummaryWriter(dirname + '/generations')
     # criterion_writer = SummaryWriter(dirname + '/criterion')
