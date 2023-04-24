@@ -36,7 +36,7 @@ parser.add_argument('--batch_size', type=int, default=64,
                     help='input batch size for training')
 parser.add_argument('--qdim',  type=int, default=64,
                     help='latent_dimension')
-parser.add_argument('--lr', type=float, default=1e-3,
+parser.add_argument('--lr', type=float, default=1e-4,
                     help='learning rate')
 parser.add_argument('--reg_weight', type=float, default=1.0,
                     help='weight for regularizer')
@@ -53,13 +53,13 @@ parser.add_argument('--scheduler_gamma', type=float, default=1,
    
 def load_model(model_name,img_shape,DEVICE, args):
     if model_name == 'VAE':
-       return VAE.VAE(img_shape, DEVICE,args)
+       return VAE.VAE(img_shape, DEVICE,args).to(DEVICE)
     elif model_name == 'TtVAE':
-        return TtVAE.TtVAE(img_shape, DEVICE, args)
+        return TtVAE.TtVAE(img_shape, DEVICE, args).to(DEVICE)
     elif model_name == 'VampPrior':
-        return VampPrior.VampPrior(img_shape, DEVICE, args)
+        return VampPrior.VampPrior(img_shape, DEVICE, args).to(DEVICE)
     elif model_name == "TVAE":
-        return TVAE.TVAE(img_shape, DEVICE, args)
+        return TVAE.TVAE(img_shape, DEVICE, args).to(DEVICE)
     else:
         raise Exception("Please use appropriate model!", ['VAE', 'TtVAE', 'VampPrior','TVAE'])
     
@@ -147,12 +147,11 @@ if __name__ == "__main__":
     scheduler = optim.lr_scheduler.ExponentialLR(opt, gamma = args.scheduler_gamma)
     
     ## Precomputing sharpness of the origin dataset ##
-    origin_sharpness_arr = origin_sharpness(testloader)
+    # origin_sharpness_arr = origin_sharpness(testloader)
     ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(gaussian_kernel=False, sigma=0.5, data_range=1.0, kernel_size=3)
     # FID used InceptionV3 with 4 CNN layers 
     # Ensure that H/(2**4) and W/(2**4) >= kernel_size.
-    fid = FrechetInceptionDistance(kernel_size=3, normalize=True, data_range=1.0).to(DEVICE)
-
+    fid = FrechetInceptionDistance(normalize=True).to(DEVICE)
     ## Train & Test ##
     for epoch in epoch_tqdm:
         ## Train ##
@@ -165,8 +164,14 @@ if __name__ == "__main__":
             recon_x, z, mu, logvar = model.forward(x)
             reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
             total_loss.backward()
+
+            ## From Tilted Prior ##
+            # for group in opt.param_groups:
+            # clip gradients with max_grad_norm = 100
+            # torch.nn.utils.clip_grad_norm_(group['params'], 100, norm_type=2)
             opt.step()
             tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.6f} recon={recon_loss:.6f} total={total_loss:.6f}')
+        
         scheduler.step()        
         
         
@@ -185,12 +190,12 @@ if __name__ == "__main__":
                     img1 = recon_x.cpu().numpy() # reconstructions
                     img2 = x.cpu().numpy() # targets
                     ssim_test = 0
-                    psnr_test = 0
+                    # psnr_test = 0
                     # mse_test = 0
                     for i in range(N):
                         # torch : [C, H, W] --> numpy : [H, W, C]
-                        ssim_test += ssim(img1[i], img2[i], channel_axis=0, data_range=2.0)
-                        psnr_test += psnr(img1[i], img2[i])
+                        ssim_test += ssim(img1[i], img2[i], channel_axis=0, data_range=1.0)
+                        # psnr_test += psnr(img1[i], img2[i])
                         # mse_test += mse(img1[i].flatten(), img2[i].flatten())
                     
 
@@ -200,7 +205,7 @@ if __name__ == "__main__":
                     img2 = x.cpu()
                     ms_ssim_test = ms_ssim(img1, img2)
                     ssim_test /= N
-                    psnr_test /= N
+                    # psnr_test /= N
                     # mse_test /= N
                     current_step = batch_idx + epoch * denom_test
                     writer.add_scalar("Test/SSIM", ssim_test.item(), current_step)
@@ -223,8 +228,8 @@ if __name__ == "__main__":
             ### Reconstruction ###
             nb_recons = 32
             test_imgs, *_ = model.forward(sample_imgs)
-            test_imgs = test_imgs *0.5 + 0.5
-            fid.update(sample_imgs.to(DEVICE) * 0.5 + 0.5, real=False)
+            test_imgs = test_imgs
+            fid.update(sample_imgs.to(DEVICE), real=False)
             fid.update(test_imgs, real=True)
             fid_test = fid.compute()
             writer.add_scalar("Test/recon_FID", fid_test.item(), current_step)
@@ -233,7 +238,7 @@ if __name__ == "__main__":
             test_imgs = test_imgs.detach().cpu()
             writer.add_scalar("Test/Reconstruction Sharpness", measure_sharpness(test_imgs), epoch)
             
-            sample_img_board = sample_imgs[:nb_recons] *0.5 + 0.5
+            sample_img_board = sample_imgs[:nb_recons]
             test_img_board = test_imgs[:nb_recons]
             comparison = torch.cat([sample_img_board.cpu() , test_img_board])
             grid = torchvision.utils.make_grid(comparison.cpu())
@@ -243,7 +248,7 @@ if __name__ == "__main__":
             gen_imgs = model.generate().to(DEVICE)
             filename = f'{args.dirname}/generations/generation_{epoch}.png'
             for images, _ in testloader:
-                real_imgs = 0.5*images +0.5
+                real_imgs = images
                 break
 
             fid.update(gen_imgs[:args.batch_size], real=False)
@@ -253,20 +258,22 @@ if __name__ == "__main__":
             writer.add_scalar("Test/gen_FID", fid_test.item(), current_step)
                         
             torchvision.utils.save_image(gen_imgs, filename,normalize=True, nrow=12)
+            writer.add_scalar("Test/Generation Sharpness", measure_sharpness(gen_imgs.detach().cpu()), epoch)
+                        
 
         ## Sharpness distribution ##
         # 144 * 10 : 1440 generation samples 
-        gen_sharpness = []
-        for _ in range(10):
-            gen_imgs = model.generate().cpu().data
-            for img in gen_imgs:
-                gen_sharpness.append(measure_sharpness(img))
+        # gen_sharpness = []
+        # for _ in range(10):
+        #     gen_imgs = model.generate().cpu().data
+        #     for img in gen_imgs:
+        #         gen_sharpness.append(measure_sharpness(img))
 
-        gen_sharpness = np.array(gen_sharpness) * 100 # 1e2 scale
-        result_plot = sns.kdeplot(origin_sharpness_arr, color='b')
-        result_plot = sns.kdeplot(gen_sharpness, color='r')
-        result_plot.legend(labels=["Original","Generation"])
-        fig = result_plot.get_figure()
-        fig.savefig(f'{args.dirname}/sharpness_dist/dist_{epoch}.png')
+        # gen_sharpness = np.array(gen_sharpness) * 100 # 1e2 scale
+        # result_plot = sns.kdeplot(origin_sharpness_arr, color='b')
+        # result_plot = sns.kdeplot(gen_sharpness, color='r')
+        # result_plot.legend(labels=["Original","Generation"])
+        # fig = result_plot.get_figure()
+        # fig.savefig(f'{args.dirname}/sharpness_dist/dist_{epoch}.png')
 
     writer.close()

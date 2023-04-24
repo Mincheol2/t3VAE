@@ -15,7 +15,7 @@ class TiltedVAE(baseline.VAE_Baseline):
         self.qdim = self.args.qdim
         self.tilt = torch.tensor(float(self.args.tilt)) # tilt hyperparameter
         self.d = self.qdim # size of the latent z vector
-
+        self.DEVICE = DEVICE
         # Default option : use L2 loss, not use OOD and burn_in arguments.
         
         # optimizing for min kld
@@ -84,13 +84,20 @@ class TiltedVAE(baseline.VAE_Baseline):
         total_loss = reg_loss + recon_loss
         return reg_loss, recon_loss, total_loss
 
+    
     def generate(self):
-        # TODO : tilted prior
-        z_sample = torch.randn(144, self.args.qdim)
-        exp_tau_znorm = torch.exp(self.tilt * torch.linalg.norm(z_sample,dim=1, ord=2))
-        tilted_prior = torch.mean(exp_tau_znorm) # Monte Carlo.
-        # tilted_prior = self.args.recon_sigma * tilted_prior
-        
-        VAE_gen = self.decoder(tilted_prior.to(self.DEVICE)).detach().cpu()
-        VAE_gen = VAE_gen *0.5 + 0.5 # [-1 ~ 1] -> [0~1]
+        nb_of_generations = 144
+
+        # 1. generate random vectors on the unit sphere.
+        sample_z = torch.randn(nb_of_generations, self.qdim)
+        spherical_z = torch.nn.functional.normalize(sample_z,dim=1)
+
+        # 2. scale the length by a sample from the distribution to be length
+        # r ~ N(\bar{||z||}, 1) \in R, where \bar{||z||} = \frac{1}{N} \sum_{1}^{N} ||z^i||
+        # We approximated \bar{||z||} to mu_star
+
+        tilted_prior = spherical_z * self.mu_star
+
+        VAE_gen = self.decoder(tilted_prior).detach().cpu()
+        VAE_gen = VAE_gen
         return VAE_gen
