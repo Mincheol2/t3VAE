@@ -78,10 +78,10 @@ class TiltedVAE(baseline.VAE_Baseline):
         
         mu_norm = torch.linalg.norm(mu, dim=1)
         # 2 * Original loss.
-        reg_loss = 2 * (1/2 * torch.square(mu_norm - self.mu_star))
+        reg_loss = 2 * (1/2 * torch.square(mu_norm - self.mu_star)).mean()
         
         recon_loss = F.mse_loss(recon_x, x) / self.args.recon_sigma**2
-        total_loss = reg_loss + recon_loss
+        total_loss = self.args.reg_weight * reg_loss + recon_loss
         return reg_loss, recon_loss, total_loss
 
     
@@ -96,8 +96,8 @@ class TiltedVAE(baseline.VAE_Baseline):
         # r ~ N(\bar{||z||}, 1) \in R, where \bar{||z||} = \frac{1}{N} \sum_{1}^{N} ||z^i||
         # We approximated \bar{||z||} to mu_star
 
-        tilted_prior = spherical_z * self.mu_star
+        tilted_prior = (spherical_z * self.mu_star).to(self.DEVICE)
 
-        VAE_gen = self.decoder(tilted_prior).detach().cpu()
+        VAE_gen = self.decoder(tilted_prior)
         VAE_gen = VAE_gen
         return VAE_gen
