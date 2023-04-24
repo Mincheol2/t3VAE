@@ -41,7 +41,7 @@ class VAE_Baseline(nn.Module):
         self.n = len(self.decoder_hiddens)
         self.linear = nn.Sequential(
                         nn.Linear(args.qdim, self.cnn_lineardim),
-                        nn.LeakyReLU(),
+                        nn.ReLU(),
         )
         layers = []
         input_ch = self.decoder_hiddens[0]
@@ -51,7 +51,7 @@ class VAE_Baseline(nn.Module):
                     nn.ConvTranspose2d(input_ch, dim,
                     kernel_size = 3, stride = 2, padding=1, output_padding=1),
                     nn.BatchNorm2d(dim),
-                    nn.LeakyReLU())
+                    nn.ReLU())
             )
             input_ch = dim
 
@@ -61,7 +61,7 @@ class VAE_Baseline(nn.Module):
                             nn.ConvTranspose2d(self.decoder_hiddens[-1], self.decoder_hiddens[-1],
                                                             kernel_size=3, stride=2, padding=1, output_padding=1),
                             nn.BatchNorm2d(self.decoder_hiddens[-1]),
-                            nn.LeakyReLU(),
+                            nn.ReLU(),
                             nn.ConvTranspose2d(self.decoder_hiddens[-1], self.C,
                                                kernel_size=3, padding=1),
                             nn.Tanh()

@@ -36,7 +36,7 @@ parser.add_argument('--batch_size', type=int, default=64,
                     help='input batch size for training')
 parser.add_argument('--qdim',  type=int, default=64,
                     help='latent_dimension')
-parser.add_argument('--lr', type=float, default=1e-3,
+parser.add_argument('--lr', type=float, default=1e-4,
                     help='learning rate')
 parser.add_argument('--reg_weight', type=float, default=1.0,
                     help='weight for regularizer')
@@ -151,8 +151,7 @@ if __name__ == "__main__":
     ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(gaussian_kernel=False, sigma=0.5, data_range=1.0, kernel_size=3)
     # FID used InceptionV3 with 4 CNN layers 
     # Ensure that H/(2**4) and W/(2**4) >= kernel_size.
-    fid = FrechetInceptionDistance(kernel_size=3, normalize=True, data_range=1.0).to(DEVICE)
-
+    fid = FrechetInceptionDistance(normalize=True).to(DEVICE)
     ## Train & Test ##
     for epoch in epoch_tqdm:
         ## Train ##
@@ -195,7 +194,7 @@ if __name__ == "__main__":
                     # mse_test = 0
                     for i in range(N):
                         # torch : [C, H, W] --> numpy : [H, W, C]
-                        ssim_test += ssim(img1[i], img2[i], channel_axis=0, data_range=2.0)
+                        ssim_test += ssim(img1[i], img2[i], channel_axis=0, data_range=1.0)
                         # psnr_test += psnr(img1[i], img2[i])
                         # mse_test += mse(img1[i].flatten(), img2[i].flatten())
                     

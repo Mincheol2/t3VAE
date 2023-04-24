@@ -101,7 +101,6 @@ class TtVAE(baseline.VAE_Baseline):
         v = prior_chi_dist.sample(sample_shape=torch.tensor([144])).to(self.DEVICE)
         prior_t = self.args.recon_sigma * prior_z * torch.sqrt(self.args.nu / v)
         imgs = self.decoder(prior_t.to(self.DEVICE)).detach().cpu()
-        imgs = imgs*0.5 + 0.5
         imgs = torch.clamp(imgs,min=0,max=1)
 
         return imgs

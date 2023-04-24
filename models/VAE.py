@@ -10,15 +10,14 @@ class VAE(baseline.VAE_Baseline):
     def __init__(self, image_shape, DEVICE, args):
         super(VAE, self).__init__(image_shape, DEVICE,args)
            
-    
     def encoder(self, x):
         x = self.cnn_layers(x)
         x = torch.flatten(x, start_dim = 1)
         mu = self.mu_layer(x)
         logvar = self.logvar_layer(x)
         z = self.reparameterize(mu, logvar)
-        return z, mu, logvar
-        
+        return [z, mu, logvar]
+    
     def decoder(self, z):
         z = self.linear(z)
         z = z.reshape(-1,self.decoder_hiddens[0],math.ceil(self.H / 2**self.n),math.ceil(self.W / 2**self.n))
@@ -34,8 +33,9 @@ class VAE(baseline.VAE_Baseline):
     def forward(self, x):
         z, mu, logvar = self.encoder(x)
         x_recon = self.decoder(z)
-        return x_recon, z, mu, logvar
+        return [x_recon, z, mu, logvar]
         
+    @torch.enable_grad()
     def loss(self, x, recon_x, z, mu, logvar):
         N = x.shape[0]
         x = x.view(N,-1)
@@ -44,11 +44,11 @@ class VAE(baseline.VAE_Baseline):
         reg_loss = 2 * self.args.reg_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
         recon_loss = F.mse_loss(recon_x, x) / self.args.recon_sigma**2
         total_loss = reg_loss + recon_loss
-        return reg_loss, recon_loss, total_loss
+        return [reg_loss, recon_loss, total_loss]
 
     def generate(self):
         prior_z = torch.randn(144, self.args.qdim)
         prior_z = self.args.recon_sigma * prior_z
         VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
-        VAE_gen = VAE_gen *0.5 + 0.5 # [-1 ~ 1] -> [0~1]
+        VAE_gen = VAE_gen
         return VAE_gen
