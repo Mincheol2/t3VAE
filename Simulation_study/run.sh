@@ -1,1 +1,1 @@
-python3 simul_main.py
+python3 run.py
