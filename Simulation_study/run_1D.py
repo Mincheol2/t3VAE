@@ -38,7 +38,7 @@ parser.add_argument('--model_nu_list',  nargs='+',  type=float,     default=[3.0
 parser.add_argument('--recon_sigma',    type=float, default=0.25,   help='Sigma value in decoder')
 
 parser.add_argument('--epochs',         type=int,   default=50,    help='Train epoch')
-parser.add_argument('--num_layers',     type=int,   default=64,     help='Number of nodes in layers of neural networks')
+parser.add_argument('--num_layers',     type=int,   default=128,     help='Number of nodes in layers of neural networks')
 parser.add_argument('--batch_size',     type=int,   default=256,    help='Batch size')
 parser.add_argument('--lr',             type=float, default=1e-3,   help='Learning rate')
 parser.add_argument('--eps',            type=float, default=1e-8,   help="Epsilon for Adam optimizer")
@@ -49,16 +49,27 @@ parser.add_argument('--test_data_seed', type=int,   default=20000,  help="Seed f
 parser.add_argument('--model_init_seed',type=int,   default=1000,   help="Seed for model parameter initialization")
 parser.add_argument('--param_seed',     type=int,   default=5000,   help="Seed for random initialization of parameters for train and test data")
 
-parser.add_argument('--K',              type=int,   default=1,      help="Number of mixture distribution in data distribution")
-parser.add_argument('--sample_nu_list', nargs='+', type=float,      default=[2],     help='Degree of freedom from each cluster')
-parser.add_argument('--train_N_list',   nargs='+', type=int,        default=[10000], help="Number of sample size from each cluster")
-parser.add_argument('--test_N_list',    nargs='+', type=int,        default=[1000],  help="Number of sample size from each cluster")
+parser.add_argument('--K',              type=int,   default=2,      help="Number of mixture distribution in data distribution")
+parser.add_argument('--sample_nu_list', nargs='+',  type=float,     default=[2.0, 2.0],     help='Degree of freedom from each cluster')
+parser.add_argument('--train_N_list',   nargs='+',  type=int,       default=[6000, 4000],   help="Number of sample size from each cluster")
+parser.add_argument('--test_N_list',    nargs='+',  type=int,       default=[600, 400],     help="Number of sample size from each cluster")
+parser.add_argument('--mu_list',        nargs='+',  type=float,     default=[-2.0, 2.0],    help="Mean parameter for each cluster")
+parser.add_argument('--var_list',       nargs='+',  type=float,     default=[1.0, 1.0],     help="Dispersion parameter for each cluster")
 
 parser.add_argument('--boot_iter',      type=int,   default=1999,   help="Number of iterations in bootstrap MMD test")
 parser.add_argument('--gen_N',          type=int,   default=1000000,help="Number of generations")
 # parser.add_argument('--b_list') : How to?
 
 args = parser.parse_args()
+
+mu_list = args.mu_list
+var_list = args.var_list
+
+if mu_list is not None : 
+    mu_list = [mu * torch.ones(1) for mu in mu_list]
+
+if var_list is not None : 
+    var_list = [var * torch.ones(1,1) for var in var_list]
 
 device = DEVICE
 
@@ -69,5 +80,5 @@ simulation_1D(args.p_dim, args.q_dim, args.model_nu_list, args.recon_sigma,
               dirname, device, 
               args.epochs, args.num_layers, args.batch_size, args.lr, args.eps, args.weight_decay, 
               args.train_data_seed, args.test_data_seed, args.model_init_seed, 
-              mu_list = None, var_list = None, param_seed = args.param_seed, 
+              mu_list = mu_list, var_list = var_list, param_seed = args.param_seed, 
               bootstrap_iter = args.boot_iter, gen_N = args.gen_N)

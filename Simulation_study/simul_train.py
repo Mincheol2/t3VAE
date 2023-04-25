@@ -76,7 +76,6 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
     epoch_tqdm = tqdm(range(0, epochs))
     for epoch in epoch_tqdm : 
 
-        # print(f'\nEpoch {epoch}')
         [gAE_list[m].train(epoch, gAE_writer_list[m]) for m in range(M)]
         VAE.train(epoch, VAE_writer)
 
@@ -96,11 +95,11 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
             visualization.savefig(filename)
 
             # MMD score
+            # gAE_stat, gAE_p_value, _ = mmd_bootstrap_test(gAE_gen[0:test_N], test_data, device = device, iteration = bootstrap_iter)
             gAE_mmd_result = [mmd_bootstrap_test(gAE_gen[0:test_N], test_data, device = device, iteration = bootstrap_iter) for gAE_gen in gAE_gen_list]
             gAE_stat_list = [result[0] for result in gAE_mmd_result]
             gAE_p_value_list = [result[1] for result in gAE_mmd_result]
             VAE_stat, VAE_p_value, _ = mmd_bootstrap_test(VAE_gen[0:test_N], test_data, device = device, iteration = bootstrap_iter)
-            # gAE_stat, gAE_p_value, _ = mmd_bootstrap_test(gAE_gen[0:test_N], test_data, device = device, iteration = bootstrap_iter)
 
             for m in range(M) : 
                 gAE_writer_list[m].add_scalar("Test/MMD score", gAE_stat_list[m], epoch)

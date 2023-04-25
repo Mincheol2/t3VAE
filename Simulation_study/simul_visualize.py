@@ -185,14 +185,14 @@ def visualize_density(train_data, test_data, model_nu_list, gAE_gen_list, VAE_ge
     contour = density_contour(input, K, sample_nu_list, mu_list, var_list, ratio_list).squeeze().numpy()
 
     # plot
-    fig = plt.figure(figsize = (4 * (M+2), 8))
+    fig = plt.figure(figsize = (3 * (M+2), 6))
 
     ax = fig.add_subplot(2,M+2,1)
     plt.plot(input, contour)
     plt.hist(train_data, bins = 100, range = [-20, 20], alpha = 0.5, density=True, label = "Train")
     plt.hist(test_data, bins = 100, range = [-20, 20], alpha = 0.5, density=True, label = "Test")
     plt.xlim(-20, 20)
-    plt.title('Train and test data')
+    plt.title(f'Train and test data (nu = {sample_nu_list})')
 
     ax = fig.add_subplot(2,M+2,M+3)
     plt.plot(input, contour)
@@ -214,7 +214,7 @@ def visualize_density(train_data, test_data, model_nu_list, gAE_gen_list, VAE_ge
         plt.hist(gAE_gen_list[m], bins = 100, range = [-200, 200], density=True)
         plt.xlim(-200, 200)
         plt.yscale("log")
-        plt.title(f'gAE generation (nu = {model_nu_list[m]}, log scale)')
+        plt.title(f'gAE generation (log scale)')
 
     ax = fig.add_subplot(2,M+2,M+2)
     plt.plot(input, contour)
