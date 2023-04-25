@@ -1,1 +1,1 @@
-python3 run.py
+# python3 run_1D.py --dirname "Test" --model_nu_list 2.01 3.0 5.0 10.0
