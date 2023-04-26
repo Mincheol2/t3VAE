@@ -37,8 +37,8 @@ parser.add_argument('--q_dim',          type=int,   default=1,      help='Latent
 parser.add_argument('--model_nu_list',  nargs='+',  type=float,     default=[3.0],    help='Degree of freedom in model')
 parser.add_argument('--recon_sigma',    type=float, default=0.25,   help='Sigma value in decoder')
 
-parser.add_argument('--epochs',         type=int,   default=50,    help='Train epoch')
-parser.add_argument('--num_layers',     type=int,   default=128,     help='Number of nodes in layers of neural networks')
+parser.add_argument('--epochs',         type=int,   default=50,     help='Train epoch')
+parser.add_argument('--num_layers',     type=int,   default=128,    help='Number of nodes in layers of neural networks')
 parser.add_argument('--batch_size',     type=int,   default=256,    help='Batch size')
 parser.add_argument('--lr',             type=float, default=1e-3,   help='Learning rate')
 parser.add_argument('--eps',            type=float, default=1e-8,   help="Epsilon for Adam optimizer")

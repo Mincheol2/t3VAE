@@ -1,1 +1,5 @@
-python3 run_1D.py --dirname "Test6" --model_nu_list 2.01 3.0 5.0 --epoch 50 --sample_nu_list 1.0 1.0 --boot_iter 499
+python3 run_1D.py --dirname "B" --sample_nu_list 5.0 5.0   --model_nu_list 3.0 5.0 6.0 10.0 11.0
+python3 run_1D.py --dirname "B" --sample_nu_list 5.0 10.0  --model_nu_list 3.0 5.0 6.0 10.0 11.0
+python3 run_1D.py --dirname "B" --sample_nu_list 10.0 10.0 --model_nu_list 3.0 5.0 6.0 10.0 11.0
+
+
