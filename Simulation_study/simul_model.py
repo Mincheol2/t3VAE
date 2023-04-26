@@ -128,7 +128,7 @@ class Decoder(nn.Module):
             return f_theta + std * (eps * torch.sqrt(nu_prime / v))
 
     def loss(self, recon_x, x):
-        recon_loss = F.mse_loss(recon_x, x, reduction = 'mean') / self.recon_sigma**2
+        recon_loss = F.mse_loss(recon_x, x, reduction = 'none').sum(dim = 1).mean(dim = 0) / self.recon_sigma**2
         
         return recon_loss
 

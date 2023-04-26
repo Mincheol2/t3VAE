@@ -3,11 +3,13 @@ import torch
 import random
 import numpy as np
 
+from simul_loss import log_t_normalizing_const
+
 def make_result_dir(dirname):
-    os.makedirs(dirname,exist_ok=True)
-    os.makedirs(dirname + '/gAE',exist_ok=True)
-    os.makedirs(dirname + '/VAE',exist_ok=True)
-    os.makedirs(dirname + '/generations',exist_ok=True)
+    os.makedirs(dirname, exist_ok=True)
+    os.makedirs(dirname + '/gAE', exist_ok=True)
+    os.makedirs(dirname + '/VAE', exist_ok=True)
+    os.makedirs(dirname + '/generations', exist_ok=True)
 
 def make_reproducibility(seed):
     random.seed(seed)
@@ -16,16 +18,7 @@ def make_reproducibility(seed):
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
-def t_sampling(N, mu, cov, nu, device):
-    '''
-    N      : sample size
-    D      : dimension
-    mu     : torch tensor [D, ]
-    cov    : torch tensor [D x D] (positive definite matrix)
-    nu     : degree of freedom 
-    device : 'cuda:0', 'cpu', etc
-    '''
-
+def t_sampling(N, mu, cov, nu, device) :
     MVN_dist = torch.distributions.MultivariateNormal(torch.zeros_like(mu), cov)
     eps = MVN_dist.sample(sample_shape=torch.tensor([N]))
     
@@ -37,22 +30,24 @@ def t_sampling(N, mu, cov, nu, device):
 
     return (mu + eps).to(device)
 
-
 def sample_generation(device, p_dim = 3, SEED = None, K = 1, default_N = 1000, default_nu = 5, N_list = None, mu_list = None, var_list = None, nu_list = None) : 
     if SEED is not None : 
         make_reproducibility(SEED)
-    # if N_list is None : 
-    #     N_list = [default_N for ind in range(K)]
-    # if mu_list is None : 
-    #     mu_list = [torch.randn(p_dim) for ind in range(K)]
-    # if var_list is None : 
-    #     var_list = [torch.randn(2 * p_dim, p_dim) for ind in range(K)]
-    #     var_list = [X.T @ X for X in var_list]
-    # if nu_list is None : 
-    #     nu_list = [default_nu for ind in range(K)]
     
     result_list = [t_sampling(N_list[ind], mu_list[ind], var_list[ind], nu_list[ind], device) for ind in range(K)]
     return torch.cat(result_list)
+
+def t_density(x, nu, mu = torch.zeros(1), var = torch.ones(1,1)) : 
+    const_term = log_t_normalizing_const(nu, 1)
+    power_term = -torch.log(1 + (mu - x).pow(2) / (nu * var)) * (nu + 1) / 2
+    return torch.exp(const_term + power_term)
+
+def density_contour(x, K, sample_nu_list, mu_list, var_list, ratio_list) : 
+    output = 0
+    for ind in range(K) : 
+        output += ratio_list[ind] * t_density(x, sample_nu_list[ind], mu_list[ind], var_list[ind])
+    return output
+
 
 class MYTensorDataset(torch.utils.data.Dataset) :
     def __init__(self, *tensors) -> None:

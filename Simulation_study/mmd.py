@@ -75,4 +75,4 @@ def mmd_bootstrap_test(z_hat, z, device, sigma2=None, iteration=1999) :
     sum([int(stat > mmd_stat) for stat in mmd_bootstrap_list])
     p_value = (1 + sum([int(stat > mmd_stat) for stat in mmd_bootstrap_list])) / (1 + iteration)
 
-    return mmd_stat, p_value
+    return mmd_stat, p_value, mmd_bootstrap_list
