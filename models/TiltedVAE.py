@@ -80,7 +80,7 @@ class TiltedVAE(baseline.VAE_Baseline):
         # 2 * Original loss.
         reg_loss = 2 * (1/2 * torch.square(mu_norm - self.mu_star)).mean()
         
-        recon_loss = F.mse_loss(recon_x, x) / self.args.recon_sigma**2
+        recon_loss = torch.sum((recon_x - x)**2 / (N * self.args.recon_sigma**2))
         total_loss = self.args.reg_weight * reg_loss + recon_loss
         return reg_loss, recon_loss, total_loss
 

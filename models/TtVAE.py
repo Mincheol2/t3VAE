@@ -80,8 +80,6 @@ class TtVAE(baseline.VAE_Baseline):
 
     def loss(self, x, recon_x, z, mu, logvar):
         N = x.shape[0]
-        x = x.view(N,-1)
-        recon_x = recon_x.view(N,-1)
 
         ## gamma regularizer ##
         mu_norm_sq = torch.linalg.norm(mu, ord=2, dim=1).pow(2)
@@ -90,7 +88,7 @@ class TtVAE(baseline.VAE_Baseline):
         reg_loss = torch.mean(mu_norm_sq + trace_var - self.args.nu * self.const_2bar1 * log_det_var.exp(), dim=0) + self.args.nu * self.tau
 
         ## recon loss (same as VAE) ##
-        recon_loss = F.mse_loss(recon_x, x) / self.args.recon_sigma**2
+        recon_loss = torch.sum((recon_x - x)**2 / (N * self.args.recon_sigma**2))
         total_loss = self.args.reg_weight * reg_loss + recon_loss
 
         return reg_loss, recon_loss, total_loss
