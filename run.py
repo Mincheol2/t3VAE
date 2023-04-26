@@ -223,7 +223,7 @@ if __name__ == "__main__":
 
                 tqdm_testloader.set_description(f'test {epoch} :reg={reg_loss:.6f} recon={recon_loss:.6f} total={total_loss:.6f}')
             
-            ms_ssim_test /= 10000 # 10000: nb of test_data
+            ms_ssim_test /= len(testloader) 
             writer.add_scalar("Test/recon_MS-SSIM", ms_ssim_test.item(), current_step )
 
             ## Save the best model ##
