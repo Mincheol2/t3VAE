@@ -177,6 +177,7 @@ if __name__ == "__main__":
         with torch.no_grad():
             tqdm_testloader = tqdm(testloader)
             
+            ms_ssim_test = []
             for batch_idx, (x, _) in enumerate(tqdm_testloader):
                 N = x.shape[0]
                 x = x.to(DEVICE)
@@ -192,12 +193,10 @@ if __name__ == "__main__":
                 fid_gen.update(gen_x, real=False)
                 
                 # Add metrics to tensorboard ##
-                    # ## Caculate MS-SSIM ##
+                # ## Caculate MS-SSIM ##
                 img1 = recon_x.cpu().numpy() # reconstructions
                 img2 = x.cpu().numpy() # targets
                 # ssim_test = 0
-                # psnr_test = 0
-                # mse_test = 0
                 # for i in range(N):
                     # torch : [C, H, W] --> numpy : [H, W, C]
                     # ssim_test += ssim(img1[i], img2[i], channel_axis=0, data_range=1.0)
@@ -206,14 +205,11 @@ if __name__ == "__main__":
                     
 
                 ## Caculate MS-SSIM##
-                ms_ssim_test = 0
                 img1 = recon_x.cpu()
                 img2 = x.cpu()
-                ms_ssim_test += ms_ssim(img1, img2)
-                # ssim_test /= N
+                ms_ssim_test.append(ms_ssim(img1, img2))
                 current_step = batch_idx + epoch * denom_test
                 # writer.add_scalar("Test/SSIM", ssim_test.item(), current_step)
-                # writer.add_scalar("Test/PSNR", psnr_test.item(), current_step)
                 # writer.add_scalar("Test/MSE", mse_test.item(), current_step )
                 
                 if batch_idx % 20 == 0:    
@@ -223,7 +219,7 @@ if __name__ == "__main__":
 
                 tqdm_testloader.set_description(f'test {epoch} :reg={reg_loss:.6f} recon={recon_loss:.6f} total={total_loss:.6f}')
             
-            ms_ssim_test /= len(testloader) 
+            ms_ssim = torch.tensor(ms_ssim_test).mean()
             writer.add_scalar("Test/recon_MS-SSIM", ms_ssim_test.item(), current_step )
 
             ## Save the best model ##
