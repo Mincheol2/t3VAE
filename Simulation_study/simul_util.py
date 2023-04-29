@@ -40,7 +40,7 @@ def sample_generation(device, p_dim = 3, SEED = None, K = 1, default_N = 1000, d
 def t_density(x, nu, mu = torch.zeros(1), var = torch.ones(1,1)) : 
     const_term = log_t_normalizing_const(nu, 1)
     power_term = -torch.log(1 + (mu - x).pow(2) / (nu * var)) * (nu + 1) / 2
-    return torch.exp(const_term + power_term)
+    return torch.exp(const_term + power_term) / torch.sqrt(var)
 
 def density_contour(x, K, sample_nu_list, mu_list, var_list, ratio_list) : 
     output = 0

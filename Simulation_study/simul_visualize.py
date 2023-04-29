@@ -173,15 +173,16 @@ def visualize_2D(train_data, test_data, gAE_gen, VAE_gen, gAE_recon, VAE_recon, 
 
     return fig
 
-def visualize_density(train_data, test_data, model_nu_list, gAE_gen_list, VAE_gen, K, sample_nu_list, mu_list, var_list, ratio_list) :
+def visualize_density(train_data, test_data, model_nu_list, gAE_gen_list, VAE_gen, 
+                      K, sample_nu_list, mu_list, var_list, ratio_list, xlim = 200) :
     train_data = train_data.cpu().squeeze(1).numpy()
     test_data = test_data.cpu().squeeze(1).numpy()
-    gAE_gen_list = [gAE_gen.cpu().squeeze(1).numpy() for gAE_gen in gAE_gen_list]
-    VAE_gen = VAE_gen.cpu().squeeze(1).numpy()
+    gAE_gen_list = [gAE_gen[torch.isfinite(gAE_gen)].cpu().numpy() for gAE_gen in gAE_gen_list]
+    VAE_gen = VAE_gen[torch.isfinite(VAE_gen)].cpu().numpy()
 
     M = len(gAE_gen_list)
 
-    input = np.arange(-20000, 20001) * 0.01
+    input = np.arange(-xlim * 100, xlim * 100 + 1) * 0.01
     contour = density_contour(input, K, sample_nu_list, mu_list, var_list, ratio_list).squeeze().numpy()
 
     # plot
@@ -196,9 +197,9 @@ def visualize_density(train_data, test_data, model_nu_list, gAE_gen_list, VAE_ge
 
     ax = fig.add_subplot(2,M+2,M+3)
     plt.plot(input, contour)
-    plt.hist(train_data, bins = 100, range = [-200, 200], alpha = 0.5, density=True, label = "Train")
-    plt.hist(test_data, bins = 100, range = [-200, 200], alpha = 0.5, density=True, label = "Test")
-    plt.xlim(-200, 200)
+    plt.hist(train_data, bins = 100, range = [-xlim, xlim], alpha = 0.5, density=True, label = "Train")
+    plt.hist(test_data, bins = 100, range = [-xlim, xlim], alpha = 0.5, density=True, label = "Test")
+    plt.xlim(-xlim, xlim)
     plt.yscale("log")
     plt.title('Train and test data (log scale)')
 
@@ -211,8 +212,8 @@ def visualize_density(train_data, test_data, model_nu_list, gAE_gen_list, VAE_ge
 
         ax = fig.add_subplot(2,M+2,M+m+4)
         plt.plot(input, contour)
-        plt.hist(gAE_gen_list[m], bins = 100, range = [-200, 200], density=True)
-        plt.xlim(-200, 200)
+        plt.hist(gAE_gen_list[m], bins = 100, range = [-xlim, xlim], density=True)
+        plt.xlim(-xlim, xlim)
         plt.yscale("log")
         plt.title(f'gAE generation (log scale)')
 
@@ -224,8 +225,8 @@ def visualize_density(train_data, test_data, model_nu_list, gAE_gen_list, VAE_ge
 
     ax = fig.add_subplot(2,M+2,2*M+4)
     plt.plot(input, contour)
-    plt.hist(VAE_gen, bins = 100, range = [-200, 200], density=True)
-    plt.xlim(-200, 200)
+    plt.hist(VAE_gen, bins = 100, range = [-xlim, xlim], density=True)
+    plt.xlim(-xlim, xlim)
     plt.yscale("log")
     plt.title('VAE generation (log scale)')
 
