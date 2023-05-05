@@ -28,7 +28,7 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
                   dir_name, device, 
                   epochs, num_layers, batch_size, lr, eps, weight_decay, 
                   train_data_seed, test_data_seed, model_init_seed, 
-                  xlim, mmd_type = 'linear', 
+                  xlim, mmd_type = 'linear', sample_type = "t", 
                   mu_list = None, var_list = None, param_seed = None, bootstrap_iter = 1999, gen_N = 100000) : 
 
     # Step 0. Environment setup
@@ -58,12 +58,14 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
 
     train_data = sample_generation(
         device, p_dim=p_dim, SEED=train_data_seed,
-        K=K, N_list=train_N_list, mu_list=mu_list, var_list=var_list, nu_list=sample_nu_list
+        K=K, N_list=train_N_list, mu_list=mu_list, var_list=var_list, nu_list=sample_nu_list, 
+        sample_type = sample_type
     )
 
     test_data = sample_generation(
         device, p_dim=p_dim, SEED=test_data_seed,
-        K=K, N_list=test_N_list, mu_list=mu_list, var_list=var_list, nu_list=sample_nu_list
+        K=K, N_list=test_N_list, mu_list=mu_list, var_list=var_list, nu_list=sample_nu_list, 
+        sample_type = sample_type
     )
 
     train_dataset = MYTensorDataset(train_data)
@@ -93,7 +95,7 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
             VAE_gen = VAE.generate(gen_N).detach()
 
             # Visualization
-            visualization = visualize_density(train_data, test_data, model_nu_list, gAE_gen_list, VAE_gen, K, sample_nu_list, mu_list, var_list, ratio_list, xlim)
+            visualization = visualize_density(train_data, test_data, model_nu_list, gAE_gen_list, VAE_gen, K, sample_nu_list, mu_list, var_list, ratio_list, xlim, sample_type)
 
             generation_writer.add_figure("Generation", visualization, epoch)
             filename = f'{dirname}/generations/epoch{epoch}.png'

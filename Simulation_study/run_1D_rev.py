@@ -59,7 +59,7 @@ parser.add_argument('--var_list',       nargs='+',  type=float,     default=[1.0
 parser.add_argument('--boot_iter',      type=int,   default=9999,   help="Number of iterations in bootstrap MMD test")
 parser.add_argument('--gen_N',          type=int,   default=1000000,help="Number of generations")
 parser.add_argument('--xlim',           type=float, default=200.0,  help="Maximum value of x-axis in log-scale plot")
-# parser.add_argument('--b_list') : How to?
+parser.add_argument('--sample_type',    type=str,   default="t",    help="Train and Test distribution type")
 
 args = parser.parse_args()
 
@@ -81,6 +81,6 @@ simulation_1D(args.p_dim, args.q_dim, args.model_nu_list, args.recon_sigma,
               dirname, device, 
               args.epochs, args.num_layers, args.batch_size, args.lr, args.eps, args.weight_decay, 
               args.train_data_seed, args.test_data_seed, args.model_init_seed, 
+              xlim = args.xlim, sample_type=args.sample_type,
               mu_list = mu_list, var_list = var_list, param_seed = args.param_seed, 
-              xlim = args.xlim, 
               bootstrap_iter = args.boot_iter, gen_N = args.gen_N)

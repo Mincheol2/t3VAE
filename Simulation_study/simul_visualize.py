@@ -174,7 +174,7 @@ def visualize_2D(train_data, test_data, gAE_gen, VAE_gen, gAE_recon, VAE_recon, 
     return fig
 
 def visualize_density(train_data, test_data, model_nu_list, gAE_gen_list, VAE_gen, 
-                      K, sample_nu_list, mu_list, var_list, ratio_list, xlim = 200) :
+                      K, sample_nu_list, mu_list, var_list, ratio_list, xlim = 200, sample_type = "t") :
     train_data = train_data.cpu().squeeze(1).numpy()
     test_data = test_data.cpu().squeeze(1).numpy()
     gAE_gen_list = [gAE_gen[torch.isfinite(gAE_gen)].cpu().numpy() for gAE_gen in gAE_gen_list]
@@ -182,8 +182,11 @@ def visualize_density(train_data, test_data, model_nu_list, gAE_gen_list, VAE_ge
 
     M = len(gAE_gen_list)
 
+
     input = np.arange(-xlim * 100, xlim * 100 + 1) * 0.01
-    contour = density_contour(input, K, sample_nu_list, mu_list, var_list, ratio_list).squeeze().numpy()
+    if sample_type == "lognormal" : 
+        input = np.arange(1, xlim * 100 + 1) * 0.01
+    contour = density_contour(input, K, sample_nu_list, mu_list, var_list, ratio_list, sample_type).squeeze().numpy()
 
     # plot
     fig = plt.figure(figsize = (3 * (M+2), 6))
