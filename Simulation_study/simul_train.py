@@ -17,7 +17,7 @@ from torchvision import datasets
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from mmd import mmd_unbiased_sq, mmd_uniform_bound, make_masking, mmd_bootstrap_test
+from mmd import mmd_unbiased_sq, make_masking, mmd_bootstrap_test, mmd_linear, mmd_linear_bootstrap_test
 from simul_util import make_result_dir, make_reproducibility, t_sampling, sample_generation, t_density, density_contour, MYTensorDataset
 from simul_loss import log_t_normalizing_const, gamma_regularizer
 from simul_model import Encoder, Decoder, gammaAE
@@ -28,6 +28,7 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
                   dir_name, device, 
                   epochs, num_layers, batch_size, lr, eps, weight_decay, 
                   train_data_seed, test_data_seed, model_init_seed, 
+                  xlim, mmd_type = 'linear', sample_type = "t", 
                   mu_list = None, var_list = None, param_seed = None, bootstrap_iter = 1999, gen_N = 100000) : 
 
     # Step 0. Environment setup
@@ -35,6 +36,10 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
 
     test_N = sum(test_N_list)
     ratio_list = [n_k / test_N for n_k in test_N_list]
+
+    mmd_test = mmd_linear_bootstrap_test
+    if mmd_type != 'linear' : 
+        mmd_test = mmd_bootstrap_test
 
     dirname = f'./{dir_name}'
     make_result_dir(dirname)
@@ -53,12 +58,14 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
 
     train_data = sample_generation(
         device, p_dim=p_dim, SEED=train_data_seed,
-        K=K, N_list=train_N_list, mu_list=mu_list, var_list=var_list, nu_list=sample_nu_list
+        K=K, N_list=train_N_list, mu_list=mu_list, var_list=var_list, nu_list=sample_nu_list, 
+        sample_type = sample_type
     )
 
     test_data = sample_generation(
         device, p_dim=p_dim, SEED=test_data_seed,
-        K=K, N_list=test_N_list, mu_list=mu_list, var_list=var_list, nu_list=sample_nu_list
+        K=K, N_list=test_N_list, mu_list=mu_list, var_list=var_list, nu_list=sample_nu_list, 
+        sample_type = sample_type
     )
 
     train_dataset = MYTensorDataset(train_data)
@@ -88,7 +95,7 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
             VAE_gen = VAE.generate(gen_N).detach()
 
             # Visualization
-            visualization = visualize_density(train_data, test_data, model_nu_list, gAE_gen_list, VAE_gen, K, sample_nu_list, mu_list, var_list, ratio_list)
+            visualization = visualize_density(train_data, test_data, model_nu_list, gAE_gen_list, VAE_gen, K, sample_nu_list, mu_list, var_list, ratio_list, xlim, sample_type)
 
             generation_writer.add_figure("Generation", visualization, epoch)
             filename = f'{dirname}/generations/epoch{epoch}.png'
@@ -96,10 +103,10 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
 
             # MMD score
             # gAE_stat, gAE_p_value, _ = mmd_bootstrap_test(gAE_gen[0:test_N], test_data, device = device, iteration = bootstrap_iter)
-            gAE_mmd_result = [mmd_bootstrap_test(gAE_gen[0:test_N], test_data, device = device, iteration = bootstrap_iter) for gAE_gen in gAE_gen_list]
+            gAE_mmd_result = [mmd_test(gAE_gen[0:test_N], test_data, device = device, iteration = bootstrap_iter) for gAE_gen in gAE_gen_list]
             gAE_stat_list = [result[0] for result in gAE_mmd_result]
             gAE_p_value_list = [result[1] for result in gAE_mmd_result]
-            VAE_stat, VAE_p_value, _ = mmd_bootstrap_test(VAE_gen[0:test_N], test_data, device = device, iteration = bootstrap_iter)
+            VAE_stat, VAE_p_value, _ = mmd_test(VAE_gen[0:test_N], test_data, device = device, iteration = bootstrap_iter)
 
             for m in range(M) : 
                 gAE_writer_list[m].add_scalar("Test/MMD score", gAE_stat_list[m], epoch)

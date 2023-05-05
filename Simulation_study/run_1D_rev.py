@@ -39,7 +39,7 @@ parser.add_argument('--recon_sigma',    type=float, default=0.25,   help='Sigma 
 
 parser.add_argument('--epochs',         type=int,   default=50,     help='Train epoch')
 parser.add_argument('--num_layers',     type=int,   default=128,    help='Number of nodes in layers of neural networks')
-parser.add_argument('--batch_size',     type=int,   default=256,    help='Batch size')
+parser.add_argument('--batch_size',     type=int,   default=512,    help='Batch size')
 parser.add_argument('--lr',             type=float, default=1e-3,   help='Learning rate')
 parser.add_argument('--eps',            type=float, default=1e-8,   help="Epsilon for Adam optimizer")
 parser.add_argument('--weight_decay',   type=float, default=1e-4,   help='Weight decay')
@@ -51,15 +51,15 @@ parser.add_argument('--param_seed',     type=int,   default=5000,   help="Seed f
 
 parser.add_argument('--K',              type=int,   default=2,      help="Number of mixture distribution in data distribution")
 parser.add_argument('--sample_nu_list', nargs='+',  type=float,     default=[2.0, 2.0],     help='Degree of freedom from each cluster')
-parser.add_argument('--train_N_list',   nargs='+',  type=int,       default=[6000, 4000],   help="Number of sample size from each cluster")
-parser.add_argument('--test_N_list',    nargs='+',  type=int,       default=[600, 400],     help="Number of sample size from each cluster")
+parser.add_argument('--train_N_list',   nargs='+',  type=int,       default=[60000, 40000],   help="Number of sample size from each cluster")
+parser.add_argument('--test_N_list',    nargs='+',  type=int,       default=[60000, 40000],     help="Number of sample size from each cluster")
 parser.add_argument('--mu_list',        nargs='+',  type=float,     default=[-2.0, 2.0],    help="Mean parameter for each cluster")
 parser.add_argument('--var_list',       nargs='+',  type=float,     default=[1.0, 1.0],     help="Dispersion parameter for each cluster")
 
-parser.add_argument('--boot_iter',      type=int,   default=1999,   help="Number of iterations in bootstrap MMD test")
+parser.add_argument('--boot_iter',      type=int,   default=9999,   help="Number of iterations in bootstrap MMD test")
 parser.add_argument('--gen_N',          type=int,   default=1000000,help="Number of generations")
 parser.add_argument('--xlim',           type=float, default=200.0,  help="Maximum value of x-axis in log-scale plot")
-# parser.add_argument('--b_list') : How to?
+parser.add_argument('--sample_type',    type=str,   default="t",    help="Train and Test distribution type")
 
 args = parser.parse_args()
 
@@ -81,6 +81,6 @@ simulation_1D(args.p_dim, args.q_dim, args.model_nu_list, args.recon_sigma,
               dirname, device, 
               args.epochs, args.num_layers, args.batch_size, args.lr, args.eps, args.weight_decay, 
               args.train_data_seed, args.test_data_seed, args.model_init_seed, 
+              xlim = args.xlim, sample_type=args.sample_type,
               mu_list = mu_list, var_list = var_list, param_seed = args.param_seed, 
-              xlim = args.xlim, 
               bootstrap_iter = args.boot_iter, gen_N = args.gen_N)
