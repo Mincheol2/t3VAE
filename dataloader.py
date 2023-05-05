@@ -46,7 +46,8 @@ class load_dataset():
     def load_celeb_dataset(self,dataset_name):
 
         self.transform = transforms.Compose(
-            [transforms.RandomHorizontalFlip(),
+            [
+            transforms.RandomHorizontalFlip(),
             transforms.CenterCrop(148),
             transforms.Resize(64),
             # transforms.Resize(128),
@@ -109,9 +110,11 @@ class load_dataset():
             transform=self.transform,
             download=False,
         )
+        
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=self.batch_size, shuffle=True)
         testloader = torch.utils.data.DataLoader(testset, batch_size=self.batch_size, shuffle=True)
         
+
         for images, _ in trainloader:
             sample_imgs = images
             break
