@@ -3,6 +3,7 @@ import random
 import numpy as np
 # import pandas as pd
 import seaborn as sns
+import scipy.stats as stats
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
@@ -29,7 +30,8 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
                   epochs, num_layers, batch_size, lr, eps, weight_decay, 
                   train_data_seed, test_data_seed, model_init_seed, 
                   xlim, mmd_type = 'linear', sample_type = "t", 
-                  mu_list = None, var_list = None, param_seed = None, bootstrap_iter = 1999, gen_N = 100000) : 
+                  mu_list = None, var_list = None, param_seed = None, bootstrap_iter = 1999, gen_N = 100000, 
+                  patience = 5) : 
 
     # Step 0. Environment setup
     M = len(model_nu_list)
@@ -74,20 +76,52 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
     make_reproducibility(model_init_seed)
 
     gAE_list = [
-        gammaAE(train_dataset, test_data, p_dim, q_dim, model_nu, recon_sigma, device, num_layers, lr, batch_size, eps, weight_decay) for model_nu in model_nu_list
+        gammaAE(train_dataset, p_dim, q_dim, model_nu, recon_sigma, device, num_layers, lr, batch_size, eps, weight_decay) for model_nu in model_nu_list
     ]
     # gAE = gammaAE(train_dataset, test_data, p_dim, q_dim, model_nu, recon_sigma, device, num_layers, lr, batch_size, eps, weight_decay)
-    VAE = gammaAE(train_dataset, test_data, p_dim, q_dim, 0,  recon_sigma, device, num_layers, lr, batch_size, eps, weight_decay)
+    VAE = gammaAE(train_dataset, p_dim, q_dim, 0,  recon_sigma, device, num_layers, lr, batch_size, eps, weight_decay)
 
     # Step 3. Model training
     epoch_tqdm = tqdm(range(0, epochs))
+
+    # gAE_best_loss = [10^6 for _ in range(M)]
+    # VAE_best_loss = 10^6
+    # gAE_best_model = gAE_list
+    # VAE_best_model = VAE
+    # gAE_count = [0 for _ in range(M)]
+    # VAE_count = 0
+
+    # gAE_update = [True for _ in range(M)]
+    # VAE_update = True
+
     for epoch in epoch_tqdm : 
 
         [gAE_list[m].train(epoch, gAE_writer_list[m]) for m in range(M)]
         VAE.train(epoch, VAE_writer)
 
-        [gAE_list[m].test(epoch, gAE_writer_list[m]) for m in range(M)]
-        VAE.test(epoch, VAE_writer)
+        gAE_current_loss = [gAE_list[m].test(test_data, epoch, gAE_writer_list[m]) for m in range(M)]
+        VAE_current_loss = VAE.test(test_data, epoch, VAE_writer)
+
+        # Early stopping
+        # for m in range(M) : 
+        #     if gAE_update[m] is True : 
+        #         if gAE_best_loss[m] > gAE_current_loss[m] : 
+        #             gAE_best_loss[m] = gAE_current_loss[m]
+        #             gAE_best_model[m] = gAE_list[m]
+        #             gAE_count[m] = 0
+        #         else : 
+        #             gAE_count[m] += 1
+        #         if gAE_count[m] == patience : 
+        #             gAE_update[m] = False
+        # if VAE_update is True : 
+        #     if VAE_best_loss > VAE_current_loss :   
+        #         VAE_best_loss = VAE_current_loss
+        #         VAE_best_model = VAE
+        #         VAE_count = 0
+        #     else : 
+        #         VAE_count += 1
+        #     if VAE_count == patience : 
+        #         VAE_update = False
 
         if epoch % 5 == 0:
             # Generation & Randomly reconstruction
@@ -103,17 +137,25 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
 
             # MMD score
             # gAE_stat, gAE_p_value, _ = mmd_bootstrap_test(gAE_gen[0:test_N], test_data, device = device, iteration = bootstrap_iter)
+
             gAE_mmd_result = [mmd_test(gAE_gen[0:test_N], test_data, device = device, iteration = bootstrap_iter) for gAE_gen in gAE_gen_list]
             gAE_stat_list = [result[0] for result in gAE_mmd_result]
             gAE_p_value_list = [result[1] for result in gAE_mmd_result]
             VAE_stat, VAE_p_value, _ = mmd_test(VAE_gen[0:test_N], test_data, device = device, iteration = bootstrap_iter)
 
+            gAE_KStest_list = [stats.kstest(gAE_gen.flatten().cpu(), test_data.flatten().cpu()) for gAE_gen in gAE_gen_list]
+            VAE_KStest = stats.kstest(VAE_gen.flatten().cpu(), test_data.flatten().cpu())
+
             for m in range(M) : 
                 gAE_writer_list[m].add_scalar("Test/MMD score", gAE_stat_list[m], epoch)
                 gAE_writer_list[m].add_scalar("Test/MMD p-value", gAE_p_value_list[m], epoch)
+                gAE_writer_list[m].add_scalar("Test/KS stat", gAE_KStest_list[m].statistic, epoch)
+                gAE_writer_list[m].add_scalar("Test/KS p-value", gAE_KStest_list[m].pvalue, epoch)
 
             VAE_writer.add_scalar("Test/MMD score", VAE_stat, epoch)
             VAE_writer.add_scalar("Test/MMD p-value", VAE_p_value, epoch)
+            VAE_writer.add_scalar("Test/KS stat", VAE_KStest.statistic, epoch)
+            VAE_writer.add_scalar("Test/KS p-value", VAE_KStest.pvalue, epoch)
 
     return None
 

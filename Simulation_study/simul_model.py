@@ -134,10 +134,9 @@ class Decoder(nn.Module):
 
 
 class gammaAE():
-    def __init__(self, train_dataset, test_data, p_dim, q_dim, nu, recon_sigma, device, num_layers,  
+    def __init__(self, train_dataset, p_dim, q_dim, nu, recon_sigma, device, num_layers,  
                  lr = 1e-3, batch_size = 64, eps = 1e-6, weight_decay = 1e-5):
         self.train_dataset = train_dataset
-        self.test_data = test_data.to(device)
         self.p_dim = p_dim
         self.q_dim = q_dim
         self.nu = nu
@@ -179,19 +178,41 @@ class gammaAE():
 
             self.opt.step()
 
-    def test(self, epoch, writer):
+    def validation(self, data, epoch, writer):
         self.encoder.eval()
         self.decoder.eval()
 
-        z, mu, logvar = self.encoder(self.test_data)
+        data = data.to(self.device)
+
+        z, mu, logvar = self.encoder(data)
         reg_loss = self.encoder.loss(mu, logvar)
         recon_data = self.decoder(z)
-        recon_loss = self.decoder.loss(recon_data, self.test_data.view(-1,self.p_dim))
+        recon_loss = self.decoder.loss(recon_data, data.view(-1,self.p_dim))
+        total_loss = reg_loss + recon_loss
+
+        writer.add_scalar("Validation/Reconstruction Error", recon_loss.item(), epoch)
+        writer.add_scalar("Validation/Regularizer", reg_loss.item(), epoch)
+        writer.add_scalar("Validation/Total Loss" , total_loss.item(), epoch)
+
+        return total_loss.item()
+    
+    def test(self, data, epoch, writer):
+        self.encoder.eval()
+        self.decoder.eval()
+
+        data = data.to(self.device)
+
+        z, mu, logvar = self.encoder(data)
+        reg_loss = self.encoder.loss(mu, logvar)
+        recon_data = self.decoder(z)
+        recon_loss = self.decoder.loss(recon_data, data.view(-1,self.p_dim))
         total_loss = reg_loss + recon_loss
 
         writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), epoch)
         writer.add_scalar("Test/Regularizer", reg_loss.item(), epoch)
         writer.add_scalar("Test/Total Loss" , total_loss.item(), epoch)
+
+        return total_loss.item()
 
     def generate(self, N = 1000) : 
         MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.q_dim), torch.eye(self.q_dim))

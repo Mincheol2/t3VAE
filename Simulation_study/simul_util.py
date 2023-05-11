@@ -8,7 +8,7 @@ from simul_loss import log_t_normalizing_const
 
 def make_result_dir(dirname):
     os.makedirs(dirname, exist_ok=True)
-    os.makedirs(dirname + '/gAE', exist_ok=True)
+    # os.makedirs(dirname + '/gAE', exist_ok=True)
     os.makedirs(dirname + '/VAE', exist_ok=True)
     os.makedirs(dirname + '/generations', exist_ok=True)
 
@@ -53,16 +53,42 @@ def t_density(x, nu, mu = torch.zeros(1), var = torch.ones(1,1)) :
         power_term = -torch.log(1 + (mu - x).pow(2) / (nu * var)) * (nu + 1) / 2
         return torch.exp(const_term + power_term) / torch.sqrt(var)
 
-def density_contour(x, K, sample_nu_list, mu_list, var_list, ratio_list, sample_type = "t") : 
+def t_density_contour(x, K, sample_nu_list, mu_list, var_list, ratio_list) : 
     output = 0
-    if sample_type == "t" : 
-        for ind in range(K) : 
-            output += ratio_list[ind] * t_density(x, sample_nu_list[ind], mu_list[ind], var_list[ind])
-        return output
-    if sample_type == "lognormal" : 
-        for ind in range(K) : 
-            output += ratio_list[ind] * t_density(np.log(x), 0, mu_list[ind], var_list[ind]) / np.sqrt(x + 1e-6)
-        return output
+    for ind in range(K) : 
+        output += ratio_list[ind] * t_density(x, sample_nu_list[ind], mu_list[ind], var_list[ind])
+    return output
+
+def latent_generate(sample_N = 10000, nu = 5, SEED = None, device = 'cpu') : 
+    if SEED is not None : 
+        make_reproducibility(SEED)
+
+    nu = 5
+    e1 = torch.tensor([1,0])
+    z1 = torch.randn(sample_N, 2) - 2.5 * e1
+    z2 = torch.randn(sample_N, 2) + 2.5 * e1
+
+    xy = torch.concat([z1 * 3, z2 * 3])
+    x = xy[:,0]
+    y = xy[:,1]
+    result = x * y * torch.sin(x)
+    noise = torch.randn_like(result) / torch.tensor(np.sqrt(np.random.chisquare(nu, result.shape) / nu))
+    w = torch.concat([xy, (result - noise).unsqueeze(1)], dim = 1)
+
+    return xy.to(device).float(), w.to(device).float()
+
+# def latent_generate(sample_N, DEVICE, nu = 5, sigma = 1, seed = None) : 
+#     if seed is not None : 
+#         make_reproducibility(seed)
+#     z1 = np.random.normal(size = int(sample_N / 2)) + 1
+#     z2 = np.random.normal(size = int(sample_N / 2)) - 3
+
+#     z = np.concatenate([np.exp(z1), z2])
+#     z = torch.tensor(z).to(DEVICE)
+
+#     noise = stats.t.rvs(nu, size = sample_N) * sigma
+#     x = z + torch.tensor(noise).to(DEVICE)
+#     return z.unsqueeze(1).float(), x.unsqueeze(1).float()
 
 class MYTensorDataset(torch.utils.data.Dataset) :
     def __init__(self, *tensors) -> None:
@@ -74,4 +100,3 @@ class MYTensorDataset(torch.utils.data.Dataset) :
     def __len__(self):
         return self.tensors[0].size(0)
     
-stats.distributions
