@@ -31,17 +31,17 @@ def t_sampling(N, mu, cov, nu, device) :
 
     return (mu + eps).to(device)
 
-def sample_generation(device, p_dim = 3, SEED = None, K = 1, default_N = 1000, default_nu = 5, N_list = None, mu_list = None, var_list = None, nu_list = None, sample_type = "t") : 
+def sample_generation(device, p_dim = 3, SEED = None, 
+                      K = 1, N = 1000, ratio_list = [1.0], mu_list = None, var_list = None, nu_list = None) : 
     if SEED is not None : 
         make_reproducibility(SEED)
-    
-    if sample_type == "t" : 
-        result_list = [t_sampling(N_list[ind], mu_list[ind], var_list[ind], nu_list[ind], device) for ind in range(K)]
-        return torch.cat(result_list)
 
-    if sample_type == "lognormal" : 
-        result_list = [torch.exp(t_sampling(N_list[ind], mu_list[ind], var_list[ind], 0, device)) for ind in range(K)]
-        return torch.cat(result_list)
+    N_list = np.random.multinomial(N, ratio_list)
+    result_list = [t_sampling(N_list[ind], mu_list[ind], var_list[ind], nu_list[ind], device) for ind in range(K)]
+    result = torch.cat(result_list)
+    shuffled_ind = torch.randperm(result.shape[0])
+    return result[shuffled_ind]
+
 
 def t_density(x, nu, mu = torch.zeros(1), var = torch.ones(1,1)) : 
     if nu == 0 : 
@@ -71,24 +71,30 @@ def latent_generate(sample_N = 10000, nu = 5, SEED = None, device = 'cpu') :
     xy = torch.concat([z1 * 3, z2 * 3])
     x = xy[:,0]
     y = xy[:,1]
-    result = x * y * torch.sin(x)
-    noise = torch.randn_like(result) / torch.tensor(np.sqrt(np.random.chisquare(nu, result.shape) / nu))
-    w = torch.concat([xy, (result - noise).unsqueeze(1)], dim = 1)
+    '''z = x sin y + noise'''
+    # result = x * torch.sin(y)
+    # noise = torch.randn(2*sample_N, 3) / torch.tensor(np.sqrt(np.random.chisquare(nu, 2*sample_N) / nu)).unsqueeze(1)
+    # w = torch.concat([xy, result.unsqueeze(1)], dim = 1) - noise
+    result = x * torch.sin(y)
+    w = torch.concat([xy, result.unsqueeze(1)], dim = 1)
 
-    return xy.to(device).float(), w.to(device).float()
+    return xy.to(device).float() / 5., w.to(device).float()/5.
 
-# def latent_generate(sample_N, DEVICE, nu = 5, sigma = 1, seed = None) : 
-#     if seed is not None : 
-#         make_reproducibility(seed)
-#     z1 = np.random.normal(size = int(sample_N / 2)) + 1
-#     z2 = np.random.normal(size = int(sample_N / 2)) - 3
+def latent_generate_2D(sample_N = 10000, nu = 5, SEED = None, device = 'cpu') : 
+    if SEED is not None : 
+        make_reproducibility(SEED)
 
-#     z = np.concatenate([np.exp(z1), z2])
-#     z = torch.tensor(z).to(DEVICE)
+    nu = 5
+    e1 = torch.tensor([1])
+    z1 = torch.randn(sample_N, 1) - 2.5 * e1
+    z2 = torch.randn(sample_N, 1) + 2.5 * e1
 
-#     noise = stats.t.rvs(nu, size = sample_N) * sigma
-#     x = z + torch.tensor(noise).to(DEVICE)
-#     return z.unsqueeze(1).float(), x.unsqueeze(1).float()
+    xy = torch.concat([z1 * 3, z2 * 3])
+    x = xy[:,0]
+    result = x * torch.sin(x)
+    w = torch.concat([xy, result.unsqueeze(1)], dim = 1)
+
+    return xy.to(device).float() / 5., w.to(device).float()/5.
 
 class MYTensorDataset(torch.utils.data.Dataset) :
     def __init__(self, *tensors) -> None:

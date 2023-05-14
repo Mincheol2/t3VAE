@@ -54,9 +54,11 @@ parser.add_argument('--model_init_seed',type=int,   default=1000,   help="Seed f
 parser.add_argument('--param_seed',     type=int,   default=5000,   help="Seed for random initialization of parameters for train and test data")
 
 parser.add_argument('--K',              type=int,   default=2,      help="Number of mixture distribution in data distribution")
+parser.add_argument('--train_N',        type=int,   default=200000, help="Number of sample size of train data")
+parser.add_argument('--val_N',          type=int,   default=200000, help="Number of sample size of train data")
+parser.add_argument('--test_N',         type=int,   default=200000, help="Number of sample size of train data")
 parser.add_argument('--sample_nu_list', nargs='+',  type=float,     default=[2.0, 2.0],     help='Degree of freedom from each cluster')
-parser.add_argument('--train_N_list',   nargs='+',  type=int,       default=[120000, 80000],   help="Number of sample size from each cluster")
-parser.add_argument('--test_N_list',    nargs='+',  type=int,       default=[120000, 80000],     help="Number of sample size from each cluster")
+parser.add_argument('--ratio_list',     nargs='+',  type=float,     default=[0.6, 0.4],     help='Mixture density of each cluster')
 parser.add_argument('--mu_list',        nargs='+',  type=float,     default=[-2.0, 2.0],    help="Mean parameter for each cluster")
 parser.add_argument('--var_list',       nargs='+',  type=float,     default=[1.0, 1.0],     help="Dispersion parameter for each cluster")
 
@@ -81,7 +83,7 @@ device = DEVICE
 dirname = f'{args.dirname}_data{args.sample_nu_list}_sigma{args.recon_sigma}'
 
 simulation_1D(args.p_dim, args.q_dim, args.model_nu_list, args.recon_sigma, 
-              args.K, args.sample_nu_list, args.train_N_list, args.test_N_list, 
+              args.K, args.train_N, args.val_N, args.test_N, args.sample_nu_list, args.ratio_list,
               dirname, device, 
               args.epochs, args.num_layers, args.batch_size, args.lr, args.eps, args.weight_decay, 
               args.train_data_seed, args.validation_data_seed, args.test_data_seed, args.model_init_seed, 
