@@ -68,7 +68,6 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         x = self.fc(x)
-        # x = F.leaky_relu(self.fc2(x))
         mu = self.latent_mu(x)
         logvar = self.latent_var(x)
         z = self.reparameterize(mu, logvar)
@@ -196,18 +195,21 @@ class gammaAE():
 
         return total_loss.item()
     
-    def test(self, data, epoch, writer):
+    def test(self, data, epoch, writer, tail_cut = 5):
         self.encoder.eval()
         self.decoder.eval()
 
         data = data.to(self.device)
+        tail_indices = (data.abs() > tail_cut).flatten()
 
         z, mu, logvar = self.encoder(data)
         reg_loss = self.encoder.loss(mu, logvar)
         recon_data = self.decoder(z)
         recon_loss = self.decoder.loss(recon_data, data.view(-1,self.p_dim))
+        tail_recon_loss = self.decoder.loss(recon_data[tail_indices], data[tail_indices].view(-1,self.p_dim))
         total_loss = reg_loss + recon_loss
 
+        writer.add_scalar("Test/Tail Reconstruction Error", tail_recon_loss.item(), epoch)
         writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), epoch)
         writer.add_scalar("Test/Regularizer", reg_loss.item(), epoch)
         writer.add_scalar("Test/Total Loss" , total_loss.item(), epoch)

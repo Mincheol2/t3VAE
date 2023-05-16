@@ -60,7 +60,7 @@ def make_masking(n) :
     
     return indice[mask], indice[~mask]
 
-def mmd_bootstrap_test(z_hat, z, device, sigma2=None, iteration=1999) : 
+def mmd_unbiased_bootstrap_test(z_hat, z, device, sigma2=None, iteration=1999) : 
     n = z.shape[0]
     half_size = int((n * n - n)/2)
     

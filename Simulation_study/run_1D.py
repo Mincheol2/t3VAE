@@ -20,7 +20,7 @@ from torchvision import datasets
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from mmd import mmd_unbiased_sq, make_masking, mmd_bootstrap_test, mmd_linear, mmd_linear_bootstrap_test
+from mmd import mmd_unbiased_sq, make_masking, mmd_unbiased_bootstrap_test, mmd_linear, mmd_linear_bootstrap_test
 from simul_util import make_result_dir, make_reproducibility, t_sampling, sample_generation, t_density, t_density_contour, MYTensorDataset
 from simul_loss import log_t_normalizing_const, gamma_regularizer
 from simul_model import Encoder, Decoder, gammaAE
@@ -64,6 +64,7 @@ parser.add_argument('--var_list',       nargs='+',  type=float,     default=[1.0
 
 parser.add_argument('--boot_iter',      type=int,   default=999,   help="Number of iterations in bootstrap MMD test")
 parser.add_argument('--gen_N',          type=int,   default=500000, help="Number of generations")
+parser.add_argument('--MMD_test_N',     type=int,   default=100000, help="Number of generations")
 parser.add_argument('--xlim',           type=float, default=25.0,  help="Maximum value of x-axis in log-scale plot")
 parser.add_argument('--patience',       type=int,   default=10,      help="Patience for Early stopping")
 
@@ -89,4 +90,4 @@ simulation_1D(args.p_dim, args.q_dim, args.model_nu_list, args.recon_sigma,
               args.train_data_seed, args.validation_data_seed, args.test_data_seed, args.model_init_seed, 
               xlim = args.xlim, mmd_type = 'linear', 
               mu_list = mu_list, var_list = var_list, param_seed = args.param_seed, 
-              bootstrap_iter = args.boot_iter, gen_N = args.gen_N, patience = args.patience)
+              bootstrap_iter = args.boot_iter, gen_N = args.gen_N, MMD_test_N = args.MMD_test_N, patience = args.patience)

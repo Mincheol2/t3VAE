@@ -20,7 +20,7 @@ from torchvision import datasets
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-from mmd import mmd_unbiased_sq, make_masking, mmd_bootstrap_test, mmd_linear, mmd_linear_bootstrap_test
+from mmd import mmd_unbiased_sq, make_masking, mmd_unbiased_bootstrap_test, mmd_linear, mmd_linear_bootstrap_test
 from simul_util import make_result_dir, make_reproducibility, t_sampling, sample_generation, t_density, t_density_contour, MYTensorDataset
 from simul_loss import log_t_normalizing_const, gamma_regularizer
 from simul_model import Encoder, Decoder, gammaAE
@@ -32,14 +32,15 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
                   epochs, num_layers, batch_size, lr, eps, weight_decay, 
                   train_data_seed, validation_data_seed, test_data_seed, model_init_seed, 
                   xlim, mmd_type = 'linear', 
-                  mu_list = None, var_list = None, param_seed = None, bootstrap_iter = 1999, gen_N = 100000, patience = 10) : 
+                  mu_list = None, var_list = None, param_seed = None, bootstrap_iter = 1999, 
+                  gen_N = 100000, MMD_test_N = 100000, patience = 10, tail_cut = 5) : 
 
     # Step 0. Environment setup
     M = len(model_nu_list)
 
     mmd_test = mmd_linear_bootstrap_test
     if mmd_type != 'linear' : 
-        mmd_test = mmd_bootstrap_test
+        mmd_test = mmd_unbiased_bootstrap_test
 
     dirname = f'./{dir_name}'
     make_result_dir(dirname)
@@ -112,7 +113,7 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
                 VAE_stop = True
                 print(f"VAE stopped training at {epoch}th epoch")
 
-            VAE_best_model.test(test_data, epoch, VAE_writer)
+            VAE_best_model.test(test_data, epoch, VAE_writer, tail_cut)
 
         for m in range(M) : 
             if gAE_stop[m] is not True : 
@@ -127,29 +128,21 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
 
                 if gAE_count[m] == patience :
                     gAE_stop[m] = True
-                    print(f"gAE with nu {model_nu_list[m]} stopped training at {epoch}th epoch")
+                    print(f"t3VAE with nu {model_nu_list[m]} stopped training at {epoch}th epoch")
 
-                gAE_best_model[m].test(test_data, epoch, gAE_writer_list[m])
+                gAE_best_model[m].test(test_data, epoch, gAE_writer_list[m], tail_cut)
 
-        # Record generation, MMD/KS stat, and latent representation
+        # Record generation, MMD/KS stat, and loss
         if epoch % 5 == 0 or (all(gAE_stop) & VAE_stop):
             # Generation
             gAE_gen_list = [gAE.generate(gen_N).detach() for gAE in gAE_best_model]
             VAE_gen = VAE_best_model.generate(gen_N).detach()
-            
-            # Reconstruction
+
             # gAE_recon_list = [gAE.reconstruct(test_data).detach() for gAE in gAE_best_model]
             # VAE_recon = VAE_best_model.reconstruct(test_data).detach()
-            # Visualization
-            # visualization = visualize_density(
-            #     train_data, test_data, model_nu_list, 
-            #     gAE_gen_list, VAE_gen, gAE_recon_list, VAE_recon, 
-            #     K, sample_nu_list, mu_list, var_list, ratio_list, xlim
-            #     )
             
             visualization = visualize_density_simple(
-                train_data, test_data, model_nu_list, 
-                gAE_gen_list, VAE_gen, 
+                model_nu_list, gAE_gen_list, VAE_gen, 
                 K, sample_nu_list, mu_list, var_list, ratio_list, xlim
                 )
 
@@ -158,13 +151,13 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
             visualization.savefig(filename)
 
             # MMD / KS test results (statistic and p-value)
-            gAE_mmd_result = [mmd_test(gAE_gen[0:test_N], test_data, device = device, iteration = bootstrap_iter) for gAE_gen in gAE_gen_list]
+            gAE_mmd_result = [mmd_test(gAE_gen[0:MMD_test_N], test_data[0:MMD_test_N], device = device, iteration = bootstrap_iter) for gAE_gen in gAE_gen_list]
             gAE_stat_list = [result[0] for result in gAE_mmd_result]
             gAE_p_value_list = [result[1] for result in gAE_mmd_result]
-            VAE_stat, VAE_p_value, _ = mmd_test(VAE_gen[0:test_N], test_data, device = device, iteration = bootstrap_iter)
+            VAE_stat, VAE_p_value, _ = mmd_test(VAE_gen[0:MMD_test_N], test_data[0:MMD_test_N], device = device, iteration = bootstrap_iter)
 
-            gAE_KStest_list = [stats.kstest(gAE_gen.flatten().cpu(), test_data.flatten().cpu()) for gAE_gen in gAE_gen_list]
-            VAE_KStest = stats.kstest(VAE_gen.flatten().cpu(), test_data.flatten().cpu())
+            gAE_KStest_list = [stats.kstest(gAE_gen[0:MMD_test_N].flatten().cpu(), test_data[0:MMD_test_N].flatten().cpu()) for gAE_gen in gAE_gen_list]
+            VAE_KStest = stats.kstest(VAE_gen[0:MMD_test_N].flatten().cpu(), test_data[0:MMD_test_N].flatten().cpu())
 
             for m in range(M) : 
                 gAE_writer_list[m].add_scalar("Test/MMD score", gAE_stat_list[m], epoch)
@@ -176,5 +169,12 @@ def simulation_1D(p_dim, q_dim, model_nu_list, recon_sigma,
             VAE_writer.add_scalar("Test/MMD p-value", VAE_p_value, epoch)
             VAE_writer.add_scalar("Test/KS stat", VAE_KStest.statistic, epoch)
             VAE_writer.add_scalar("Test/KS p-value", VAE_KStest.pvalue, epoch)
+
+    np.savetxt(f'{dirname}/test_data.csv', test_data.cpu().numpy(), delimiter=',')
+    np.savetxt(f'{dirname}/VAE_gen.csv', VAE_gen.cpu().numpy(), delimiter=',')
+    # np.savetxt(f'{dirname}/VAE_recon.csv', VAE_recon.cpu().numpy(), delimiter=',')
+    for m in range(M) : 
+        np.savetxt(f'{dirname}/VAE_gen_{model_nu_list[m]}.csv', gAE_gen_list[m].cpu().numpy(), delimiter = ',')
+        # np.savetxt(f'{dirname}/VAE_recon_{model_nu_list[m]}.csv', gAE_recon_list[m].cpu().numpy(), delimiter = ',')
 
     return None
