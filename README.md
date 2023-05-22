@@ -1,6 +1,6 @@
-# $t^3$-VAE (working title)
+# $t^3$VAE
 
-The Pytorch implementation of the $t^3$-VAE(Triple-t) framework, developed by **Jaehyuk Kwon**, **Juno Kim**, and **Mincheol Cho**.
+Pytorch implementation of $t^3$VAE framework, developed by **Jaehyuk Kwon**, **Juno Kim**, and **Mincheol Cho**.
 
 ## Abstract
 
@@ -17,7 +17,7 @@ To run the model, use the following command:
 python main.py  --model [model_type] --dataset [dataset_name]
 ```
 
-### $t^3$-VAE
+### $t^3$VAE
 
 - For the gamma-pow divergence, use a "--nu" argument. Please keep in mind **$\nu$ > 2**.
 
