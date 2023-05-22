@@ -1,6 +1,6 @@
-# $t^3$VAE
+# t3VAE
 
-Pytorch implementation of $t^3$VAE framework, developed by **Jaehyuk Kwon**, **Juno Kim**, and **Mincheol Cho**.
+Pytorch implementation of t3VAE framework, developed by **Jaehyuk Kwon**, **Juno Kim**, and **Mincheol Cho**.
 
 ## Abstract
 
