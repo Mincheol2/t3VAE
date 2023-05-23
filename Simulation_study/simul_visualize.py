@@ -120,13 +120,13 @@ def visualize_density_simple(model_nu_list, gAE_gen_list, VAE_gen,
     fig = plt.figure(figsize = (3.5 * (M+1), 7))
 
     ax = fig.add_subplot(2,M+1,1)
-    plt.plot(input, contour, color='midnightblue')
+    plt.plot(input, contour, color='black')
     plt.hist(VAE_gen, bins = 100, range = [-10, 10], density=True, alpha = 0.5, color='dodgerblue')
     plt.xlim(-10, 10)
     plt.title('VAE')
 
     ax = fig.add_subplot(2,M+1,M+2)
-    plt.plot(input, contour, color='midnightblue')
+    plt.plot(input, contour, color='black')
     plt.hist(VAE_gen, bins = 100, range = [-xlim, xlim], density=True, alpha = 0.5, color='dodgerblue')
     plt.xlim(-xlim, xlim)
     plt.yscale("log")
@@ -134,13 +134,13 @@ def visualize_density_simple(model_nu_list, gAE_gen_list, VAE_gen,
 
     for m in range(M) : 
         ax = fig.add_subplot(2,M+1,m+2)
-        plt.plot(input, contour, color='midnightblue')
+        plt.plot(input, contour, color='black')
         plt.hist(gAE_gen_list[m], bins = 100, range = [-10, 10], density=True, alpha = 0.5, color='dodgerblue')
         plt.xlim(-10, 10)
         plt.title(f't3VAE (nu = {model_nu_list[m]})')
 
         ax = fig.add_subplot(2,M+1,M+m+3)
-        plt.plot(input, contour, color='midnightblue')
+        plt.plot(input, contour, color='black')
         plt.hist(gAE_gen_list[m], bins = 100, range = [-xlim, xlim], density=True, alpha = 0.5, color='dodgerblue')
         plt.xlim(-xlim, xlim)
         plt.yscale("log")

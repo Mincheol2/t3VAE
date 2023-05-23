@@ -37,7 +37,7 @@ parser.add_argument('--dirname',        type=str,   default='Results', help='Nam
 
 parser.add_argument('--p_dim',          type=int,   default=1,      help='data dimension')
 parser.add_argument('--q_dim',          type=int,   default=1,      help='Latent dimension')
-parser.add_argument('--model_nu_list',  nargs='+',  type=float,     default=[3.0],    help='Degree of freedom in model')
+parser.add_argument('--model_nu_list',  nargs='+',  type=float,     default=[20.0, 16.0, 12.0, 8.0],    help='Degree of freedom in model')
 parser.add_argument('--recon_sigma',    type=float, default=0.1,    help='Sigma value in decoder')
 
 parser.add_argument('--epochs',         type=int,   default=100,    help='Train epoch')
@@ -47,26 +47,26 @@ parser.add_argument('--lr',             type=float, default=1e-3,   help='Learni
 parser.add_argument('--eps',            type=float, default=1e-8,   help="Epsilon for Adam optimizer")
 parser.add_argument('--weight_decay',   type=float, default=1e-4,   help='Weight decay')
 
-parser.add_argument('--train_data_seed',type=int,   default=10000,  help="Seed for sampling train data")
-parser.add_argument('--validation_data_seed', type=int,   default=20000,  help="Seed for sampling test data")
-parser.add_argument('--test_data_seed', type=int,   default=30000,  help="Seed for sampling test data")
-parser.add_argument('--model_init_seed',type=int,   default=1000,   help="Seed for model parameter initialization")
+parser.add_argument('--train_data_seed',type=int,   default=1,      help="Seed for sampling train data")
+parser.add_argument('--validation_data_seed', type=int, default=2,  help="Seed for sampling test data")
+parser.add_argument('--test_data_seed', type=int,   default=3,      help="Seed for sampling test data")
+parser.add_argument('--model_init_seed',type=int,   default=42,     help="Seed for model parameter initialization")
 parser.add_argument('--param_seed',     type=int,   default=5000,   help="Seed for random initialization of parameters for train and test data")
 
 parser.add_argument('--K',              type=int,   default=2,      help="Number of mixture distribution in data distribution")
 parser.add_argument('--train_N',        type=int,   default=200000, help="Number of sample size of train data")
 parser.add_argument('--val_N',          type=int,   default=200000, help="Number of sample size of train data")
-parser.add_argument('--test_N',         type=int,   default=200000, help="Number of sample size of train data")
-parser.add_argument('--sample_nu_list', nargs='+',  type=float,     default=[2.0, 2.0],     help='Degree of freedom from each cluster')
+parser.add_argument('--test_N',         type=int,   default=500000, help="Number of sample size of train data")
+parser.add_argument('--sample_nu_list', nargs='+',  type=float,     default=[5.0, 5.0],     help='Degree of freedom from each cluster')
 parser.add_argument('--ratio_list',     nargs='+',  type=float,     default=[0.6, 0.4],     help='Mixture density of each cluster')
 parser.add_argument('--mu_list',        nargs='+',  type=float,     default=[-2.0, 2.0],    help="Mean parameter for each cluster")
 parser.add_argument('--var_list',       nargs='+',  type=float,     default=[1.0, 1.0],     help="Dispersion parameter for each cluster")
 
-parser.add_argument('--boot_iter',      type=int,   default=999,   help="Number of iterations in bootstrap MMD test")
+parser.add_argument('--boot_iter',      type=int,   default=999,    help="Number of iterations in bootstrap MMD test")
 parser.add_argument('--gen_N',          type=int,   default=500000, help="Number of generations")
 parser.add_argument('--MMD_test_N',     type=int,   default=100000, help="Number of generations")
-parser.add_argument('--xlim',           type=float, default=25.0,  help="Maximum value of x-axis in log-scale plot")
-parser.add_argument('--patience',       type=int,   default=10,      help="Patience for Early stopping")
+parser.add_argument('--xlim',           type=float, default=20.0,   help="Maximum value of x-axis in log-scale plot")
+parser.add_argument('--patience',       type=int,   default=10,     help="Patience for Early stopping")
 
 args = parser.parse_args()
 
