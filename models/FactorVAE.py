@@ -1,5 +1,4 @@
 import torch
-import torch.nn as nn
 from . import FactorVAE_Discriminator
 from torch.nn import functional as F
 import math
@@ -9,7 +8,7 @@ from models import baseline
 class FactorVAE(baseline.VAE_Baseline):
     def __init__(self, image_shape, DEVICE, args):
         super(FactorVAE, self).__init__(image_shape, DEVICE,args)
-        self.discriminator = FactorVAE_Discriminator.Discriminator(q_dim=args.qdim).to(DEVICE)
+        self.discriminator = FactorVAE_Discriminator.Discriminator(m_dim=args.m_dim).to(DEVICE)
 
         # Discriminator network for the Total Correlation loss
         self.D_z_reserve = None
@@ -44,7 +43,7 @@ class FactorVAE(baseline.VAE_Baseline):
     def permute_z(self, z):
         permuted_z = torch.zeros_like(z)
         for i in range(z.shape[-1]):
-            perms = torch.randperm(z.shape[0]).to(z.device)
+            perms = torch.randperm(z.shape[0]).to(self.DEVICE)
             permuted_z[:, i] = z[perms, i]
 
         return permuted_z
@@ -52,13 +51,13 @@ class FactorVAE(baseline.VAE_Baseline):
     def loss(self, x, recon_x, z, mu, logvar):
         N = x.shape[0]
         # Update the Factor VAE
-        reg_loss = 2 * self.args.reg_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
-        recon_loss = torch.sum((recon_x - x)**2 / (N * self.args.recon_sigma**2))
+        reg_loss = 2 * self.args.beta_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
+        recon_loss = torch.sum((recon_x - x)**2 / (N * self.args.prior_sigma**2))
     
         self.D_z_reserve = self.discriminator(z)
         vae_tc_loss = (self.D_z_reserve[:, 0] - self.D_z_reserve[:, 1]).mean()
 
-        total_loss = self.args.reg_weight * reg_loss + recon_loss + self.gamma * vae_tc_loss
+        total_loss = reg_loss + recon_loss + self.gamma * vae_tc_loss
 
         return [reg_loss, recon_loss, total_loss, vae_tc_loss]
 
@@ -76,8 +75,8 @@ class FactorVAE(baseline.VAE_Baseline):
 
 
     def generate(self):
-        prior_z = torch.randn(144, self.args.qdim)
-        prior_z = self.args.recon_sigma * prior_z
+        prior_z = torch.randn(144, self.args.m_dim)
+        prior_z = self.args.prior_sigma * prior_z
         VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
         VAE_gen = VAE_gen
         return VAE_gen

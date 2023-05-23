@@ -1,7 +1,4 @@
 import torch
-import torchvision
-import torch.optim as optim
-from torch.nn import functional as F
 from scipy.special import eval_genlaguerre as L 
 import math
 import numpy as np
@@ -11,10 +8,10 @@ from models import baseline
 class TiltedVAE(baseline.VAE_Baseline):
     def __init__(self, image_shape, DEVICE, args):
         super(TiltedVAE, self).__init__(image_shape, DEVICE,args)
-        self.pdim = self.C * self.H * self.W
-        self.qdim = self.args.qdim
-        self.tilt = torch.tensor(float(self.args.tilt)) # tilt hyperparameter
-        self.d = self.qdim # size of the latent z vector
+        self.n_dim = self.C * self.H * self.W
+        self.m_dim = self.args.m_dim
+        self.tilt = torch.tensor(float(self.args.tilt)) # tilting hyperparameter
+        self.d = self.m_dim # size of the latent z vector
         self.DEVICE = DEVICE
         # Default option : use L2 loss, not use OOD and burn_in arguments.
         
@@ -31,7 +28,7 @@ class TiltedVAE(baseline.VAE_Baseline):
 
         # run gradient descent (kld is convex)
         for step in steps:
-            for _ in range(100): # TODO update this to 10000 <- ??
+            for _ in range(100):
                 y1 = kld(self.mu_star-dx/2, self.d)
                 y2 = kld(self.mu_star+dx/2, self.d)
 
@@ -80,8 +77,8 @@ class TiltedVAE(baseline.VAE_Baseline):
         # 2 * Original loss.
         reg_loss = 2 * (1/2 * torch.square(mu_norm - self.mu_star)).mean()
         
-        recon_loss = torch.sum((recon_x - x)**2 / (N * self.args.recon_sigma**2))
-        total_loss = self.args.reg_weight * reg_loss + recon_loss
+        recon_loss = 2 * self.args.beta_weight * torch.sum((recon_x - x)**2 / (N * self.args.prior_sigma**2))
+        total_loss = reg_loss + recon_loss
         return reg_loss, recon_loss, total_loss
 
     

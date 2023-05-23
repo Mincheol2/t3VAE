@@ -1,7 +1,4 @@
-import torch
 import torch.nn as nn
-import torchvision
-import torch.optim as optim
 import math
 
 class VAE_Baseline(nn.Module):
@@ -33,14 +30,14 @@ class VAE_Baseline(nn.Module):
         n = len(encoder_hiddens)
         self.cnn_lineardim = encoder_hiddens[-1]* math.ceil(self.H / 2**n) * math.ceil(self.W / 2**n)
 
-        self.mu_layer = nn.Linear(self.cnn_lineardim , args.qdim)
-        self.logvar_layer = nn.Linear(self.cnn_lineardim , args.qdim)
+        self.mu_layer = nn.Linear(self.cnn_lineardim , args.m_dim)
+        self.logvar_layer = nn.Linear(self.cnn_lineardim , args.m_dim)
         
         ## Decoder layers ##
         self.decoder_hiddens = encoder_hiddens[::-1]
         self.n = len(self.decoder_hiddens)
         self.linear = nn.Sequential(
-                        nn.Linear(args.qdim, self.cnn_lineardim),
+                        nn.Linear(args.m_dim, self.cnn_lineardim),
                         nn.ReLU(),
         )
         layers = []

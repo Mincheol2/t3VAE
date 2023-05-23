@@ -1,7 +1,4 @@
 import torch
-import torchvision
-import torch.optim as optim
-from torch.nn import functional as F
 import math
 
 from models import baseline
@@ -39,14 +36,14 @@ class VAE(baseline.VAE_Baseline):
     def loss(self, x, recon_x, z, mu, logvar):
         N = x.shape[0]
         
-        reg_loss = 2 * self.args.reg_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
-        recon_loss = torch.sum((recon_x - x)**2 / (N * self.args.recon_sigma**2))
+        reg_loss = 2 * self.args.beta_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
+        recon_loss = torch.sum((recon_x - x)**2 / (N * self.args.prior_sigma**2))
         total_loss = reg_loss + recon_loss
         return [reg_loss, recon_loss, total_loss]
 
     def generate(self):
-        prior_z = torch.randn(144, self.args.qdim)
-        prior_z = self.args.recon_sigma * prior_z
+        prior_z = torch.randn(144, self.args.m_dim)
+        prior_z = self.args.prior_sigma * prior_z
         VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
         VAE_gen = VAE_gen
         return VAE_gen
