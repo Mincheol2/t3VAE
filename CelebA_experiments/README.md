@@ -9,15 +9,17 @@ pip install -r requirements.txt
 
 ## Basic Usage
 
-This model covers multiple types of VAE framework, including $t^3$ VAE(ours), Guassian VAE, $\beta$-VAE , tilted VAE, and Factor VAE
+This model covers multiple types of VAE framework, including $t^3$ VAE, Guassian VAE, $\beta$-VAE , tilted VAE, and Factor VAE
 
-The specific type of model can be determined by varying the argument "--model" or other hyperparamters(e.g. "--recon_sigma" or "--reg_weight".
+The specific type of model can be determined by varying the argument "--model" or other hyperparamters.(e.g. "--recon_sigma" or "--reg_weight")
 
 To run the model, use the following command:
 
 ```
 python run.py --model [model_type] --batch_size [batch_size] --epoch [epoch] --m_dim [latent_dim]
 ```
+
+You can see the detailed setup on the **./exp_env** 
 
 ### $t^3$ VAE
 
