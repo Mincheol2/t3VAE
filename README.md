@@ -45,6 +45,7 @@ python run.py --model FactorVAE --TC_gamma 6.4
 |argument|description|Default|
 |------|---|---|
 |model| model type| VAE|
+|datapath| dataset path| ./|
 |epoch| latent variable dimension| 50|
 |batch_size| latent variable dimension| 64|
 |lr| learning rate| 1e-4|
