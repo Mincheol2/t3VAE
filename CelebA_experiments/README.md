@@ -1,6 +1,5 @@
-# $t^3$ VAE
+# $t^3$ VAE - CelebA data experiments
 
-Pytorch implementation of $t^3$ VAE framework.
 
 ## Requirements
 
