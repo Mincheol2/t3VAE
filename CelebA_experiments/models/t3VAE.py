@@ -54,7 +54,8 @@ class t3VAE(baseline.VAE_Baseline):
     
     def reparameterize(self, mu, logvar):
         '''
-            Sampling algorithm
+            t-reparametrization trick
+
             Let nu_prime = nu + n_dim
             1. Generate v ~ chiq(nu_prime) and eps ~ N(0, I), independently.
             2. Caculate x = mu + std * eps / (sqrt(v/nu_prime)), where std = sqrt(nu/(nu_prime) * var)
@@ -82,6 +83,15 @@ class t3VAE(baseline.VAE_Baseline):
         trace_var = self.args.nu / (self.args.nu + self.n_dim - 2) * torch.sum(logvar.exp(),dim=1)
         log_det_var = -self.gamma / (2+2*self.gamma) * torch.sum(logvar,dim=1)
         reg_loss = torch.mean(mu_norm_sq + trace_var - self.args.nu * self.const_2bar1 * log_det_var.exp(), dim=0) + self.args.nu * self.tau
+        
+        '''
+            Why we multiply 2 on the reg_loss?
+            
+            If we look at the gamma-bound formula: 1/2 * (||x - recon_x ||^2 / recon_sigma**2 + 2 * regularizer), 
+            we can see that we omit the constant 1/2 when calculating the total_loss.
+            For comparison, we also multlply 2 with other frameworks.
+        '''
+        
         reg_loss = 2 * self.args.beta_weight * reg_loss
         ## recon loss (same as VAE) ##
         recon_loss = torch.sum((recon_x - x)**2 / (N * self.args.prior_sigma**2))
