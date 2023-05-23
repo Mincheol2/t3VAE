@@ -2,7 +2,7 @@
 
 Pytorch implementation of $t^3$ VAE framework.
 
-<img src="https://github.com/Mincheol2/t3VAE/assets/43122330/58b095d6-cc61-4896-bed1-cd489ecbf546" width="100%" height="100%">
+<img src="https://github.com/Mincheol2/t3VAE/assets/43122330/6f015725-f47c-4171-9096-6946cd20cc07" width="75%" height="75%">
 
 ## Abstract
 
