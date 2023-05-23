@@ -5,14 +5,7 @@ import numpy as np
 from PIL import Image
 from torchvision.datasets import CelebA
 
-class MyCelebA(CelebA):
-    """
-    A work-around to address issues with pytorch's celebA dataset class.
-    
-    Download and Extract
-    URL : https://drive.google.com/file/d/1m8-EBPgi5MRubrm6iQjafK2QMHDBMSfJ/view?usp=sharing
-    """
-    
+class CustomCelebA(CelebA):
     def _check_integrity(self) -> bool:
         return True
     
@@ -33,7 +26,7 @@ class Custom_Dataset(torch.utils.data.Dataset):
 
 
 class load_dataset():
-    def __init__(self,batch_size,dataset):
+    def __init__(self,batch_size,dataset,dataset_path):
         # data range : -1 ~ 1
         self.transform = transforms.Compose([
             transforms.ToTensor(),
@@ -42,79 +35,34 @@ class load_dataset():
         )
         self.batch_size = batch_size
         self.dataset = dataset
+        self.path = dataset_path
 
-    def load_celeb_dataset(self,dataset_name):
+    def load_celeb_dataset(self,dataset,dataset_path):
 
         self.transform = transforms.Compose(
-            [
-            transforms.RandomHorizontalFlip(),
+            [transforms.RandomHorizontalFlip(),
             transforms.CenterCrop(148),
             transforms.Resize(64),
-            # transforms.Resize(128),
             transforms.ToTensor(),
             ]
         )
-        # train_img_list = []
-        # test_img_list = []
-        # celeb_total_nb = 202530
 
-        # # We manually split the train/test set.
-
-        # indices = np.random.permutation(celeb_total_nb) + 1
-        # train_indices = indices[:60000] # Test!
-        # test_indices = indices[60000:70001]
-
-        # if dataset_name == "celeb_crop64":
-        #     for idx in train_indices:
-        #         img_path = f"/data_intern/celeba/celeba_crop64/{idx:06d}.jpg"
-        #         train_img_list.append(img_path)
-        #     for idx in test_indices:
-        #         img_path = f"/data_intern/celeba/celeba_crop64/{idx:06d}.jpg"
-        #         test_img_list.append(img_path)
-        # elif dataset_name == "celeb_crop128":
-        #     for idx in train_indices:
-        #         img_path = f"/data_intern/celeba/celeba_crop128/{idx:06d}.jpg"
-        #         train_img_list.append(img_path)
-        #     for idx in test_indices:
-        #         img_path = f"/data_intern/celeba/celeba_crop128/{idx:06d}.jpg"
-        #         test_img_list.append(img_path)
-        # elif dataset_name == "celebA":
-        #     for idx in train_indices:
-        #         img_path = f"/data_intern/celeba/img_align_celeba/{idx:06d}.jpg"
-        #         train_img_list.append(img_path)
-        #     for idx in test_indices:
-        #         img_path = f"/data_intern/celeba/img_align_celeba/{idx:06d}.jpg"
-        #         test_img_list.append(img_path)
-        # else:
-        #     raise Exception("Use proper size.")
-
-
-        # trainset = Custom_Dataset(file_list=train_img_list,
-        #                     transform=self.transform)
-
-        # testset = Custom_Dataset(file_list=test_img_list,
-        #                     transform=self.transform)
-        # ## Original data ##
-        
-        trainset = MyCelebA(
-            root="/data_intern/",
+        trainset = CustomCelebA(
+            root=dataset_path,
             split='train',
             transform=self.transform,
             download=False,
         )
         
-        # Replace CelebA with your dataset
-        testset = MyCelebA(
-            root="/data_intern/",
+        testset = CustomCelebA(
+            root=dataset_path,
             split='test',
             transform=self.transform,
             download=False,
         )
-        
         trainloader = torch.utils.data.DataLoader(trainset, batch_size=self.batch_size, shuffle=True)
         testloader = torch.utils.data.DataLoader(testset, batch_size=self.batch_size, shuffle=True)
         
-
         for images, _ in trainloader:
             sample_imgs = images
             break
@@ -123,8 +71,20 @@ class load_dataset():
 
     def select_dataloader(self):
         if 'celeb' in self.dataset:
-            trainloader, testloader, tensorboard_imgs = self.load_celeb_dataset(self.dataset)
+            trainloader, testloader, tensorboard_imgs = self.load_celeb_dataset(self.dataset,self.path)
+        elif 'cifar' in self.dataset:
+            cifar_transform = transforms.Compose(
+            [transforms.RandomHorizontalFlip(),
+            transforms.Resize(32),
+            transforms.ToTensor(),
+            ]
+        )
+            trainloader = datasets.CIFAR10(self.path, train=True, transform=cifar_transform, download = True)
+            testloader = datasets.CIFAR10(self.path, train=False, transform=cifar_transform, download = True)
+            tensorboard_imgs = None
+            for images, _ in trainloader:
+                tensorboard_imgs = images
+                break
         else:
             raise Exception("Use appropriate dataset name")
         return trainloader, testloader, tensorboard_imgs
-

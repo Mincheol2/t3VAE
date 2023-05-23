@@ -19,6 +19,8 @@ parser.add_argument('--model', type=str, default="VAE",
                     help='model name')
 parser.add_argument('--dataset', type=str, default="celebA",
                     help='Dataset name')
+parser.add_argument('--datapath', type=str, default="./",
+                    help='Dataset path')
 parser.add_argument('--dirname', type=str, default="",
                     help='directory name')
 parser.add_argument('--nu', type=float, default=0.0,
@@ -109,7 +111,7 @@ if __name__ == "__main__":
         print(f'nu : {args.nu}')
     
     ## Load Dataset ##
-    dataloader_setup = load_dataset(args.batch_size,args.dataset)
+    dataloader_setup = load_dataset(args.batch_size,args.dataset, args.datapath)
     trainloader, testloader, sample_imgs = dataloader_setup.select_dataloader()
     sample_imgs = sample_imgs.to(DEVICE)
     img_shape = sample_imgs.shape # img shape : [B, C, H, W]
