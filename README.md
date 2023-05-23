@@ -1,6 +1,6 @@
 # $t^3$ VAE
 
-Pytorch implementation of $t^3$ VAE framework.
+Pytorch implementation of $t^3$ VAE : Student t-Variational Autoencoder with gamma-power Divergence
 
 <img src="https://github.com/Mincheol2/t3VAE/assets/43122330/110f7c97-b6d1-43d8-b647-03741cf7748f" width="75%" height="75%">
 
