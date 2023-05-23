@@ -21,6 +21,7 @@ parser.add_argument('--ratio_list',     nargs='+',  type=float,     default=[0.6
 parser.add_argument('--mu_list',        nargs='+',  type=float,     default=[-2.0, 2.0],    help="Mean parameter for each cluster")
 parser.add_argument('--var_list',       nargs='+',  type=float,     default=[1.0, 1.0],     help="Dispersion parameter for each cluster")
 
+parser.add_argument('--boot_seed',      type=int,   default=10,     help="Random seed for bootstrap MMD test")
 parser.add_argument('--boot_iter',      type=int,   default=999,    help="Number of iterations in bootstrap MMD test")
 parser.add_argument('--MMD_test_N',     type=int,   default=100000, help="Number of generations")
 
@@ -41,7 +42,7 @@ VAE_gen = torch.tensor(np.asarray(pd.read_csv(f'./{args.dirname}/VAE_gen.csv', h
 t3VAE_gen_list = [torch.tensor(np.asarray(pd.read_csv(f'./{args.dirname}/t3VAE_gen_{nu}.csv', header = None))).to(device) for nu in [20.0, 16.0, 12.0, 8.0]]
 
 # SEED for bootstrap test
-make_reproducibility(10)
+make_reproducibility(args.boot_seed)
 
 # We do not report this p-value. Instead, we report the recorded MMD p-value in last training step. 
 mmd_linear_bootstrap_test(VAE_gen[0:args.MMD_test_N], test_data[0:args.MMD_test_N], device = device, iteration = args.boot_iter)[1]
