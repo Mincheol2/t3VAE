@@ -235,7 +235,7 @@ if __name__ == "__main__":
             for images, _ in testloader:
                 real_imgs = images
                 break
-            recon_imgs, *_ = model.forward(real_imgs)     
+            recon_imgs, *_ = model.forward(real_imgs.to(DEVICE))     
             filename = f'{args.dirname}/reconstructions/reconstructions_{epoch}.png'         
             torchvision.utils.save_image(recon_imgs, filename,normalize=True, nrow=8)
 
