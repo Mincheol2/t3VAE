@@ -9,38 +9,35 @@ from torchvision import datasets
 from simul_loss import log_t_normalizing_const, gamma_regularizer
 
 class Encoder(nn.Module):
-    def __init__(self, p_dim, q_dim, nu, device, num_layers, recon_sigma):
+    def __init__(self, n_dim, m_dim, nu, device, num_layers, recon_sigma):
         super(Encoder, self).__init__()
-        self.p_dim = p_dim
-        self.q_dim = q_dim
+        self.n_dim = n_dim
+        self.m_dim = m_dim
         self.nu = nu
         self.num_layers = num_layers
         self.device = device
         self.recon_sigma = recon_sigma
 
         self.fc = nn.Sequential(
-            nn.Linear(self.p_dim, self.num_layers), 
+            nn.Linear(self.n_dim, self.num_layers), 
             nn.LeakyReLU(), 
             nn.Linear(self.num_layers, self.num_layers), 
             nn.LeakyReLU()
         )
 
-        self.latent_mu = nn.Linear(self.num_layers, self.q_dim)
-        self.latent_var = nn.Linear(self.num_layers, self.q_dim)
+        self.latent_mu = nn.Linear(self.num_layers, self.m_dim)
+        self.latent_var = nn.Linear(self.num_layers, self.m_dim)
         
-            
-        # precomputing constants
         if self.nu != 0:
+            self.gamma = -2 / (self.nu + self.n_dim + self.m_dim)
             
-            self.gamma = -2 / (self.nu + self.p_dim + self.q_dim)
+            log_tau_base = -self.n_dim * np.log(self.recon_sigma) + log_t_normalizing_const(self.nu, self.n_dim) - np.log(self.nu + self.n_dim - 2) + np.log(self.nu-2)
             
-            log_tau_base = -self.p_dim * np.log(self.recon_sigma) + log_t_normalizing_const(self.nu, self.p_dim) - np.log(self.nu + self.p_dim - 2) + np.log(self.nu-2)
-            
-            const_2bar1_term_1 = (1 + self.q_dim / (self.nu + self.p_dim -2))
+            const_2bar1_term_1 = (1 + self.m_dim / (self.nu + self.n_dim -2))
             const_2bar1_term_2_log = -self.gamma / (1+self.gamma) * log_tau_base
             self.const_2bar1 = const_2bar1_term_1 * const_2bar1_term_2_log.exp()
             
-            log_tau = 2 / (self.nu + self.p_dim - 2 ) * log_tau_base
+            log_tau = 2 / (self.nu + self.n_dim - 2 ) * log_tau_base
             self.tau = log_tau.exp()
     
     def reparameterize(self, mu, logvar):
@@ -51,12 +48,12 @@ class Encoder(nn.Module):
         else:
             '''
                 Sampling algorithm
-                Let nu_prime = nu + p_dim
+                Let nu_prime = nu + n_dim
                 1. Generate v ~ chiq(nu_prime) and eps ~ N(0, I), independently.
                 2. Caculate x = mu + std * eps / (sqrt(nu_prime/nu)), where std = sqrt(nu/(nu_prime) * var)
             '''
-            nu_prime = self.nu + self.q_dim
-            MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.q_dim), torch.eye(self.q_dim))
+            nu_prime = self.nu + self.m_dim
+            MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.m_dim), torch.eye(self.m_dim))
             chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu_prime]))
             
             # Student T dist : [B, z_dim]
@@ -78,25 +75,25 @@ class Encoder(nn.Module):
         if self.nu == 0:
             reg_loss = torch.mean(torch.sum(mu.pow(2) + logvar.exp() - logvar - 1, dim=1))
         else:
-            reg_loss = gamma_regularizer(mu, logvar, self.p_dim, self.const_2bar1, self.gamma, self.tau, self.nu)
+            reg_loss = gamma_regularizer(mu, logvar, self.n_dim, self.const_2bar1, self.gamma, self.tau, self.nu)
         
         return reg_loss
 
 class Decoder(nn.Module):
-    def __init__(self, p_dim, q_dim, nu, device, num_layers, recon_sigma):
+    def __init__(self, n_dim, m_dim, nu, device, num_layers, recon_sigma):
         super(Decoder, self).__init__()
-        self.p_dim = p_dim
-        self.q_dim = q_dim
+        self.n_dim = n_dim
+        self.m_dim = m_dim
         self.nu = nu
         self.device = device
         self.num_layers = num_layers
         self.recon_sigma = recon_sigma
         self.fc = nn.Sequential(
-            nn.Linear(self.q_dim, self.num_layers), 
+            nn.Linear(self.m_dim, self.num_layers), 
             nn.LeakyReLU(), 
             nn.Linear(self.num_layers, self.num_layers), 
             nn.LeakyReLU(), 
-            nn.Linear(self.num_layers, self.p_dim)
+            nn.Linear(self.num_layers, self.n_dim)
         )
 
     def forward(self, enc_z):
@@ -115,13 +112,13 @@ class Decoder(nn.Module):
             eps = torch.randn_like(f_theta) # Normal dist : eps ~ N(0, I)
             return f_theta + self.recon_sigma * eps
         else:
-            nu_prime = self.nu + self.q_dim
-            MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.p_dim), torch.eye(self.p_dim))
+            nu_prime = self.nu + self.m_dim
+            MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.n_dim), torch.eye(self.n_dim))
             chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu_prime]))
             
             eps = MVN_dist.sample(sample_shape=torch.tensor([f_theta.shape[0]])).to(self.device)
             std_const = torch.sqrt((self.nu * torch.ones(f_theta.shape[0]).to(self.device) + torch.norm(z,dim=1).pow(2)) / nu_prime)
-            std_const = std_const.unsqueeze(1).repeat(1,self.p_dim).to(self.device)
+            std_const = std_const.unsqueeze(1).repeat(1,self.n_dim).to(self.device)
             std = self.recon_sigma * std_const
             v = chi_dist.sample(sample_shape=torch.tensor([f_theta.shape[0]])).to(self.device)
             return f_theta + std * (eps * torch.sqrt(nu_prime / v))
@@ -132,12 +129,12 @@ class Decoder(nn.Module):
         return recon_loss
 
 
-class gammaAE():
-    def __init__(self, train_dataset, p_dim, q_dim, nu, recon_sigma, device, num_layers,  
+class t3VAE():
+    def __init__(self, train_dataset, n_dim, m_dim, nu, recon_sigma, device, num_layers,  
                  lr = 1e-3, batch_size = 64, eps = 1e-6, weight_decay = 1e-5):
         self.train_dataset = train_dataset
-        self.p_dim = p_dim
-        self.q_dim = q_dim
+        self.n_dim = n_dim
+        self.m_dim = m_dim
         self.nu = nu
         self.recon_sigma = recon_sigma
         self.device = device
@@ -147,8 +144,8 @@ class gammaAE():
         self.eps = eps
         self.weight_decay = weight_decay
 
-        self.encoder = Encoder(p_dim, q_dim, nu, device, num_layers, recon_sigma).to(device)
-        self.decoder = Decoder(p_dim, q_dim, nu, device, num_layers, recon_sigma).to(device)
+        self.encoder = Encoder(n_dim, m_dim, nu, device, num_layers, recon_sigma).to(device)
+        self.decoder = Decoder(n_dim, m_dim, nu, device, num_layers, recon_sigma).to(device)
         self.opt = optim.Adam(list(self.encoder.parameters()) + list(self.decoder.parameters()), 
                               lr=lr, eps=eps, weight_decay=weight_decay)
 
@@ -166,7 +163,7 @@ class gammaAE():
             z, mu, logvar = self.encoder(data)
             reg_loss = self.encoder.loss(mu, logvar)
             recon_data = self.decoder(z)
-            recon_loss = self.decoder.loss(recon_data, data.view(-1,self.p_dim))
+            recon_loss = self.decoder.loss(recon_data, data.view(-1,self.n_dim))
             total_loss = reg_loss + recon_loss
             total_loss.backward()
 
@@ -186,7 +183,7 @@ class gammaAE():
         z, mu, logvar = self.encoder(data)
         reg_loss = self.encoder.loss(mu, logvar)
         recon_data = self.decoder(z)
-        recon_loss = self.decoder.loss(recon_data, data.view(-1,self.p_dim))
+        recon_loss = self.decoder.loss(recon_data, data.view(-1,self.n_dim))
         total_loss = reg_loss + recon_loss
 
         writer.add_scalar("Validation/Reconstruction Error", recon_loss.item(), epoch)
@@ -195,7 +192,7 @@ class gammaAE():
 
         return total_loss.item()
     
-    def test(self, data, epoch, writer, tail_cut = 5):
+    def test(self, data, epoch, writer):
         self.encoder.eval()
         self.decoder.eval()
 
@@ -204,7 +201,7 @@ class gammaAE():
         z, mu, logvar = self.encoder(data)
         reg_loss = self.encoder.loss(mu, logvar)
         recon_data = self.decoder(z)
-        recon_loss = self.decoder.loss(recon_data, data.view(-1,self.p_dim))
+        recon_loss = self.decoder.loss(recon_data, data.view(-1,self.n_dim))
         total_loss = reg_loss + recon_loss
 
         writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), epoch)
@@ -214,7 +211,7 @@ class gammaAE():
         return total_loss.item()
 
     def generate(self, N = 1000) : 
-        MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.q_dim), torch.eye(self.q_dim))
+        MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.m_dim), torch.eye(self.m_dim))
         prior = MVN_dist.sample(sample_shape=torch.tensor([N]))
 
         if self.nu != 0 : 

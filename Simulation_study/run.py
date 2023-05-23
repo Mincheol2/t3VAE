@@ -5,7 +5,6 @@ import argparse
 import numpy as np
 
 # import seaborn as sns
-import scipy.stats as stats
 import matplotlib.pyplot as plt
 
 from tqdm import tqdm
@@ -21,9 +20,10 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from mmd import mmd_unbiased_sq, make_masking, mmd_unbiased_bootstrap_test, mmd_linear, mmd_linear_bootstrap_test
-from simul_util import make_result_dir, make_reproducibility, t_sampling, sample_generation, t_density, t_density_contour, MYTensorDataset
+from simul_util import make_result_dir, make_reproducibility, TensorDataset
+from simul_synthesize import t_sampling, sample_generation, t_density, t_density_contour
 from simul_loss import log_t_normalizing_const, gamma_regularizer
-from simul_model import Encoder, Decoder, gammaAE
+from simul_model import Encoder, Decoder, t3VAE
 from simul_visualize import visualize_density
 
 from simul_train_1D import simulation_1D
@@ -31,14 +31,14 @@ from simul_train_1D import simulation_1D
 USE_CUDA = torch.cuda.is_available()
 DEVICE = torch.device(f'cuda:0' if USE_CUDA else "cpu")
 
-parser = argparse.ArgumentParser(description="gammaAE")
+parser = argparse.ArgumentParser(description="t3VAE")
 # parser.add_argument('--dirname', type=str, default='simul')
 parser.add_argument('--dirname',        type=str,   default='Results', help='Name of experiments')
 
-parser.add_argument('--p_dim',          type=int,   default=1,      help='data dimension')
-parser.add_argument('--q_dim',          type=int,   default=1,      help='Latent dimension')
-parser.add_argument('--model_nu_list',  nargs='+',  type=float,     default=[20.0, 16.0, 12.0, 8.0],    help='Degree of freedom in model')
-parser.add_argument('--recon_sigma',    type=float, default=0.1,    help='Sigma value in decoder')
+parser.add_argument('--n_dim',          type=int,   default=1,      help='data dimension')
+parser.add_argument('--m_dim',          type=int,   default=1,      help='Latent dimension')
+parser.add_argument('--model_nu_list',  nargs='+',  type=float,     default=[20.0, 16.0, 12.0, 8.0],    help='Degree of freedom for model')
+parser.add_argument('--recon_sigma',    type=float, default=0.1,    help='sigma value in decoder')
 
 parser.add_argument('--epochs',         type=int,   default=100,    help='Train epoch')
 parser.add_argument('--num_layers',     type=int,   default=64,     help='Number of nodes in layers of neural networks')
@@ -81,9 +81,9 @@ if var_list is not None :
 
 device = DEVICE
 
-dirname = f'{args.dirname}_data{args.sample_nu_list}_sigma{args.recon_sigma}'
+dirname = args.dirname
 
-simulation_1D(args.p_dim, args.q_dim, args.model_nu_list, args.recon_sigma, 
+simulation_1D(args.n_dim, args.m_dim, args.model_nu_list, args.recon_sigma, 
               args.K, args.train_N, args.val_N, args.test_N, args.sample_nu_list, args.ratio_list,
               dirname, device, 
               args.epochs, args.num_layers, args.batch_size, args.lr, args.eps, args.weight_decay, 
