@@ -1,12 +1,14 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.nn import functional as F
 import torch.optim as optim
+
+from torchvision import datasets
+from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from torchvision import datasets
-from simul_loss import log_t_normalizing_const, gamma_regularizer
+
+from loss_1D import log_t_normalizing_const, gamma_regularizer
 
 class Encoder(nn.Module):
     def __init__(self, n_dim, m_dim, nu, device, num_layers, recon_sigma):

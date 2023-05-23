@@ -3,8 +3,8 @@ import torch
 import random
 import numpy as np
 
-from simul_loss import log_t_normalizing_const
-from simul_util import make_reproducibility
+from loss_1D import log_t_normalizing_const
+from util_1D import make_reproducibility
 
 def t_sampling(N, mu, cov, nu, device) :
     MVN_dist = torch.distributions.MultivariateNormal(torch.zeros_like(mu), cov)

@@ -2,8 +2,8 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-from simul_loss import log_t_normalizing_const
-from simul_synthesize import t_density, t_density_contour
+from loss_1D import log_t_normalizing_const
+from sampling_1D import t_density, t_density_contour
 
 def visualize_density(model_nu_list, t3VAE_gen_list, VAE_gen, 
                       K, sample_nu_list, mu_list, var_list, ratio_list, xlim) :

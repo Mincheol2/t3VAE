@@ -6,11 +6,8 @@ import scipy.stats as stats
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# os.getcwd()
-# os.chdir('./gammaAE/Simulation_study')
-
-from simul_util import make_reproducibility
-from simul_synthesize import t_density, t_density_contour
+from util_1D import make_reproducibility
+from sampling_1D import t_density, t_density_contour
 from mmd import make_masking, mmd_linear, mmd_linear_bootstrap_test
 
 USE_CUDA = torch.cuda.is_available()
@@ -51,7 +48,6 @@ tail_cut = 5
 large_VAE_sample = VAE_gen[(VAE_gen > tail_cut).flatten()]
 large_t3VAE_sample_list = [t3VAE_gen[(t3VAE_gen > tail_cut).flatten()] for t3VAE_gen in t3VAE_gen_list]
 large_test_data = test_data[(test_data > tail_cut).flatten()]
-# print(f'VAE count : {large_VAE_sample.shape}'); print(f't3VAE count : {[a.shape[0] for a in large_t3VAE_sample_list]}'); print(f'Test data count :  {large_test_data.shape[0]}')
 print(f'p-value for VAE (right tail) :{mmd_linear_bootstrap_test(large_VAE_sample, large_test_data, device = device, iteration = bootstrap_iter)[1]}')
 for m in range(4) : 
     print(f'p-value for t3VAE with nu = {model_nu_list[m]} (right tail) :{mmd_linear_bootstrap_test(large_t3VAE_sample_list[m], large_test_data, device = device, iteration = 999)[1]}')
@@ -60,12 +56,6 @@ for m in range(4) :
 small_VAE_sample = VAE_gen[(VAE_gen < - tail_cut).flatten()]
 small_t3VAE_sample_list = [t3VAE_gen[(t3VAE_gen <- tail_cut).flatten()] for t3VAE_gen in t3VAE_gen_list]
 small_test_data = test_data[(test_data <- tail_cut).flatten()]
-# print(f'VAE count : {small_VAE_sample.shape}'); print(f't3VAE count : {[a.shape[0] for a in small_t3VAE_sample_list]}'); print(f'Test data count :  {small_test_data.shape[0]}')
 print(f'p-value for VAE (left tail) :{mmd_linear_bootstrap_test(small_VAE_sample, small_test_data, device = device, iteration = bootstrap_iter)[1]}')
 for m in range(4) : 
     print(f'p-value for t3VAE with nu = {model_nu_list[m]} (left tail) :{mmd_linear_bootstrap_test(small_t3VAE_sample_list[m], small_test_data, device = device, iteration = 999)[1]}')
-
-
-# mmd_linear_bootstrap_test(small_VAE_sample, small_test_data, device = device, iteration = bootstrap_iter)[1]
-# for m in range(4) : 
-#     print(mmd_linear_bootstrap_test(small_t3VAE_sample_list[m], small_test_data, device = device, iteration = 999)[1])

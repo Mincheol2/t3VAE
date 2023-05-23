@@ -3,24 +3,23 @@ import copy
 import random
 import numpy as np
 
-import matplotlib.pyplot as plt
-
-from tqdm import tqdm
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import matplotlib.pyplot as plt
+
+from tqdm import tqdm
 from torch.nn import functional as F
 from torchvision import datasets
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+from loss_1D import log_t_normalizing_const, gamma_regularizer
+from util_1D import make_result_dir, make_reproducibility, TensorDataset
+from sampling_1D import t_sampling, sample_generation, t_density, t_density_contour
 from mmd import mmd_unbiased_sq, make_masking, mmd_unbiased_bootstrap_test, mmd_linear, mmd_linear_bootstrap_test
-from simul_util import make_result_dir, make_reproducibility, TensorDataset
-from simul_synthesize import t_sampling, sample_generation, t_density, t_density_contour
-from simul_loss import log_t_normalizing_const, gamma_regularizer
-from simul_model import Encoder, Decoder, t3VAE
-from simul_visualize import visualize_density
+from visualize_1D import visualize_density
+from model_1D import Encoder, Decoder, t3VAE
 
 def simulation_1D(n_dim, m_dim, model_nu_list, recon_sigma, 
                   K,  train_N, val_N, test_N, sample_nu_list, ratio_list,
