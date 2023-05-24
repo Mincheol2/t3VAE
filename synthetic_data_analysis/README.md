@@ -34,5 +34,5 @@ python3 hypothesis_test.py
 or
 
 ```
-run.sh
+./run.sh
 ```
