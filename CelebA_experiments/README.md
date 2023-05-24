@@ -1,12 +1,5 @@
 # $t^3$ VAE - CelebA data experiments
 
-
-## Requirements
-
-```
-pip install -r requirements.txt
-```
-
 ## Basic Usage
 
 This model covers multiple types of VAE framework, including $t^3$ VAE, Guassian VAE, $\beta$-VAE , tilted VAE, and Factor VAE
