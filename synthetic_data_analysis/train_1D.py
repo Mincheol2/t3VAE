@@ -106,7 +106,7 @@ def simulation_1D(n_dim, m_dim, model_nu_list, recon_sigma,
 
             if VAE_count == patience : 
                 VAE_stop = True
-                print(f"VAE stopped training at {epoch}th epoch")
+                print(f"VAE stopped training at {epoch - patience}th epoch")
 
             VAE_best_model.test(test_data, epoch, VAE_writer)
 
@@ -123,7 +123,7 @@ def simulation_1D(n_dim, m_dim, model_nu_list, recon_sigma,
 
                 if t3VAE_count[m] == patience :
                     t3VAE_stop[m] = True
-                    print(f"t3VAE with nu {model_nu_list[m]} stopped training at {epoch}th epoch")
+                    print(f"t3VAE with nu {model_nu_list[m]} stopped training at {epoch-patience}th epoch")
 
                 t3VAE_best_model[m].test(test_data, epoch, t3VAE_writer_list[m])
 
