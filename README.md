@@ -2,7 +2,7 @@
 
 Pytorch implementation of $t^3$ VAE : Student t-Variational Autoencoder with gamma-power Divergence
 
-<img src=./regularizer_aspect.png width="75%" height="75%">
+<img src=./regularizer_aspect.gif width="75%" height="75%">
 
 ## Abstract
 
