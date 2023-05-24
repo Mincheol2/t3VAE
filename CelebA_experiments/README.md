@@ -44,16 +44,16 @@ python run.py --model FactorVAE --TC_gamma 6.4
 
 |argument|description|Default|
 |------|---|---|
-|model|model type|VAE|
-|datapath|dataset path||
-|epoch|latent variable dimension|50|
-|batch_size|latent variable dimension|64|
-|lr| learning rate|1e-4|
-|m_dim|latent variable dimension|64|
-|nu|hyperparatmer for γ-divergence (Only used in $t^3$ VAE)||
-|beta_weight|weight of the regularizer loss| 1.0|
-|prior_sigma|standard deviation of the prior| 1.0|
-|tilt|tilting parameter $\tau$ (Only used in TitledVAE)| 40|
+|model|Model type|VAE|
+|datapath|Dataset path||
+|epoch|Latent variable dimension|50|
+|batch_size|Latent variable dimension|64|
+|lr|Learning rate|1e-4|
+|m_dim|Latent variable dimension|64|
+|nu|Hyperparatmer for γ-divergence (Only used in $t^3$ VAE)||
+|beta_weight|Weight of the regularizer loss| 1.0|
+|prior_sigma|Standard deviation of the prior| 1.0|
+|tilt|Initial tilting parameter $\tau$ (Only used in tilted VAE)| 40|
 |TC_gamma|TC regularizer weight (Only used in FactorVAE)| 6.4|
 |lr_D|learning rate of the discriminator(Only used in FactorVAE)| 1e-5|
 
