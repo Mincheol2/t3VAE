@@ -19,7 +19,8 @@ parser.add_argument('--seed', type=int, default=2023,
                     help='set seed number')
 parser.add_argument('--model_path', type=str, default="",
                     help='model path')
-
+parser.add_argument('--datapath', type=str, default="./",
+                    help='Dataset path')
     
 def make_result_dir(dirname):
     os.makedirs(dirname,exist_ok=True)
@@ -71,7 +72,7 @@ if __name__ == "__main__":
             ]
         )
     testset = CustomCelebA(
-    root="./",
+    root=args.datapath,
     split='test',
     transform=transform,
     download=False,
