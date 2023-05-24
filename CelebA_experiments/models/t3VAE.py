@@ -83,16 +83,9 @@ class t3VAE(baseline.VAE_Baseline):
         trace_var = self.args.nu / (self.args.nu + self.n_dim - 2) * torch.sum(logvar.exp(),dim=1)
         log_det_var = -self.gamma / (2+2*self.gamma) * torch.sum(logvar,dim=1)
         reg_loss = torch.mean(mu_norm_sq + trace_var - self.args.nu * self.const_2bar1 * log_det_var.exp(), dim=0) + self.args.nu * self.tau
+
         
-        '''
-            Why we multiply 2 on the reg_loss?
-            
-            If we look at the gamma-bound formula: 1/2 * (||x - recon_x ||^2 / recon_sigma**2 + 2 * regularizer), 
-            we can see that we omit the constant 1/2 when calculating the total_loss.
-            For comparison, we also multlply 2 with other frameworks.
-        '''
-        
-        reg_loss = 2 * self.args.beta_weight * reg_loss
+        reg_loss = self.args.beta_weight * reg_loss
         ## recon loss (same as VAE) ##
         recon_loss = torch.sum((recon_x - x)**2 / (N * self.args.prior_sigma**2))
         total_loss = reg_loss + recon_loss
