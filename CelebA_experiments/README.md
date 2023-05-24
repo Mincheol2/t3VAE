@@ -65,9 +65,9 @@ python run.py --model FactorVAE --TC_gamma 6.4
 |lr_D|learning rate of the discriminator(Only used in FactorVAE)| 1e-5|
 
 
-## test.py 
+## Evaluation
 
-- You can evaluate trained model by computing sharpness and FID scores.
+- You can evaluate trained model with **test.py** by computing sharpness and FID scores.
 
 ```
 python test.py --model path [best_model path]
@@ -75,9 +75,7 @@ python test.py --model path [best_model path]
 
 ## interpolation.ipynb
 
-- Also, you can generate interpolation images.
-
-- Please see the .ipynb file
+- Also, you can make interpolation images with interpolation.ipynb file
 
 ### An example of interpolation
 
