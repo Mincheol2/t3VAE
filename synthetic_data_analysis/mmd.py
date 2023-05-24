@@ -146,6 +146,9 @@ def mmd_unbiased_bootstrap_test(z_hat, z, device, sigma2=None, iteration=1999) :
 
 def mmd_linear_bootstrap_test(z_hat, z, device, sigma2=None, iteration=1999) : 
     n = min([int(z.shape[0] / 2), int(z_hat.shape[0] / 2)])
+    if n == 0 : 
+        raise Exception("There is no such a sample. It may be due to an insufficient training. ")
+
     z_hat_1 = z_hat[0:n]
     z_hat_2 = z_hat[n:2*n]
 

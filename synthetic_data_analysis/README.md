@@ -20,7 +20,7 @@ Once the above training is done, one can do the MMD test by using the following 
 python3 hypothesis_test.py  --dirname [directory name] --model_nu_list [model_nu]
 ```
 
-It prints out the results of MMD test with right/left tail data. Note that the results of MMD test with full data is already contained in the tensorboard. 
+It prints out the results of MMD test with right/left tail data. Note that the results of MMD test with full data is already contained in the tensorboard. If the training process is insufficient, hypothesis test code would not run as the trained model cannot generate tail data. We recommend using a **epochs** argument greater than 20 for sufficient training. 
 
 ## Reproducibility
 
