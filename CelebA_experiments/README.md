@@ -79,3 +79,5 @@ python test.py --model path [best_model path]
 
 - Please see the .ipynb file
 
+
+<img src=./INTERPOL_TEST_example.png width="50%" height="50%">
