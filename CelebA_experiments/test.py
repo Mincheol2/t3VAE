@@ -6,13 +6,6 @@ import os
 import random
 import argparse
 from tqdm import tqdm
-from torch.utils.tensorboard import SummaryWriter
-from skimage.metrics import structural_similarity as ssim
-from skimage.metrics import peak_signal_noise_ratio as psnr
-from sklearn.metrics import mean_squared_error as mse
-import torch.optim as optim
-import seaborn as sns
-from torchmetrics import MultiScaleStructuralSimilarityIndexMeasure
 from torchmetrics.image.fid import FrechetInceptionDistance
 from models import *
 from dataloader import *
@@ -24,11 +17,8 @@ parser.add_argument('--dirname', type=str, default="",
                     help='directory name')
 parser.add_argument('--seed', type=int, default=2023,
                     help='set seed number')
-parser.add_argument('--batch_size', type=int, default=16,
-                    help='input batch size for training')
 parser.add_argument('--model_path', type=str, default="",
                     help='model path')
-
 
     
 def make_result_dir(dirname):
@@ -64,14 +54,6 @@ def measure_sharpness(imgs):
 
     return sharpness / N 
 
-def origin_sharpness(testloader):
-    origin_sharpness_list = []
-    for images, _ in testloader:
-        for img in images:
-            origin_sharpness_list.append(measure_sharpness(img))
-    
-    # 1e2 scale
-    return 100 *np.array(origin_sharpness_list)
 
 if __name__ == "__main__":
     ## init ##
@@ -79,70 +61,74 @@ if __name__ == "__main__":
     USE_CUDA = torch.cuda.is_available()
     DEVICE = torch.device(f'cuda' if USE_CUDA else "cpu")
     make_reproducibility(args.seed)
-    make_result_dir(args.dirname)
+    if args.dirname != '':
+        make_result_dir(args.dirname)
     transform = transforms.Compose(
             [
-            # transforms.RandomHorizontalFlip(),
             transforms.CenterCrop(148),
             transforms.Resize(64),
-            # transforms.Resize(128),
             transforms.ToTensor(),
             ]
         )
-    testset = MyCelebA(
+    testset = CustomCelebA(
     root="/data_intern/",
     split='test',
     transform=transform,
     download=False,
     )
 
-    indices = testset.attr[:,31] == 1
-    subset = torch.utils.data.Subset(testset, 
-    torch.tensor(np.arange(len(indices))[indices]))
-    testloader = torch.utils.data.DataLoader(subset, batch_size=16, shuffle=False)
-        
-    img_shape = torch.tensor([64,3,64,64]) # img : [B, C, H, W]
-    ## Load Model ##
-    # model = load_model(args.model,img_shape, DEVICE, args).to(DEVICE)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=16, shuffle=False)
 
-    # model = torch.load("./new_VAE_FID2/VAE_best.pt")
+    print(f'the number of batches : {len(testloader)}')    
+    img_shape = torch.tensor([64,3,64,64]) # img : [B, C, H, W]
+
     model_path = args.model_path
     model = torch.load(model_path)
     print(f"load the best model from {model_path}")
     fid_recon = FrechetInceptionDistance(normalize=True).to(DEVICE)
-    
-    fid_gen = FrechetInceptionDistance(normalize=True).to(DEVICE)
-    ## Test ##
+    tqdm_testloader = tqdm(testloader)
     model.eval()
-    with torch.no_grad():
-        with open(f'{args.dirname}/fid_score.txt', 'w') as f:
+    test_z = []
+    test_label = []
+    sharpnesses = []
+    filename = args.model_path + '_result.txt'
+    with open(filename, 'w') as f:
+        with torch.no_grad():
             tqdm_testloader = tqdm(testloader)
-            for batch_idx, (x, _) in enumerate(tqdm_testloader):
+            for batch_idx, (x, label) in enumerate(tqdm_testloader):
                 x = x.to(DEVICE)
                 recon_x, z, mu, logvar = model.forward(x)
-                ### Reconstruction ###
+                sharpnesses.append(measure_sharpness(recon_x.cpu()))
                 fid_recon.update(x, real=True)
                 fid_recon.update(recon_x, real=False)
 
-                ### Generation ###
-                gen_x = model.generate().to(DEVICE)
-                fid_gen.update(x, real=True)
-                fid_gen.update(gen_x, real=False)
-            
-                comparison = torch.cat([x.cpu() , recon_x.cpu()])
-                recon_imgs = torchvision.utils.make_grid(comparison.cpu())
-                filename = f'{args.dirname}/reconstructions/reconstruction_{batch_idx}.png'
-                torchvision.utils.save_image(recon_imgs, filename,normalize=True, nrow=4)
-
-                if batch_idx == 150:
-                    break
-
-
-            print("caculating fid scores....")
+        sharpnesses = np.array(sharpnesses).mean()
+        print("caculating recon fid scores....")
+        fid_recon_result = fid_recon.compute()
+        print(f'FID_RECON:{fid_recon_result}')
+        f.write(f'FID_RECON:{fid_recon_result}\n')
+        f.write(f'SHARPNESS:{sharpnesses}\n')
+        j = 1
+        for i in range(40):
+            # for j in range(2):
+            fid_recon = FrechetInceptionDistance(normalize=True).to(DEVICE)
+            indice = torch.where(testset.attr[:,i] == 1)[0]
+            if i == 39:
+                j = 0 
+                indice = torch.where(testset.attr[:,i] == 0)[0] # Not Young (old)
+            subset = torch.utils.data.Subset(testset,indice)
+            testloader = torch.utils.data.DataLoader(subset, batch_size=16, shuffle=False)
+            tqdm_testloader = tqdm(testloader)
+            for batch_idx, (x, label) in enumerate(tqdm_testloader):
+                x = x.to(DEVICE)
+                recon_x, z, mu, logvar = model.forward(x)
+                fid_recon.update(x, real=True)
+                fid_recon.update(recon_x, real=False)
+            filename = f'recon_class_{i}.png'
+            torchvision.utils.save_image(recon_x, filename, normalize=True, nrow=4)
             fid_recon_result = fid_recon.compute()
-            print(f'FID_RECON:{fid_recon_result}')
-            fid_gen_result = fid_gen.compute()
-            print(f'FID_GEN:{fid_gen_result}')
-            f.write(f'FID_RECON:{fid_recon_result}')
-            f.write(f'FID_GEN:{fid_gen_result}')
+            
+            print("caculating recon fid scores....")
 
+            print(f'{testset.attr_names[i]}=={j} -> FID_RECON:{fid_recon_result}')
+            f.write(f'{testset.attr_names[i]}=={j} -> FID_RECON:{fid_recon_result}\n')
