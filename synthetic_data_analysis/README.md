@@ -1,6 +1,6 @@
 # $t^3$ VAE - synthetic data analysis
 
-This subfolder contains the Pytorch implementation of the synthetic data analysis in the section 4.1 of t3VAE paper. 
+This subfolder contains the Pytorch implementation of the synthetic data analysis in the section 4.1 of $t^3$ VAE paper. 
 
 ## Model training and evaluation
 
