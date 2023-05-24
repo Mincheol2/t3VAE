@@ -71,7 +71,7 @@ if __name__ == "__main__":
             ]
         )
     testset = CustomCelebA(
-    root="/data_intern/",
+    root="./",
     split='test',
     transform=transform,
     download=False,
