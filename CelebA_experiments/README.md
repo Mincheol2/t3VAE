@@ -63,3 +63,19 @@ python run.py --model FactorVAE --TC_gamma 6.4
 |tilt|tilting parameter $\tau$ (Only used in TitledVAE)| 40|
 |TC_gamma|TC regularizer weight (Only used in FactorVAE)| 6.4|
 |lr_D|learning rate of the discriminator(Only used in FactorVAE)| 1e-5|
+
+
+## test.py 
+
+- You can evaluate trained model by computing sharpness and FID scores.
+
+```
+python test.py --model path [best_model path]
+```
+
+## interpolation.ipynb
+
+- Also, you can generate interpolation images.
+
+- Please see the .ipynb file
+
