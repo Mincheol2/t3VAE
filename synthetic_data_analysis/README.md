@@ -24,11 +24,11 @@ It prints out the results of MMD test with right/left tail data. Note that the r
 
 ## Reproducibility
 
-All default setups are equivalent to the reported data analysis. One can repeat the same experiment with following commands : 
+All default setups are equivalent to the reported data analysis, except the number of test data and generations. This is because generating 5M data is often too tight for GPU memory. If GPU memory is enough, one can repeat the same experiment using the following commands : 
 
 ```
-python3 run.py
-python3 hypothesis_test.py
+python3 run.py --test_N 5000000  --gen_N 5000000
+python3 hypothesis_test.py 
 ```
 
 or
@@ -36,3 +36,5 @@ or
 ```
 ./run.sh
 ```
+
+
