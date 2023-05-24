@@ -66,9 +66,9 @@ python run.py --model FactorVAE --TC_gamma 6.4
 python test.py --model path [best_model path]
 ```
 
-## interpolation.ipynb
+## Latent interpolation
 
-- Also, you can make interpolation images with interpolation.ipynb file
+- You can make interpolation images from **interpolation.ipynb**.
 
 ### An example of interpolation
 
