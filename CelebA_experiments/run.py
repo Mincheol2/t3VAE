@@ -10,6 +10,8 @@ from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
 from torchmetrics import MultiScaleStructuralSimilarityIndexMeasure
 from torchmetrics.image.fid import FrechetInceptionDistance
+from skimage.metrics import structural_similarity as ssim
+
 from models import *
 from dataloader import *
 
@@ -60,6 +62,8 @@ def load_model(model_name,img_shape,DEVICE, args):
 def make_result_dir(dirname):
     os.makedirs(dirname,exist_ok=True)
     os.makedirs(dirname + '/reconstructions',exist_ok=True)
+    os.makedirs(dirname + '/generations',exist_ok=True)
+
     
 
 def make_reproducibility(seed):
@@ -115,7 +119,9 @@ if __name__ == "__main__":
     trainloader, testloader, sample_imgs = dataloader_setup.select_dataloader()
     sample_imgs = sample_imgs.to(DEVICE)
     img_shape = sample_imgs.shape # img shape : [B, C, H, W]
-        
+    if len(img_shape) == 3:
+        sample_imgs = sample_imgs.unsqueeze(1)
+        img_shape = sample_imgs.shape
     
     ## Load Model ##
     model = load_model(args.model,img_shape, DEVICE, args).to(DEVICE)
@@ -134,15 +140,20 @@ if __name__ == "__main__":
     
     ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(gaussian_kernel=False, sigma=0.5, data_range=1.0, kernel_size=3)
 
-    fid_recon = FrechetInceptionDistance(normalize=True).to(DEVICE)
+    # fid_recon = FrechetInceptionDistance(normalize=True).to(DEVICE)
+    # fid_gen = FrechetInceptionDistance(normalize=True).to(DEVICE)
     
     ## Train & Test ##
+    import gc
+    gc.collect()
     for epoch in epoch_tqdm:
         ## Train ##
         model.train()
         total_loss = []
         tqdm_trainloader = tqdm(trainloader)
         for batch_idx, (x, _) in enumerate(tqdm_trainloader):
+            if len(x) == 3:
+                x = x.unsqueeze(1)
             x = x.to(DEVICE)
             opt.zero_grad()
             recon_x, z, mu, logvar = model.forward(x)
@@ -191,13 +202,13 @@ if __name__ == "__main__":
                     tqdm_testloader.set_description(f'test {epoch} :reg={reg_loss:.4f} recon={recon_loss:.4f} total={total_loss:.4f}')
             
                 ### Reconstruction FID update ###
-                fid_recon.update(x.detach(), real=True)
-                fid_recon.update(recon_x.detach(), real=False)
+                # fid_recon.update(x.detach(), real=True)
+                # fid_recon.update(recon_x.detach(), real=False)
 
                 ## Caculate MS-SSIM##
                 img1 = recon_x.cpu()
                 img2 = x.cpu()
-                ms_ssim_test.append(ms_ssim(img1, img2))
+                # ms_ssim_test.append(ms_ssim(img1, img2))
                 current_step = batch_idx + epoch * denom_test
                 if batch_idx % 200 == 0:    
                     writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), current_step )
@@ -205,8 +216,8 @@ if __name__ == "__main__":
                     writer.add_scalar("Test/Total Loss" , total_loss.item(), current_step)
 
                 
-            ms_ssim_score = torch.tensor(ms_ssim_test).mean()
-            writer.add_scalar("Test/recon_MS-SSIM", ms_ssim_score, current_step)
+            # ms_ssim_score = torch.tensor(ms_ssim_test).mean()
+            # writer.add_scalar("Test/recon_MS-SSIM", ms_ssim_score, current_step)
 
             ## Save the best model ##
             if total_loss < model_best_loss:
@@ -215,10 +226,10 @@ if __name__ == "__main__":
 
             ## FID Score ##
             print("caculating fid scores....")
-            fid_recon_result = fid_recon.compute()
-            writer.add_scalar("Test/recon_FID", fid_recon_result.item(), current_step)
-            print(f'FID_RECON:{fid_recon_result}')
-            fid_recon.reset()
+            # fid_recon_result = fid_recon.compute()
+            # writer.add_scalar("Test/recon_FID", fid_recon_result.item(), current_step)
+            # print(f'FID_RECON:{fid_recon_result}')
+            # fid_recon.reset()ß
 
             ### Reconstruction Images ###
             nb_recons = 32
@@ -235,8 +246,23 @@ if __name__ == "__main__":
             for images, _ in testloader:
                 real_imgs = images
                 break
-            recon_imgs, *_ = model.forward(real_imgs[:64].to(DEVICE))     
+            recon_imgs, *_ = model.forward(real_imgs[:1].to(DEVICE))     
             filename = f'{args.dirname}/reconstructions/reconstructions_{epoch}.png'         
-            torchvision.utils.save_image(recon_imgs, filename,normalize=True, nrow=8)
+            torchvision.utils.save_image(recon_imgs, filename,normalize=True, nrow=1)
+
+
+            ## Test : generate ##
+            gen_imgs = model.generate()     
+            filename = f'{args.dirname}/generations/generations_{epoch}.png'         
+            torchvision.utils.save_image(gen_imgs, filename,normalize=True, nrow=8)
+
+            # fid_gen.update(real_imgs[:64].to(DEVICE), real=True)
+            # fid_gen.update(gen_imgs.to(DEVICE), real=False)
+            # fid_gen_result = fid_gen.compute()
+            # writer.add_scalar("Test/gen_FID", fid_gen_result.item(), current_step)
+            # print(f'FID_GEN:{fid_gen_result}')
+            
+
+
 
     writer.close()

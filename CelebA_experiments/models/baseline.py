@@ -12,7 +12,7 @@ class VAE_Baseline(nn.Module):
         self.scheduler = None
         ### Encoder layers ##
         
-        encoder_hiddens = [128, 256, 512,1024, 2048]
+        encoder_hiddens = [128, 256, 512, 1024, 2048]
         layers = []
         input_ch = self.C
         for dim in encoder_hiddens:
@@ -61,7 +61,8 @@ class VAE_Baseline(nn.Module):
                             nn.ReLU(),
                             nn.ConvTranspose2d(self.decoder_hiddens[-1], self.C,
                                                kernel_size=3, padding=1),
-                            nn.Tanh()
+                            # nn.Tanh()
+                            nn.Sigmoid()
                             )
 
     
