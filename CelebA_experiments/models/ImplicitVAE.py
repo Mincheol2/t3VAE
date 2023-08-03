@@ -8,7 +8,7 @@ class ImplicitVAE(baseline.VAE_Baseline):
     def __init__(self, image_shape, DEVICE, args):
         super(ImplicitVAE, self).__init__(image_shape, DEVICE,args)
 
-        self.discriminator = Implicit_prior_Discriminator.Discriminator(m_dim=args.m_dim,n_h=500).to(DEVICE)
+        self.discriminator = Implicit_prior_Discriminator.Discriminator(args.m_dim,n_h=500).to(DEVICE)
 
            
     def encoder(self, x):
@@ -41,7 +41,7 @@ class ImplicitVAE(baseline.VAE_Baseline):
         N = x.shape[0]
         
         ## Estimate density ratio ##
-        density_ratio = Implicit_prior_Discriminator.discriminator(z)
+        density_ratio = self.discriminator.forward(z)
 
         reg_loss = 2 * self.args.beta_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1) - density_ratio, dim=0)
         recon_loss = torch.sum((recon_x - x)**2 / (N * self.args.prior_sigma**2))
