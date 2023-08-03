@@ -94,10 +94,11 @@ class t3VAE(baseline.VAE_Baseline):
 
     def generate(self):
         prior_chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.args.nu]))
-        prior_z = self.MVN_dist.sample(sample_shape=torch.tensor([144])).to(self.DEVICE)
-        v = prior_chi_dist.sample(sample_shape=torch.tensor([144])).to(self.DEVICE)
+        prior_z = self.MVN_dist.sample(sample_shape=torch.tensor([64])).to(self.DEVICE)
+        v = prior_chi_dist.sample(sample_shape=torch.tensor([64])).to(self.DEVICE)
         prior_t = self.args.prior_sigma * prior_z * torch.sqrt(self.args.nu / v)
+        # prior_t = prior_z
         imgs = self.decoder(prior_t.to(self.DEVICE)).detach().cpu()
         imgs = torch.clamp(imgs,min=0,max=1)
-
+        print(imgs.shape)
         return imgs

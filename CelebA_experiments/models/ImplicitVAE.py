@@ -2,10 +2,14 @@ import torch
 import math
 
 from models import baseline
+from . import Implicit_prior_Discriminator
 
-class VAE(baseline.VAE_Baseline):
+class ImplicitVAE(baseline.VAE_Baseline):
     def __init__(self, image_shape, DEVICE, args):
-        super(VAE, self).__init__(image_shape, DEVICE,args)
+        super(ImplicitVAE, self).__init__(image_shape, DEVICE,args)
+
+        self.discriminator = Implicit_prior_Discriminator.Discriminator(m_dim=args.m_dim,n_h=500).to(DEVICE)
+
            
     def encoder(self, x):
         x = self.cnn_layers(x)
@@ -36,16 +40,10 @@ class VAE(baseline.VAE_Baseline):
     def loss(self, x, recon_x, z, mu, logvar):
         N = x.shape[0]
         
-        
-        '''
-            Why we multiply 2 on the reg_loss?
-            
-            If we look at the gamma-bound formula: 1/2 * (||x - recon_x ||^2 / recon_sigma**2 + 2 * regularizer), 
-            we can see that we omit the constant 1/2 when calculating the total_loss.
-            For comparison, we also multlply 2 with other frameworks (except t3VAE)
-        '''
+        ## Estimate density ratio ##
+        density_ratio = Implicit_prior_Discriminator.discriminator(z)
 
-        reg_loss = 2 * self.args.beta_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
+        reg_loss = 2 * self.args.beta_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1) - density_ratio, dim=0)
         recon_loss = torch.sum((recon_x - x)**2 / (N * self.args.prior_sigma**2))
         total_loss = reg_loss + recon_loss
         return [reg_loss, recon_loss, total_loss]
