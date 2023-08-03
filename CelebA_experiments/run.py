@@ -20,7 +20,7 @@ parser.add_argument('--model', type=str, default="VAE",
                     help='model name')
 parser.add_argument('--dataset', type=str, default="celebA",
                     help='Dataset name')
-parser.add_argument('--datapath', type=str, default="./",
+parser.add_argument('--datapath', type=str, default="/data_intern",
                     help='Dataset path')
 parser.add_argument('--dirname', type=str, default="",
                     help='directory name')
@@ -56,7 +56,7 @@ def load_model(model_name,img_shape,DEVICE, args):
         return TiltedVAE.TiltedVAE(img_shape, DEVICE, args).to(DEVICE)
     elif model_name == "FactorVAE":
         return FactorVAE.FactorVAE(img_shape, DEVICE, args).to(DEVICE)
-    elif model_name == "Implicit":
+    elif model_name == "ImplicitVAE":
         return ImplicitVAE.ImplicitVAE(img_shape, DEVICE, args).to(DEVICE)
     else:
         raise Exception("Please use one of the available model type!", ['VAE', 't3VAE', "TtltedVAE", "FactorVAE"])
@@ -167,7 +167,7 @@ if __name__ == "__main__":
                 discriminator_opt.step()
                 tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} vae_tc={vae_tcloss:.4f} total={total_loss:.4f}')
             elif args.model == "ImplicitVAE":
-                reg_loss, recon_loss, total_loss, vae_tcloss = model.loss(x, recon_x, z, mu, logvar)
+                reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
                 total_loss.backward(retain_graph=True)
                 z = z.detach()
                 z_sampled = torch.randn_like(z)
@@ -215,7 +215,7 @@ if __name__ == "__main__":
                     tqdm_testloader.set_description(f'test {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} vae_tc={vae_tcloss:.4f} total={total_loss:.4f}')
                 
                 elif args.model == "ImplicitVAE":
-                    reg_loss, recon_loss, total_loss, vae_tcloss = model.loss(x, recon_x, z, mu, logvar)
+                    reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
                 
                     logits_inferred = model.discriminator(z)
                     logits_sampled = model.discriminator(z_sampled)
