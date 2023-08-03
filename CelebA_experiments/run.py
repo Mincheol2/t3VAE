@@ -30,7 +30,7 @@ parser.add_argument('--epoch', type=int, default=50,
                     help='Train epoch')
 parser.add_argument('--seed', type=int, default=2023,
                     help='set seed number')
-parser.add_argument('--batch_size', type=int, default=64,
+parser.add_argument('--batch_size', type=int, default=128,
                     help='input batch size for training')
 parser.add_argument('--m_dim',  type=int, default=64,
                     help='latent_dimension')
@@ -45,7 +45,8 @@ parser.add_argument('--tilt', type=float, default=40,
 parser.add_argument('--TC_gamma', type=float, default=6.4,
                     help='TC regularizer weight (Only used in FactorVAE)')
 parser.add_argument('--lr_D', default=1e-5, type=float, help='learning rate of the discriminator(Only used in FactorVAE)')
-
+parser.add_argument('--gpu', type=int, default=0,
+                    help='gpu number')
 def load_model(model_name,img_shape,DEVICE, args):
     if model_name == 'VAE':
        return VAE.VAE(img_shape, DEVICE,args).to(DEVICE)
@@ -55,6 +56,8 @@ def load_model(model_name,img_shape,DEVICE, args):
         return TiltedVAE.TiltedVAE(img_shape, DEVICE, args).to(DEVICE)
     elif model_name == "FactorVAE":
         return FactorVAE.FactorVAE(img_shape, DEVICE, args).to(DEVICE)
+    elif model_name == "Implicit":
+        return ImplicitVAE.ImplicitVAE(img_shape, DEVICE, args).to(DEVICE)
     else:
         raise Exception("Please use one of the available model type!", ['VAE', 't3VAE', "TtltedVAE", "FactorVAE"])
     
@@ -93,9 +96,12 @@ def measure_sharpness(imgs):
 
 if __name__ == "__main__":
     ## init ##
+
+    # os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
     args = parser.parse_args()
     USE_CUDA = torch.cuda.is_available()
-    DEVICE = torch.device(f'cuda' if USE_CUDA else "cpu")
+    DEVICE = torch.device(f'cuda:{args.gpu}' if USE_CUDA else "cpu")
+
     make_reproducibility(args.seed)
     if args.dirname == "":
         args.dirname = './'+args.dataset+ f'_{args.model}_seed:{args.seed}_m_dim:{args.m_dim}'
@@ -103,7 +109,7 @@ if __name__ == "__main__":
             args.dirname += f'nu:{args.nu}'
     
     make_result_dir(args.dirname)
-    writer = SummaryWriter(args.dirname + '/Tensorboard_results')
+    # writer = SummaryWriter(args.dirname + '/Tensorboard_results')
     
     print(f"Current framework : {args.model}")
     if args.model == 't3VAE':
@@ -122,7 +128,10 @@ if __name__ == "__main__":
     model = load_model(args.model,img_shape, DEVICE, args)
 
     # Use multiple GPUs
-    model = torch.nn.DataParallel(model, device_ids = [0,1,2,3])
+    # if len(args.gpu) > 1:
+        # model = torch.nn.DataParallel(model, device_ids = args.gpu)
+    # model = torch.nn.DataParallel(model, device_ids =[0,1,2,3]).to(DEVICE)
+
     model_best_loss = 1e8
 
     epoch_tqdm = tqdm(range(0, args.epoch))
@@ -131,14 +140,11 @@ if __name__ == "__main__":
 
 
     opt = optim.Adam(model.parameters(), lr=args.lr)
-    if args.model == "FactorVAE":
+
+    # Use discriminator
+    if args.model in ["FactorVAE","ImplicitVAE"]: 
         discriminator_opt = optim.Adam(model.discriminator.parameters(), lr=args.lr_D)
-
-    # scheduler = optim.lr_scheduler.ExponentialLR(opt) # currently not used.
-    
-    ms_ssim = MultiScaleStructuralSimilarityIndexMeasure(gaussian_kernel=False, sigma=0.5, data_range=1.0, kernel_size=3)
-
-    fid_recon = FrechetInceptionDistance(normalize=True).to(DEVICE)
+    # fid_recon = FrechetInceptionDistance(normalize=True).to(DEVICE)
     
     ## Train & Test ##
     for epoch in epoch_tqdm:
@@ -160,7 +166,22 @@ if __name__ == "__main__":
                 opt.step()
                 discriminator_opt.step()
                 tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} vae_tc={vae_tcloss:.4f} total={total_loss:.4f}')
+            elif args.model == "ImplicitVAE":
+                reg_loss, recon_loss, total_loss, vae_tcloss = model.loss(x, recon_x, z, mu, logvar)
+                total_loss.backward(retain_graph=True)
+                z = z.detach()
+                z_sampled = torch.randn_like(z)
 
+                discriminator_opt.zero_grad()
+                logits_inferred = model.discriminator(z)
+                logits_sampled = model.discriminator(z_sampled)
+                D_loss = model.discriminator.loss(logits_inferred,logits_sampled)
+                D_loss.backward()
+
+                opt.step()
+                discriminator_opt.step()
+                tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} D_loss={D_loss:.4f} total={total_loss:.4f}')
+            
             else:
                 reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
                 total_loss.backward()
@@ -183,8 +204,7 @@ if __name__ == "__main__":
         model.eval()
         with torch.no_grad():
             tqdm_testloader = tqdm(testloader)
-            
-            ms_ssim_test = []
+            total_loss_list = []
             for batch_idx, (x, _) in enumerate(tqdm_testloader):
                 
                 N = x.shape[0]
@@ -193,58 +213,64 @@ if __name__ == "__main__":
                 if args.model == "FactorVAE":
                     reg_loss, recon_loss, total_loss, vae_tcloss = model.loss(x, recon_x, z, mu, logvar)
                     tqdm_testloader.set_description(f'test {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} vae_tc={vae_tcloss:.4f} total={total_loss:.4f}')
-
+                
+                elif args.model == "ImplicitVAE":
+                    reg_loss, recon_loss, total_loss, vae_tcloss = model.loss(x, recon_x, z, mu, logvar)
+                
+                    logits_inferred = model.discriminator(z)
+                    logits_sampled = model.discriminator(z_sampled)
+                    D_loss = model.discriminator.loss(logits_inferred,logits_sampled)
+                    tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} D_loss={D_loss:.4f} total={total_loss:.4f}')
+            
                 else:
                     reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
                     tqdm_testloader.set_description(f'test {epoch} :reg={reg_loss:.4f} recon={recon_loss:.4f} total={total_loss:.4f}')
-            
-                ### Reconstruction FID update ###
-                fid_recon.update(x.detach(), real=True)
-                fid_recon.update(recon_x.detach(), real=False)
 
-                ## Caculate MS-SSIM##
-                img1 = recon_x.cpu()
-                img2 = x.cpu()
-                ms_ssim_test.append(ms_ssim(img1, img2))
-                current_step = batch_idx + epoch * denom_test
-                if batch_idx % 200 == 0:    
-                    writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), current_step )
-                    writer.add_scalar("Test/Regularizer", reg_loss.item(), current_step)
-                    writer.add_scalar("Test/Total Loss" , total_loss.item(), current_step)
+                total_loss_list.append(total_loss.item())
+                ### Reconstruction FID update ###
+                # fid_recon.update(x.detach(), real=True)
+                # fid_recon.update(recon_x.detach(), real=False)
+
+                # current_step = batch_idx + epoch * denom_test
+                # if batch_idx % 200 == 0:    
+                #     writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), current_step )
+                #     writer.add_scalar("Test/Regularizer", reg_loss.item(), current_step)
+                #     writer.add_scalar("Test/Total Loss" , total_loss.item(), current_step)
 
                 
-            ms_ssim_score = torch.tensor(ms_ssim_test).mean()
-            writer.add_scalar("Test/recon_MS-SSIM", ms_ssim_score, current_step)
+            # ms_ssim_score = torch.tensor(ms_ssim_test).mean()
+            # writer.add_scalar("Test/recon_MS-SSIM", ms_ssim_score, current_step)
 
             ## Save the best model ##
+            total_loss = np.mean(total_loss_list)
             if total_loss < model_best_loss:
                 model_best_loss = total_loss
                 torch.save(model, f'{args.dirname}/{args.model}_best.pt')
 
-            ## FID Score ##
-            print("caculating fid scores....")
-            fid_recon_result = fid_recon.compute()
-            writer.add_scalar("Test/recon_FID", fid_recon_result.item(), current_step)
-            print(f'FID_RECON:{fid_recon_result}')
-            fid_recon.reset()
+            # ## FID Score ##
+            # print("caculating fid scores....")
+            # fid_recon_result = fid_recon.compute()
+            # writer.add_scalar("Test/recon_FID", fid_recon_result.item(), current_step)
+            # print(f'FID_RECON:{fid_recon_result}')
+            # fid_recon.reset()
 
-            ### Reconstruction Images ###
-            nb_recons = 32
-            test_imgs, *_ = model.forward(sample_imgs)       
-            test_imgs = test_imgs.detach().cpu()
-            writer.add_scalar("Test/Reconstruction Sharpness", measure_sharpness(test_imgs), epoch)
+            # ### Reconstruction Images ###
+            # nb_recons = 1
+            # test_imgs, *_ = model.forward(sample_imgs)       
+            # test_imgs = test_imgs.detach().cpu()
+            # writer.add_scalar("Test/Reconstruction Sharpness", measure_sharpness(test_imgs), epoch)
             
-            sample_img_board = sample_imgs[:nb_recons]
-            test_img_board = test_imgs[:nb_recons]
-            comparison = torch.cat([sample_img_board.cpu() , test_img_board])
-            grid = torchvision.utils.make_grid(comparison.cpu())
-            writer.add_image(f"Test image - Above {nb_recons}: Real images, below {nb_recons} : reconstruction images", grid, epoch)
+            # sample_img_board = sample_imgs[:nb_recons]
+            # test_img_board = test_imgs[:nb_recons]
+            # comparison = torch.cat([sample_img_board.cpu() , test_img_board])
+            # grid = torchvision.utils.make_grid(comparison.cpu())
+            # writer.add_image(f"Test image - Above {nb_recons}: Real images, below {nb_recons} : reconstruction images", grid, epoch)
             
-            for images, _ in testloader:
-                real_imgs = images
-                break
-            recon_imgs, *_ = model.forward(real_imgs[:64].to(DEVICE))     
-            filename = f'{args.dirname}/reconstructions/reconstructions_{epoch}.png'         
-            torchvision.utils.save_image(recon_imgs, filename,normalize=True, nrow=8)
+            # for images, _ in testloader:
+            #     real_imgs = images
+            #     break
+            # recon_imgs, *_ = model.forward(real_imgs[:64].to(DEVICE))     
+            # filename = f'{args.dirname}/reconstructions/reconstructions_{epoch}.png'         
+            # torchvision.utils.save_image(recon_imgs, filename,normalize=True, nrow=8)
 
-    writer.close()
+    # writer.close()

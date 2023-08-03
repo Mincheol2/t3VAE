@@ -72,13 +72,13 @@ class load_dataset():
     def load_celebA_HQ_dataset(self, dataset_path):
         transform = transforms.Compose(
             [transforms.RandomHorizontalFlip(),
-            transforms.Resize(512),
+            transforms.Resize(256),
             transforms.ToTensor(),
             ]
         )
 
-        train_indices = range(10000)
-        test_indices = range(10000, 10500)
+        train_indices = range(25000)
+        test_indices = range(25000, 30000)
         train_img_list = []
         test_img_list = []
         dataset_path='/data_intern/CelebAMask-HQ/CelebA-HQ-img'
@@ -95,8 +95,8 @@ class load_dataset():
         testset = Custom_Dataset(file_list=test_img_list,
                             transform=transform)
         
-        trainloader = torch.utils.data.DataLoader(trainset, batch_size=1, shuffle=True)
-        testloader = torch.utils.data.DataLoader(testset, batch_size=1, shuffle=True)
+        trainloader = torch.utils.data.DataLoader(trainset, batch_size=self.batch_size, shuffle=True)
+        testloader = torch.utils.data.DataLoader(testset, batch_size=self.batch_size, shuffle=True)
         
         for images, _ in trainloader:
             sample_imgs = images
