@@ -24,8 +24,8 @@ class TVAE(baseline.VAE_Baseline):
         self.lognu = 0
 
         # parameter layers
-        self.parameter_loglambda_layer = nn.Linear(n_latent, 1) # scale params
-        self.parameter_lognu_layer = nn.Linear(n_latent, 1) # degree of freedom
+        self.parameter_loglambda_layer = nn.Linear(self.pdim, 1) # scale params
+        self.parameter_lognu_layer = nn.Linear(self.pdim, 1) # degree of freedom
 
     
         self.MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.pdim), torch.eye(self.pdim))
@@ -42,25 +42,14 @@ class TVAE(baseline.VAE_Baseline):
         z = self.linear(z)
         z = z.reshape(-1,self.decoder_hiddens[0],math.ceil(self.H / 2**self.n),math.ceil(self.W / 2**self.n))
         z = self.tp_cnn_layers(z)
-        recon_x = self.final_layer(z) 
+        recon_mu = self.final_layer(z)
         
         ## parameter layers ##
         z = z.flatten(start_dim=1)
-        self.loglambda = self.parameter_loglambda_layer(z) # [B, 1]
-        self.lognu = torch.clamp(self.parameter_lognu_layer(z), min=np.log(2+1e-6)) # [B, 1]
-        
-        
-        nu_z = torch.clamp(self.lognu.exp(), min=2 + 1e-8) # nu> 2
-        lambda_z = self.loglambda.exp()
-        eps = self.MVN_dist.sample(sample_shape=torch.tensor([recon_x.shape[0]])).to(self.DEVICE)
-        
-        chi_dist = torch.distributions.chi2.Chi2(nu_z)
-        v = chi_dist.sample().to(self.DEVICE) # [B, 1]
-        t_sample = eps * torch.sqrt(nu_z / v) # [B, pdim] *[B, 1]
-        t_sample = t_sample / torch.sqrt(lambda_z)
-        recon_x = recon_x + t_sample.view(-1,self.C,self.H,self.W)
-
-        return recon_x
+        self.loglambda = self.parameter_loglambda_layer(recon_mu.reshape(-1,self.pdim)) # [B, 1]
+        self.lognu = self.parameter_lognu_layer(recon_mu.reshape(-1,self.pdim))  # [B, 1]
+         
+        return recon_mu
     
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar) # diagonal mat
@@ -74,36 +63,35 @@ class TVAE(baseline.VAE_Baseline):
         
     def loss(self, x, recon_x, z, mu, logvar):
         N = x.shape[0]
-        reg_loss = self.args.reg_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
+        reg_loss = self.args.beta_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
         
         lambda_z = self.loglambda.exp()
-        nu_z  = self.lognu.exp() 
+        nu_z = self.lognu.exp()
 
-        # lgamma_term = torch.lgamma((nu_z + self.pdim)/2) - torch.lgamma(nu_z/2)
-        # log_term = self.pdim/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
-        # lgamma_term = lgamma_term.to(self.DEVICE)
-
-        # x_flat = torch.flatten(x,start_dim = 1)
-        # locale_mu = recon_x.flatten(start_dim=1)
-
-        # x_norm_sq = torch.linalg.norm(x_flat-locale_mu, ord=2, dim=1).pow(2).unsqueeze(1)
-        # log_recon = (nu_z + self.pdim)/2 * torch.log(1 + lambda_z / nu_z * x_norm_sq)
-
-        lgamma_term = torch.lgamma((nu_z +1)/2) - torch.lgamma(nu_z/2)
-        log_term = 1/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
+        lgamma_term = torch.lgamma((nu_z + self.pdim)/2) - torch.lgamma(nu_z/2)
+        log_term = self.pdim/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
         lgamma_term = lgamma_term.to(self.DEVICE)
 
-        x_flat = x.flatten(start_dim = 1)
+        x_flat = torch.flatten(x,start_dim = 1)
         locale_mu = recon_x.flatten(start_dim=1)
 
         x_norm_sq = torch.linalg.norm(x_flat-locale_mu, ord=2, dim=1).pow(2).unsqueeze(1)
-        log_recon = (nu_z + 1)/2 * torch.log(1 + lambda_z / nu_z * x_norm_sq)
-
-        # print(lambda_z, nu_z)
-        recon_loss = - torch.mean(lgamma_term + log_term - log_recon)
+        log_recon = (nu_z + self.pdim)/2 * torch.log(1 + lambda_z / nu_z * x_norm_sq)
 
         # One dim case
-        # recon_loss = - torch.mean(torch.mean(lgamma_term + log_term - log_recon,dim=1),dim=0)
+        # lgamma_term = torch.lgamma((nu_z +1)/2) - torch.lgamma(nu_z/2)
+        # log_term = 1/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
+        # lgamma_term = lgamma_term.to(self.DEVICE)
+
+        # x_flat = x.flatten(start_dim = 1)
+        # locale_mu = recon_x.flatten(start_dim=1)
+
+        # x_norm_sq = torch.linalg.norm(x_flat-locale_mu, ord=2, dim=1).pow(2).unsqueeze(1)
+        # log_recon = (nu_z + 1)/2 * torch.log(1 + lambda_z / nu_z * x_norm_sq)
+
+
+        
+        recon_loss = - torch.mean(torch.mean(lgamma_term + log_term - log_recon,dim=1),dim=0)
 
         total_loss = reg_loss + recon_loss
         return reg_loss, recon_loss, total_loss
