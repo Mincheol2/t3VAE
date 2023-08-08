@@ -54,7 +54,7 @@ class Encoder(nn.Module):
                 1. Generate v ~ chiq(nu_prime) and eps ~ N(0, I), independently.
                 2. Caculate x = mu + std * eps / (sqrt(nu_prime/nu)), where std = sqrt(nu/(nu_prime) * var)
             '''
-            nu_prime = self.nu + self.m_dim
+            nu_prime = self.nu + self.n_dim
             MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.m_dim), torch.eye(self.m_dim))
             chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu_prime]))
             
