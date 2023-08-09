@@ -7,7 +7,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 
+from matplotlib import cm
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from tqdm import tqdm
 from torch.nn import functional as F
 from torchvision import datasets
@@ -16,20 +19,16 @@ from torch.utils.tensorboard import SummaryWriter
 
 from loss import log_t_normalizing_const, gamma_regularizer
 from util import make_result_dir, make_reproducibility, TensorDataset
-from sampling import t_sampling, sample_generation, t_density, t_density_contour
+from multivariate_sampling import multivariate_sample_generation, multivariate_t_density, multivariate_t_density_contour, multivariate_t_sampling
 from mmd import make_masking, mmd_linear, mmd_linear_bootstrap_test
-from visualize import visualize_density, visualize_verbose
+from multivariate_visualize import drawing
 
-# from VAE import VAE
-# from t3VAE import t3VAE
-# from TVAE import TVAE
-# from TVAE_modified import TVAE_modified
 
-def simul_verbose(
+def multivariate_simul(
     model_list, model_title_list, 
     K, train_N, val_N, test_N, ratio_list, 
     sample_nu_list, sample_mu_list, sample_var_list, 
-    dir_name, device, xlim, 
+    dir_name, device, xmin, xmax, ymin, ymax, bins_x, bins_y, 
     epochs, batch_size, lr, eps, weight_decay, 
     train_data_seed, validation_data_seed, test_data_seed, 
     bootstrap_iter = 1999, gen_N = 100000, MMD_test_N = 100000, patience = 10
@@ -40,21 +39,20 @@ def simul_verbose(
     make_result_dir(dirname)
 
     generation_writer = SummaryWriter(dirname + '/generations')
-    verbose_writer = SummaryWriter(dirname + '/latent_space')
     model_writer_list = [SummaryWriter(dirname + f'/{title}') for title in model_title_list]
 
     # Generate dataset
-    train_data = sample_generation(
+    train_data = multivariate_sample_generation(
         device, SEED=train_data_seed,
         K=K, N=train_N, ratio_list = ratio_list, mu_list=sample_mu_list, var_list=sample_var_list, nu_list=sample_nu_list
     )
 
-    validation_data = sample_generation(
+    validation_data = multivariate_sample_generation(
         device, SEED=validation_data_seed,
         K=K, N=val_N, ratio_list = ratio_list, mu_list=sample_mu_list, var_list=sample_var_list, nu_list=sample_nu_list
     )
 
-    test_data = sample_generation(
+    test_data = multivariate_sample_generation(
         device, SEED=test_data_seed,
         K=K, N=test_N, ratio_list = ratio_list, mu_list=sample_mu_list, var_list=sample_var_list, nu_list=sample_nu_list
     )
@@ -67,9 +65,6 @@ def simul_verbose(
     model_best_model = copy.deepcopy(model_list)
     model_count = [0 for _ in range(M)]
     model_stop = [False for _ in range(M)]
-
-    model_mu_phi = [np.zeros([val_N, model.m_dim]) for model in model_list]
-    model_var_phi = [np.zeros([val_N, model.m_dim]) for model in model_list]
 
     opt_list = [
         optim.Adam(model.parameters(), lr = lr, eps = eps, weight_decay=weight_decay) for model in model_list
@@ -107,7 +102,8 @@ def simul_verbose(
                 # valiation step
                 model_list[m].eval()
                 data = validation_data.to(device)
-                recon_loss, reg_loss, validation_loss = model_list[m](data) # validation
+                recon_loss, reg_loss, validation_loss= model_list[m](data) # validation
+
 
                 model_writer_list[m].add_scalar("Validation/Reconstruction Error", recon_loss.item(), epoch)
                 model_writer_list[m].add_scalar("Validation/Regularizer", reg_loss.item(), epoch)
@@ -127,35 +123,20 @@ def simul_verbose(
                 # test step
                 model_best_model[m].eval()
                 data = test_data.to(device)
-                [recon_loss, reg_loss, test_loss], mu_phi, var_phi, likelihood_metric = model_best_model[m](data, verbose = True) # test
-
-                model_mu_phi[m] = mu_phi
-                model_var_phi[m] = var_phi
-
-                model_writer_list[m].add_scalar("Latent/mean of mu_phi", np.mean(mu_phi), epoch)
-                model_writer_list[m].add_scalar("Latent/variance of mu_phi", np.var(mu_phi), epoch)
-                model_writer_list[m].add_scalar("Latent/mean of var_phi", np.mean(var_phi), epoch)
-                model_writer_list[m].add_scalar("Latent/variance of var_phi", np.var(var_phi), epoch)
+                recon_loss, reg_loss, test_loss = model_best_model[m](data) # test
 
                 model_writer_list[m].add_scalar("Test/Reconstruction Error", recon_loss.item(), epoch)
                 model_writer_list[m].add_scalar("Test/Regularizer", reg_loss.item(), epoch)
                 model_writer_list[m].add_scalar("Test/Total Loss" , test_loss.item(), epoch)
-                model_writer_list[m].add_scalar("Test/Likelihood_metric(ELBO)", likelihood_metric.item(), epoch)
 
 
         if epoch % 5 == 0 or all(model_stop): 
-            # varbose results
-            verbose_visualization = visualize_verbose(model_title_list, model_var_phi)
-
-            verbose_writer.add_figure("Latent space", verbose_visualization, epoch)
-            verbose_visualization.savefig(f'{dirname}/latent_space/epoch{epoch}.png')
-
             # Generation
             model_gen_list = [model.generate(gen_N).detach() for model in model_best_model]
 
-            visualization = visualize_density(
-                model_title_list, model_gen_list, 
-                K, sample_nu_list, sample_mu_list, sample_var_list, ratio_list, xlim
+            visualization = drawing(
+                test_data, model_title_list, model_gen_list, 
+                xmin, xmax, ymin, ymax, bins_x, bins_y, 
             )
 
             generation_writer.add_figure("Generation", visualization, epoch)
@@ -172,9 +153,5 @@ def simul_verbose(
 
     np.savetxt(f'{dirname}/test_data.csv', test_data.cpu().numpy(), delimiter=',')
     [np.savetxt(f'{dirname}/{model_title_list[m]}.csv', model_gen_list[m].cpu().numpy(), delimiter = ',') for m in range(M)]
-
-    [np.savetxt(f'{dirname}/latent_space/mu_{model_title_list[m]}.csv', model_mu_phi[m], delimiter = ',') for m in range(M)]
-    [np.savetxt(f'{dirname}/latent_space/var_{model_title_list[m]}.csv', model_var_phi[m], delimiter = ',') for m in range(M)]
-
 
     return None

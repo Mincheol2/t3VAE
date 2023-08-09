@@ -33,7 +33,7 @@ def visualize_density(model_title_list, model_gen_list,
     return fig
 
 
-def visualize_verbose(model_title_list, model_mu_phi, model_var_phi) : 
+def visualize_verbose(model_title_list, model_var_phi) : 
 
     M = len(model_title_list)
 
@@ -41,11 +41,12 @@ def visualize_verbose(model_title_list, model_mu_phi, model_var_phi) :
 
     for m in range(M) : 
         ax = fig.add_subplot(2,M,m+1)
-        plt.hist(model_mu_phi[m], bins = 100, density=True, alpha = 0.5, color='dodgerblue')
-        plt.title(f'mu_phi of {model_title_list[m]}')
+        plt.hist(model_var_phi[m], bins = 100, density=True, alpha = 0.5, color='dodgerblue')
+        plt.title(f'var_phi of {model_title_list[m]}')
 
         ax = fig.add_subplot(2,M,M+m+1)
         plt.hist(model_var_phi[m], bins = 100, density=True, alpha = 0.5, color='dodgerblue')
-        plt.title(f'var_phi of {model_title_list[m]}')
+        plt.yscale("log")
+        plt.title(f'log scale histogram')
 
     return fig

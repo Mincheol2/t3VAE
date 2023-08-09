@@ -85,13 +85,13 @@ model_list = [
     t3VAE.t3VAE(nu=12.0, recon_sigma=args.recon_sigma, device=device).to(device),
     t3VAE.t3VAE(nu=16.0, recon_sigma=args.recon_sigma, device=device).to(device),
     t3VAE.t3VAE(nu=20.0, recon_sigma=args.recon_sigma, device=device).to(device),
-    VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device), 
-    betaVAE.betaVAE(reg_weight = 0.75, recon_sigma=args.recon_sigma, device=device).to(device)
+    VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device)
 ]
 
+model_title_list = [model.model_name for model in model_list]
 
 simul_verbose(
-    model_list, [model.model_name for model in model_list], 
+    model_list, model_title_list, 
     args.K, args.train_N, args.val_N, args.test_N, args.ratio_list,
     args.sample_nu_list, mu_list, var_list, 
     dirname, device, args.xlim, 

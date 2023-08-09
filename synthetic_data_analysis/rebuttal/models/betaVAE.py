@@ -78,10 +78,16 @@ class betaVAE(nn.Module) :
     def forward(self, x, verbose = False) : 
         enc_z, mu, logvar = self.encode(x)
         recon_x = self.decode(enc_z)
+        total_loss = self.total_loss(x, recon_x, mu, logvar)
         if verbose is False : 
-            return self.total_loss(x, recon_x, mu, logvar)
+            return total_loss
         else : 
-            return self.total_loss(x, recon_x, mu, logvar), mu.detach().flatten().cpu().numpy(), logvar.detach().flatten().exp().cpu().numpy()
+            return [
+                total_loss, 
+                mu.detach().flatten().cpu().numpy(), 
+                logvar.detach().flatten().exp().cpu().numpy(), 
+                total_loss[0] + total_loss[1]
+            ]
         
 
         

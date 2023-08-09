@@ -9,7 +9,8 @@ class t3VAE(nn.Module) :
     
     def __init__(self, n_dim=1, m_dim=1, nu=3, recon_sigma=1, reg_weight=1, num_layers=64, device='cpu'):
         super(t3VAE, self).__init__()
-        self.model_name = f"t3VAE_fixed_nu_{nu}"
+        # self.model_name = f"t3VAE_fixed_nu_{nu}"
+        self.model_name = f"t3VAE_nu_{nu}"
 
         self.n_dim = n_dim
         self.m_dim = m_dim
@@ -83,6 +84,15 @@ class t3VAE(nn.Module) :
         reg = self.reg_loss(mu, logvar)
 
         return recon, reg, recon + self.reg_weight * reg
+
+    def ELBO(self, x, enc_z, mu, logvar) : 
+        # return 2 * stochatically estimated ELBO
+        mu_theta = self.decode(enc_z)
+    
+        negative_log_p_theta = (self.nu + self.n_dim + self.m_dim) * torch.log(1 + torch.sum(torch.pow((x - mu_theta) / self.recon_sigma, 2), dim = 1))
+        negative_log_q_phi = torch.sum(logvar, dim = 1)
+        negative_log_q_phi += (self.nu + self.n_dim + self.m_dim) * torch.log(1 + torch.sum(torch.pow((enc_z - mu), 2) / torch.exp(logvar), dim = 1) / self.nu)
+        return torch.mean(negative_log_q_phi - negative_log_p_theta)
     
     def decoder_sampling(self, z) : 
         N_sample = z.shape[0]
@@ -112,10 +122,16 @@ class t3VAE(nn.Module) :
     def forward(self, x, verbose = False) : 
         enc_z, mu, logvar = self.encode(x)
         recon_x = self.decode(enc_z)
+        total_loss = self.total_loss(x, recon_x, mu, logvar)
         if verbose is False : 
-            return self.total_loss(x, recon_x, mu, logvar)
+            return total_loss
         else : 
-            return self.total_loss(x, recon_x, mu, logvar), mu.detach().flatten().cpu().numpy(), logvar.detach().flatten().exp().cpu().numpy()
+            return [
+                total_loss, 
+                mu.detach().flatten().cpu().numpy(), 
+                logvar.detach().flatten().exp().cpu().numpy(), 
+                -self.ELBO(x, enc_z, mu, logvar)
+            ]
         
 
         
