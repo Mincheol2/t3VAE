@@ -22,7 +22,7 @@ from loss import log_t_normalizing_const, gamma_regularizer
 from util import make_result_dir, make_reproducibility, TensorDataset
 from multivariate_sampling import multivariate_sample_generation, multivariate_t_density, multivariate_t_density_contour, multivariate_t_sampling
 from mmd import make_masking, mmd_linear, mmd_linear_bootstrap_test
-from multivariate_visualize import drawing
+from multivariate_visualize import drawing, drawing_rev
 
 from models import *
 
@@ -35,13 +35,13 @@ parser.add_argument('--dirname',        type=str,   default='multi', help='Name 
 # parser.add_argument('--n_dim',          type=int,   default=1,      help='data dimension')
 # parser.add_argument('--m_dim',          type=int,   default=1,      help='Latent dimension')
 # parser.add_argument('--nu',             type=float, default=5.0,    help='degree of freedom')
-parser.add_argument('--recon_sigma',    type=float, default=0.1,    help='sigma value in decoder')
-parser.add_argument('--reg_weight',     type=float, default=1,    help='weight for regularizer term (beta)')
+parser.add_argument('--recon_sigma',    type=float, default=1.0,    help='sigma value in decoder')
+parser.add_argument('--reg_weight',     type=float, default=1.0,    help='weight for regularizer term (beta)')
 
 parser.add_argument('--epochs',         type=int,   default=100,    help='Train epoch')
 parser.add_argument('--num_layers',     type=int,   default=64,     help='Number of nodes in layers of neural networks')
 parser.add_argument('--batch_size',     type=int,   default=1024,   help='Batch size')
-parser.add_argument('--lr',             type=float, default=1e-3,   help='Learning rate')
+parser.add_argument('--lr',             type=float, default=1e-1,   help='Learning rate')
 parser.add_argument('--eps',            type=float, default=1e-8,   help="Epsilon for Adam optimizer")
 parser.add_argument('--weight_decay',   type=float, default=1e-4,   help='Weight decay')
 
@@ -73,20 +73,30 @@ parser.add_argument('--patience',       type=int,   default=10,     help="Patien
 args = parser.parse_args()
 
 n_dim = 2
-m_dim = 1
+m_dim = 2
 
 K = 2
 ratio_list = [0.6, 0.4]
 
 sample_mu_list = [
-    torch.tensor([-1.0, 2.0]), 
-    torch.tensor([4.0, 3.0])
+    torch.tensor([1.0, 2.0]), 
+    torch.tensor([6.0, 3.0])
 ]
 
 sample_var_list = [
     torch.tensor([[4.0,3.0],[3.0,4.0]]), 
     torch.tensor([[4.0,1.0],[1.0,1.0]])
 ]
+
+# sample_mu_list = [
+#     torch.tensor([2.0, 1.0]), 
+#     torch.tensor([4.0, -3.0])
+# ]
+
+# sample_var_list = [
+#     torch.tensor([[4.0,-3.0],[-3.0,4.0]]), 
+#     torch.tensor([[1.0,-1.0],[-1.0,4.0]])
+# ]
 
 sample_nu_list = [5.0, 7.0]
 
@@ -105,15 +115,46 @@ Best model List
     ...
 '''
 
-# multi_1
+# # multi_7
+# model_list = [
+#     TVAE.TVAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=args.recon_sigma, device=device).to(device), 
+#     TVAE_modified.TVAE_modified(n_dim = n_dim, m_dim = m_dim, recon_sigma=args.recon_sigma, device=device).to(device),
+#     VAE.VAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=args.recon_sigma, device=device).to(device) ,
+#     t3VAE.t3VAE(n_dim = n_dim, m_dim = m_dim, nu=15.0, recon_sigma=args.recon_sigma, device=device).to(device)
+# ]
 
+# multi_8
+# model_list = [
+#     TVAE.TVAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=args.recon_sigma, device=device).to(device), 
+#     TVAE_modified.TVAE_modified(n_dim = n_dim, m_dim = m_dim, recon_sigma=args.recon_sigma, device=device).to(device),
+#     VAE.VAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=args.recon_sigma, device=device).to(device) ,
+#     t3VAE.t3VAE(n_dim = n_dim, m_dim = m_dim, nu=15.0, recon_sigma=args.recon_sigma, device=device).to(device)
+# ]
+
+# a_1
+# model_list = [
+#     TVAE.TVAE(n_dim = n_dim, m_dim = m_dim, device=device).to(device), 
+#     Disentangled_VAE.Disentangled_VAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=1.5, device=device, sample_size_for_integral=1).to(device), 
+#     # VAE_st.VAE_st(n_dim = n_dim, m_dim = m_dim, recon_sigma=1.5, device=device).to(device), 
+#     VAE.VAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=1.5, device=device).to(device) ,
+#     t3VAE.t3VAE(n_dim = n_dim, m_dim = m_dim, nu=10.0, recon_sigma=0.65, device=device).to(device)
+#     # t3VAE.t3VAE(n_dim = n_dim, m_dim = m_dim, nu=15.0, recon_sigma=args.recon_sigma, device=device).to(device)
+# ]
+
+# a_6, a_7
+
+# a_8 : 15.0
+# a_9 : 25.0 , recon_sigma = 0.5 for t3vae
+# a_0
+sample_nu_list = [5.0, 4.0]
 model_list = [
-    VAE.VAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=args.recon_sigma, device=device).to(device), 
-    t3VAE.t3VAE(n_dim = n_dim, m_dim = m_dim, nu=20.0, recon_sigma=args.recon_sigma, device=device).to(device),
-    t3VAE.t3VAE(n_dim = n_dim, m_dim = m_dim, nu=16.0, recon_sigma=args.recon_sigma, device=device).to(device),
-    t3VAE.t3VAE(n_dim = n_dim, m_dim = m_dim, nu=12.0, recon_sigma=args.recon_sigma, device=device).to(device),
-    t3VAE.t3VAE(n_dim = n_dim, m_dim = m_dim, nu=8.0, recon_sigma=args.recon_sigma, device=device).to(device)
+    t3VAE.t3VAE(n_dim = n_dim, m_dim = m_dim, nu=25.0, recon_sigma=0.3, device=device).to(device), 
+    TVAE.TVAE(n_dim = n_dim, m_dim = m_dim, device=device).to(device), 
+    # Disentangled_VAE.Disentangled_VAE(n_dim = n_dim, m_dim = m_dim, nu = 10.0, recon_sigma=1.5, device=device, sample_size_for_integral=1).to(device), 
+    VAE.VAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=1.2, device=device).to(device)
 ]
+
+
 
 multivariate_simul(
     model_list, [model.model_name for model in model_list], 

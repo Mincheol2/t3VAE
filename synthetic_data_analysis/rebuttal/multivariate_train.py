@@ -21,7 +21,7 @@ from loss import log_t_normalizing_const, gamma_regularizer
 from util import make_result_dir, make_reproducibility, TensorDataset
 from multivariate_sampling import multivariate_sample_generation, multivariate_t_density, multivariate_t_density_contour, multivariate_t_sampling
 from mmd import make_masking, mmd_linear, mmd_linear_bootstrap_test
-from multivariate_visualize import drawing
+from multivariate_visualize import drawing, drawing_rev
 
 
 def multivariate_simul(
@@ -136,8 +136,13 @@ def multivariate_simul(
 
             visualization = drawing(
                 test_data, model_title_list, model_gen_list, 
-                xmin, xmax, ymin, ymax, bins_x, bins_y, 
+                xmin, xmax, ymin, ymax, bins_x, bins_y
             )
+
+            # visualization = drawing_rev(
+            #     train_data, validation_data, test_data, model_title_list, model_gen_list, 
+            #     xmin, xmax, ymin, ymax, bins_x, bins_y
+            # )
 
             generation_writer.add_figure("Generation", visualization, epoch)
             filename = f'{dirname}/generations/epoch{epoch}.png'

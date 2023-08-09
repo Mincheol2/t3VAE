@@ -6,7 +6,7 @@ from torch.nn import functional as F
 class TVAE(nn.Module) : 
     def __init__(self, n_dim=1, m_dim=1, nu=3, recon_sigma=1, reg_weight=1, num_layers=64, device='cpu'):
         super(TVAE, self).__init__()
-        self.model_name = "TVAE_learnable"
+        self.model_name = "t-VAE"
 
         self.n_dim = n_dim
         self.m_dim = m_dim
@@ -100,8 +100,8 @@ class TVAE(nn.Module) :
     def forward(self, x) : 
         enc_z, mu, logvar = self.encode(x)
         mu_theta, loglambda, lognu = self.decode(enc_z)
-        if x.shape[0] > 5000 : 
-            print(f'TVAE nu : {torch.exp(lognu).flatten().detach().cpu().numpy()}')
+        # if x.shape[0] > 5000 : 
+        #     print(f'TVAE nu : {torch.exp(lognu).flatten().detach().cpu().numpy()}')
         return self.total_loss(x, mu_theta, loglambda, lognu, mu, logvar)
 
         

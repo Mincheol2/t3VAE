@@ -44,7 +44,7 @@ class VAE_st(nn.Module) :
 
     def encoder_reparameterize(self, mu, var, nu) : 
         std = torch.sqrt(var)
-        eps = torch.randn_like(std)
+        eps = torch.randn_like(std).to(self.device)
 
         chi_dist = torch.distributions.chi2.Chi2(nu)
         v = chi_dist.sample(sample_shape=torch.tensor([1])).squeeze(0).to(self.device)

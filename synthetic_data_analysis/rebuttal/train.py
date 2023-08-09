@@ -93,12 +93,19 @@ def simul(
                     recon_loss, reg_loss, train_loss = model_list[m](data) # train
                     train_loss.backward()
 
+                    # if m == 2 : 
+                    #     print(model_list[m].x_decoder_logvar.bias)
+                    #     print(model_list[m].x_decoder_logvar.bias.grad)
+
                     current_step_train = epoch * denom_train + batch_idx
                     model_writer_list[m].add_scalar("Train/Reconstruction Error", recon_loss.item(), current_step_train)
                     model_writer_list[m].add_scalar("Train/Regularizer", reg_loss.item(), current_step_train)
                     model_writer_list[m].add_scalar("Train/Total Loss" , train_loss.item(), current_step_train)
 
                     opt_list[m].step()
+                    
+                    # if m == 2 : 
+                    #     print(model_list[m].x_decoder_logvar.bias)
 
                 # valiation step
                 model_list[m].eval()

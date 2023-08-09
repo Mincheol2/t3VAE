@@ -59,7 +59,7 @@ parser.add_argument('--var_list',       nargs='+',  type=float,     default=[1.0
 parser.add_argument('--boot_iter',      type=int,   default=999,    help="Number of iterations in bootstrap MMD test")
 parser.add_argument('--gen_N',          type=int,   default=500000,help="Number of generations")
 parser.add_argument('--MMD_test_N',     type=int,   default=100000, help="Number of generations")
-parser.add_argument('--xlim',           type=float, default=20.0,   help="Maximum value of x-axis in log-scale plot")
+parser.add_argument('--xlim',           type=float, default=15.0,   help="Maximum value of x-axis in log-scale plot")
 parser.add_argument('--patience',       type=int,   default=10,     help="Patience for Early stopping")
 
 args = parser.parse_args()
@@ -129,12 +129,33 @@ Best model List
 # ]
 
 # VAE-st, disentangled_VAE
+# model_list = [
+#     t3VAE.t3VAE(nu=16.0, recon_sigma=args.recon_sigma, device=device).to(device),
+#     VAE_st.VAE_st(recon_sigma=args.recon_sigma, device=device, sample_size_for_integral = 1).to(device), 
+#     VAE_st_modified.VAE_st_modified(recon_sigma=args.recon_sigma, device=device, sample_size_for_integral = 1).to(device)
+# ]
+
+# b_1,,2
 model_list = [
-    t3VAE.t3VAE(nu=16.0, recon_sigma=args.recon_sigma, device=device).to(device),
-    VAE_st.VAE_st(recon_sigma=args.recon_sigma, device=device, sample_size_for_integral = 1).to(device), 
-    VAE_st_modified.VAE_st_modified(recon_sigma=args.recon_sigma, device=device, sample_size_for_integral = 1).to(device)
+    # GMVAE.GMVAE(recon_sigma = 1, device=device).to(device)
+    # GMVAE.GMVAE(recon_sigma = 1.0, device=device).to(device), 
+    # GMVAE.GMVAE(recon_sigma = 1.5, device=device).to(device), 
+    # GMVAE.GMVAE(recon_sigma = 2.0, device=device).to(device)
 ]
 
+model_list = [
+    GMVAE.GMVAE(recon_sigma = 1.0, device=device).to(device), 
+    # GMVAE.GMVAE(recon_sigma = 1.0, device=device).to(device), 
+    # GMVAE.GMVAE(recon_sigma = 1.5, device=device).to(device), 
+    GMVAE.GMVAE(recon_sigma = 0.5, device=device).to(device)
+]
+
+# model_list = [
+#     betaVAE.betaVAE(recon_sigma=args.recon_sigma, reg_weight = 5, device=device).to(device),
+#     betaVAE.betaVAE(recon_sigma=args.recon_sigma, reg_weight = 0.5, device=device).to(device),
+#     t3VAE.t3VAE(nu=16.0, recon_sigma=args.recon_sigma, device=device).to(device),
+#     VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device)
+# ]
 
 simul(
     model_list, [model.model_name for model in model_list], 

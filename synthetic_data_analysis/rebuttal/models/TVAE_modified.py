@@ -94,8 +94,8 @@ class TVAE_modified(nn.Module) :
     def forward(self, x) : 
         enc_z, mu, logvar = self.encode(x)
         mu_theta, lognu = self.decode(enc_z)
-        if x.shape[0] > 5000 : 
-            print(f'TVAE_modified nu : {torch.exp(lognu).flatten().detach().cpu().numpy()}')
+        # if x.shape[0] > 5000 : 
+        #     print(f'TVAE_modified nu : {torch.exp(lognu).flatten().detach().cpu().numpy()}')
         return self.total_loss(x, mu_theta, lognu, mu, logvar)
         
 
