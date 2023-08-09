@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -5,9 +6,9 @@ from torch.nn import functional as F
 from loss import log_t_normalizing_const
 
 class Disentangled_VAE(nn.Module) : 
-    def __init__(self, n_dim=1, m_dim=1, nu=3, recon_sigma=1, reg_weight=1, num_layers=64, device='cpu'):
+    def __init__(self, n_dim=1, m_dim=1, nu=3, recon_sigma=1, reg_weight=1, num_layers=64, device='cpu', sample_size_for_integral = 5):
         super(Disentangled_VAE, self).__init__()
-        self.model_name = f"Disentangled_VAE_nu_{nu}"
+        self.model_name = f"Disentangled_VAE_nu_{nu}_K_{sample_size_for_integral}"
 
         self.n_dim = n_dim
         self.m_dim = m_dim
@@ -16,6 +17,8 @@ class Disentangled_VAE(nn.Module) :
         self.reg_weight = reg_weight
         self.num_layers = num_layers
         self.device = device
+
+        self.sample_size_for_integral = sample_size_for_integral
 
         # define encoder
         self.encoder = nn.Sequential(
@@ -57,7 +60,7 @@ class Disentangled_VAE(nn.Module) :
 
     def reg_loss(self, enc_z, logvar) : 
         # return 2 * KL regularizer
-        reg = -torch.sum(torch.log(2 * torch.pi) + 1 + logvar, dim = 1)
+        reg = -torch.sum(np.log(2 * np.pi) + 1 + logvar, dim = 1)
         reg -= 2 * self.m_dim * log_t_normalizing_const(self.nu, 1)
         reg += (self.nu + 1) * torch.sum(torch.log(1 + enc_z.pow(2) / self.nu), dim = 1)
         return torch.mean(reg)
@@ -75,6 +78,11 @@ class Disentangled_VAE(nn.Module) :
 
     def generate(self, N = 1000) : 
         prior = torch.randn(N, self.m_dim).to(self.device)
+
+        chi_dist = torch.distributions.chi2.Chi2(self.nu)
+        v = chi_dist.sample(sample_shape=prior.shape).to(self.device)
+
+        prior *= torch.sqrt(self.nu / v)
 
         return self.decoder_sampling(prior)
     
@@ -94,6 +102,6 @@ class Disentangled_VAE(nn.Module) :
             mean_reg += reg / self.sample_size_for_integral
             mean_total += total / self.sample_size_for_integral
         
-
+        return mean_recon, mean_reg, mean_total
         
 

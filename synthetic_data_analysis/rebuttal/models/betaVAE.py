@@ -75,10 +75,13 @@ class betaVAE(nn.Module) :
     def reconstruct(self, x) : 
         return self.decoder_sampling(self.encode(x)[0])
 
-    def forward(self, x) : 
+    def forward(self, x, verbose = False) : 
         enc_z, mu, logvar = self.encode(x)
         recon_x = self.decode(enc_z)
-        return self.total_loss(x, recon_x, mu, logvar)
+        if verbose is False : 
+            return self.total_loss(x, recon_x, mu, logvar)
+        else : 
+            return self.total_loss(x, recon_x, mu, logvar), mu.detach().flatten().cpu().numpy(), logvar.detach().flatten().exp().cpu().numpy()
         
 
         

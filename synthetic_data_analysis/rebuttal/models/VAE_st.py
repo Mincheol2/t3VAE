@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 class VAE_st(nn.Module) : 
-    def __init__(self, n_dim=1, m_dim=1, nu=3, recon_sigma=1, reg_weight=1, num_layers=64, device='cpu', sample_size_for_integral = 7):
+    def __init__(self, n_dim=1, m_dim=1, nu=3, recon_sigma=1, reg_weight=1, num_layers=64, device='cpu', sample_size_for_integral = 5):
         super(VAE_st, self).__init__()
         self.model_name = "VAE-st"
 
@@ -95,13 +95,13 @@ class VAE_st(nn.Module) :
         eps = torch.randn_like(mu_theta)
         return mu_theta + self.recon_sigma * eps
 
-    def generate(self, N = 1000) : 
+    def generate(self, N = 1000, nu = 5) : 
         prior = torch.randn(N, self.m_dim).to(self.device)
 
-        chi_dist = torch.distributions.chi2.Chi2(torch.tensor[self.nu])
-        v = chi_dist.sample(sample_shape=torch.tensor([N])).squeeze(0).to(self.device)
+        chi_dist = torch.distributions.chi2.Chi2(torch.tensor([nu]))
+        v = chi_dist.sample(sample_shape=torch.tensor([N])).to(self.device)
 
-        prior*= torch.sqrt(v / self.nu).unsqueeze(1)
+        prior*= torch.sqrt(v / self.nu)
 
         return self.decoder_sampling(prior)
     
@@ -121,6 +121,8 @@ class VAE_st(nn.Module) :
             mean_recon += recon / self.sample_size_for_integral
             mean_reg += reg / self.sample_size_for_integral
             mean_total += total / self.sample_size_for_integral
+
+        return mean_recon, mean_reg, mean_total
 
 
         

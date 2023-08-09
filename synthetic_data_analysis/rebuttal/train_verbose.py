@@ -18,14 +18,14 @@ from loss import log_t_normalizing_const, gamma_regularizer
 from util import make_result_dir, make_reproducibility, TensorDataset
 from sampling import t_sampling, sample_generation, t_density, t_density_contour
 from mmd import make_masking, mmd_linear, mmd_linear_bootstrap_test
-from visualize import visualize_density
+from visualize import visualize_density, visualize_verbose
 
 # from VAE import VAE
 # from t3VAE import t3VAE
 # from TVAE import TVAE
 # from TVAE_modified import TVAE_modified
 
-def simul(
+def simul_verbose(
     model_list, model_title_list, 
     K, train_N, val_N, test_N, ratio_list, 
     sample_nu_list, sample_mu_list, sample_var_list, 
@@ -40,6 +40,7 @@ def simul(
     make_result_dir(dirname)
 
     generation_writer = SummaryWriter(dirname + '/generations')
+    verbose_writer = SummaryWriter(dirname + '/latent_space')
     model_writer_list = [SummaryWriter(dirname + f'/{title}') for title in model_title_list]
 
     # Generate dataset
@@ -66,6 +67,9 @@ def simul(
     model_best_model = copy.deepcopy(model_list)
     model_count = [0 for _ in range(M)]
     model_stop = [False for _ in range(M)]
+
+    model_mu_phi = [np.zeros([val_N, model.m_dim]) for model in model_list]
+    model_var_phi = [np.zeros([val_N, model.m_dim]) for model in model_list]
 
     opt_list = [
         optim.Adam(model.parameters(), lr = lr, eps = eps, weight_decay=weight_decay) for model in model_list
@@ -103,7 +107,10 @@ def simul(
                 # valiation step
                 model_list[m].eval()
                 data = validation_data.to(device)
-                recon_loss, reg_loss, validation_loss = model_list[m](data) # validation
+                [recon_loss, reg_loss, validation_loss], mu_phi, var_phi = model_list[m](data, verbose = True) # validation
+
+                model_mu_phi[m] = mu_phi
+                model_var_phi[m] = var_phi
 
                 model_writer_list[m].add_scalar("Validation/Reconstruction Error", recon_loss.item(), epoch)
                 model_writer_list[m].add_scalar("Validation/Regularizer", reg_loss.item(), epoch)
@@ -129,7 +136,14 @@ def simul(
                 model_writer_list[m].add_scalar("Test/Regularizer", reg_loss.item(), epoch)
                 model_writer_list[m].add_scalar("Test/Total Loss" , test_loss.item(), epoch)
 
+
         if epoch % 5 == 0 or all(model_stop): 
+            # varbose results
+            verbose_visualization = visualize_verbose(model_title_list, model_mu_phi, model_var_phi)
+
+            verbose_writer.add_figure("Latent space", verbose_visualization, epoch)
+            verbose_visualization.savefig(f'{dirname}/latent_space/epoch{epoch}.png')
+
             # Generation
             model_gen_list = [model.generate(gen_N).detach() for model in model_best_model]
 

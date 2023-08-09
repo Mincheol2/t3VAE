@@ -31,3 +31,21 @@ def visualize_density(model_title_list, model_gen_list,
         plt.ylim(1e-6, 1)
 
     return fig
+
+
+def visualize_verbose(model_title_list, model_mu_phi, model_var_phi) : 
+
+    M = len(model_title_list)
+
+    fig = plt.figure(figsize = (3.5 * M, 7))
+
+    for m in range(M) : 
+        ax = fig.add_subplot(2,M,m+1)
+        plt.hist(model_mu_phi[m], bins = 100, density=True, alpha = 0.5, color='dodgerblue')
+        plt.title(f'mu_phi of {model_title_list[m]}')
+
+        ax = fig.add_subplot(2,M,M+m+1)
+        plt.hist(model_var_phi[m], bins = 100, density=True, alpha = 0.5, color='dodgerblue')
+        plt.title(f'var_phi of {model_title_list[m]}')
+
+    return fig

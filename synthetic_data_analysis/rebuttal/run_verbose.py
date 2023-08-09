@@ -23,11 +23,11 @@ from visualize import visualize_density
 
 from models import *
 
-from train import simul
+from train_verbose import simul_verbose
 
 
 parser = argparse.ArgumentParser(description="t3VAE")
-parser.add_argument('--dirname',        type=str,   default='result', help='Name of experiments')
+parser.add_argument('--dirname',        type=str,   default='verbose', help='Name of experiments')
 
 # parser.add_argument('--n_dim',          type=int,   default=1,      help='data dimension')
 # parser.add_argument('--m_dim',          type=int,   default=1,      help='Latent dimension')
@@ -79,64 +79,18 @@ dirname = args.dirname
 
 make_reproducibility(args.model_init_seed)
 
-# # beta_7
-# model_list = [
-#     t3VAE.t3VAE(nu=16, recon_sigma=args.recon_sigma, device=device).to(device),
-#     VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device), 
-#     betaVAE.betaVAE(reg_weight = 0.9, recon_sigma=args.recon_sigma, device=device).to(device), 
-#     betaVAE.betaVAE(reg_weight = 0.8, recon_sigma=args.recon_sigma, device=device).to(device), 
-#     betaVAE.betaVAE(reg_weight = 0.7, recon_sigma=args.recon_sigma, device=device).to(device), 
-#     betaVAE.betaVAE(reg_weight = 0.6, recon_sigma=args.recon_sigma, device=device).to(device), 
-#     betaVAE.betaVAE(reg_weight = 0.5, recon_sigma=args.recon_sigma, device=device).to(device)
-# ]
-
 # # beta_8
-# model_list = [
-#     t3VAE.t3VAE(nu=16, recon_sigma=args.recon_sigma, device=device).to(device),
-#     VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device), 
-#     betaVAE.betaVAE(reg_weight = 0.95, recon_sigma=args.recon_sigma, device=device).to(device), 
-#     betaVAE.betaVAE(reg_weight = 0.85, recon_sigma=args.recon_sigma, device=device).to(device), 
-#     betaVAE.betaVAE(reg_weight = 0.75, recon_sigma=args.recon_sigma, device=device).to(device), 
-#     betaVAE.betaVAE(reg_weight = 0.65, recon_sigma=args.recon_sigma, device=device).to(device), 
-# ]
-
-''' 
-Best model List
-    t3VAE.t3VAE(nu=16, recon_sigma=args.recon_sigma, device=device).to(device),
-    VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device), 
-    betaVAE.betaVAE(reg_weight = 0.75, recon_sigma=args.recon_sigma, device=device).to(device), 
-    TVAE.TVAE(device = device).to(device), 
-    ...
-'''
-
-# TVAE_4
-# model_list = [
-#     VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device), 
-#     t3VAE.t3VAE(nu=16, recon_sigma=args.recon_sigma, device=device).to(device),
-#     t3VAE_learnable.t3VAE_learnable(nu=16.0, device=device).to(device),
-#     t3VAE_learnable.t3VAE_learnable(nu=12.0, device=device).to(device),
-#     TVAE.TVAE(device=device).to(device), 
-#     TVAE_modified.TVAE_modified(recon_sigma = 0.1, device=device).to(device), 
-# ]
-
-# disentangled_2
-# model_list = [
-#     VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device), 
-#     t3VAE.t3VAE(nu=20, recon_sigma=0.3, device=device).to(device),
-#     t3VAE.t3VAE(nu=20, recon_sigma=args.recon_sigma, device=device).to(device),
-#     Disentangled_VAE.Disentangled_VAE(nu = args.nu, recon_sigma=args.recon_sigma, device=device, sample_size_for_integral = 1).to(device), 
-#     Disentangled_VAE.Disentangled_VAE(nu = args.nu, recon_sigma=0.3, device=device, sample_size_for_integral = 1).to(device)
-# ]
-
-# VAE-st, disentangled_VAE
 model_list = [
+    t3VAE.t3VAE(nu=8.0, recon_sigma=args.recon_sigma, device=device).to(device),
+    t3VAE.t3VAE(nu=12.0, recon_sigma=args.recon_sigma, device=device).to(device),
     t3VAE.t3VAE(nu=16.0, recon_sigma=args.recon_sigma, device=device).to(device),
-    VAE_st.VAE_st(recon_sigma=args.recon_sigma, device=device, sample_size_for_integral = 1).to(device), 
-    VAE_st_modified.VAE_st_modified(recon_sigma=args.recon_sigma, device=device, sample_size_for_integral = 1).to(device)
+    t3VAE.t3VAE(nu=20.0, recon_sigma=args.recon_sigma, device=device).to(device),
+    VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device), 
+    betaVAE.betaVAE(reg_weight = 0.75, recon_sigma=args.recon_sigma, device=device).to(device)
 ]
 
 
-simul(
+simul_verbose(
     model_list, [model.model_name for model in model_list], 
     args.K, args.train_N, args.val_N, args.test_N, args.ratio_list,
     args.sample_nu_list, mu_list, var_list, 

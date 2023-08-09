@@ -1,1 +1,1 @@
-from . import VAE, betaVAE, t3VAE, TVAE, TVAE_modified, VAE_st, VAE_st_modified, Disentangled_VAE
+from . import VAE, betaVAE, t3VAE, t3VAE_learnable, TVAE, TVAE_modified, VAE_st, VAE_st_modified, Disentangled_VAE
