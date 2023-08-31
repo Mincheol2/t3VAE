@@ -20,13 +20,13 @@ from torch.utils.tensorboard import SummaryWriter
 
 from loss import log_t_normalizing_const, gamma_regularizer
 from util import make_result_dir, make_reproducibility, TensorDataset
-from multivariate_sampling import multivariate_sample_generation, multivariate_t_density, multivariate_t_density_contour, multivariate_t_sampling
+from multivariate_sampling import multivariate_sample_generation, multivariate_t_sampling, nonlinear_sampling
 from mmd import make_masking, mmd_linear, mmd_linear_bootstrap_test
 from multivariate_visualize import drawing, drawing_rev
 
 from models import *
 
-from multivariate_train import multivariate_simul
+from multivariate_train_rev import multivariate_simul_rev
 
 
 parser = argparse.ArgumentParser(description="t3VAE")
@@ -62,10 +62,10 @@ parser.add_argument('--test_N',         type=int,   default=500000, help="Number
 parser.add_argument('--boot_iter',      type=int,   default=999,    help="Number of iterations in bootstrap MMD test")
 parser.add_argument('--gen_N',          type=int,   default=500000,help="Number of generations")
 parser.add_argument('--MMD_test_N',     type=int,   default=100000, help="Number of generations")
-parser.add_argument('--xmin',           type=float, default=-5.0,   help="Minimum value of x-axis")
-parser.add_argument('--xmax',           type=float, default=10.0,   help="Maximum value of y-axis")
+parser.add_argument('--xmin',           type=float, default=-10.0,   help="Minimum value of x-axis")
+parser.add_argument('--xmax',           type=float, default=15.0,   help="Maximum value of y-axis")
 parser.add_argument('--ymin',           type=float, default=-5.0,   help="Minimum value of x-axis")
-parser.add_argument('--ymax',           type=float, default=10.0,   help="Maximum value of y-axis")
+parser.add_argument('--ymax',           type=float, default=5.0,   help="Maximum value of y-axis")
 parser.add_argument('--bins_x',         type=int,   default=30,     help="Number of bins of x-axis")
 parser.add_argument('--bins_y',         type=int,   default=30,     help="Number of bins of y-axis")
 parser.add_argument('--patience',       type=int,   default=10,     help="Patience for Early stopping")
@@ -73,90 +73,55 @@ parser.add_argument('--patience',       type=int,   default=10,     help="Patien
 args = parser.parse_args()
 
 n_dim = 2
-m_dim = 2
+m_dim = 1
 
 K = 2
-ratio_list = [0.6, 0.4]
-
-sample_mu_list = [
-    torch.tensor([1.0, 2.0]), 
-    torch.tensor([6.0, 3.0])
-]
-
-sample_var_list = [
-    torch.tensor([[4.0,3.0],[3.0,4.0]]), 
-    torch.tensor([[4.0,1.0],[1.0,1.0]])
-]
-
-# sample_mu_list = [
-#     torch.tensor([2.0, 1.0]), 
-#     torch.tensor([4.0, -3.0])
-# ]
-
-# sample_var_list = [
-#     torch.tensor([[4.0,-3.0],[-3.0,4.0]]), 
-#     torch.tensor([[1.0,-1.0],[-1.0,4.0]])
-# ]
-
-sample_nu_list = [5.0, 7.0]
+ratio_list = [0.75, 0.25]
 
 device = torch.device(f'cuda:0' if torch.cuda.is_available() else "cpu")
-dirname = args.dirname
 
+# dirname = args.dirname
 make_reproducibility(args.model_init_seed)
 
 
-''' 
-Best model List
-    t3VAE.t3VAE(nu=16, recon_sigma=args.recon_sigma, device=device).to(device),
-    VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device), 
-    betaVAE.betaVAE(reg_weight = 0.75, recon_sigma=args.recon_sigma, device=device).to(device), 
-    TVAE.TVAE(device = device).to(device), 
-    ...
-'''
+dirname = "jyp"
+sample_nu_list = [5.0, 10.0]
 
-# # multi_7
-# model_list = [
-#     TVAE.TVAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=args.recon_sigma, device=device).to(device), 
-#     TVAE_modified.TVAE_modified(n_dim = n_dim, m_dim = m_dim, recon_sigma=args.recon_sigma, device=device).to(device),
-#     VAE.VAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=args.recon_sigma, device=device).to(device) ,
-#     t3VAE.t3VAE(n_dim = n_dim, m_dim = m_dim, nu=15.0, recon_sigma=args.recon_sigma, device=device).to(device)
-# ]
-
-# multi_8
-# model_list = [
-#     TVAE.TVAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=args.recon_sigma, device=device).to(device), 
-#     TVAE_modified.TVAE_modified(n_dim = n_dim, m_dim = m_dim, recon_sigma=args.recon_sigma, device=device).to(device),
-#     VAE.VAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=args.recon_sigma, device=device).to(device) ,
-#     t3VAE.t3VAE(n_dim = n_dim, m_dim = m_dim, nu=15.0, recon_sigma=args.recon_sigma, device=device).to(device)
-# ]
-
-# a_1
-# model_list = [
-#     TVAE.TVAE(n_dim = n_dim, m_dim = m_dim, device=device).to(device), 
-#     Disentangled_VAE.Disentangled_VAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=1.5, device=device, sample_size_for_integral=1).to(device), 
-#     # VAE_st.VAE_st(n_dim = n_dim, m_dim = m_dim, recon_sigma=1.5, device=device).to(device), 
-#     VAE.VAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=1.5, device=device).to(device) ,
-#     t3VAE.t3VAE(n_dim = n_dim, m_dim = m_dim, nu=10.0, recon_sigma=0.65, device=device).to(device)
-#     # t3VAE.t3VAE(n_dim = n_dim, m_dim = m_dim, nu=15.0, recon_sigma=args.recon_sigma, device=device).to(device)
-# ]
-
-# a_6, a_7
-
-# a_8 : 15.0
-# a_9 : 25.0 , recon_sigma = 0.5 for t3vae
-# a_0
-sample_nu_list = [5.0, 4.0]
-model_list = [
-    t3VAE.t3VAE(n_dim = n_dim, m_dim = m_dim, nu=25.0, recon_sigma=0.3, device=device).to(device), 
-    TVAE.TVAE(n_dim = n_dim, m_dim = m_dim, device=device).to(device), 
-    # Disentangled_VAE.Disentangled_VAE(n_dim = n_dim, m_dim = m_dim, nu = 10.0, recon_sigma=1.5, device=device, sample_size_for_integral=1).to(device), 
-    VAE.VAE(n_dim = n_dim, m_dim = m_dim, recon_sigma=1.2, device=device).to(device)
+sample_mu_list = [
+    torch.tensor([0.0]), 
+    torch.tensor([7.0])
 ]
 
+sample_var_list = [
+    torch.tensor([[2.0]]), 
+    torch.tensor([[1.0]])
+]
+
+# model_list = [
+#     VAE.VAE(2, 2, device = device).to(device),  
+#     VAE_st.VAE_st(2, 2, device=device, sample_size_for_integral=1).to(device)
+# ]
+
+# dirname = "jyp_2"
+# model_list = [
+#     # VAE.VAE(2, 2, device = device).to(device),  
+#     t3VAE.t3VAE(2, 2, nu = 25.0, device = device).to(device),  
+#     TVAE.TVAE(2, 2, device = device).to(device),
+#     # Disentangled_VAE.Disentangled_VAE(2, 2, nu = 10.0, device = device).to(device),  
+#     # VAE_st_rev.VAE_st_rev(2, 2, device=device, sample_size_for_integral=1).to(device)
+# ]
 
 
-multivariate_simul(
+make_reproducibility(args.model_init_seed)
+
+dirname = "final_1"
+model_list = [
+    VAE.VAE(2, 1, device = device).to(device),  
+    t3VAE.t3VAE(2, 1, nu = 40.0, device = device).to(device),  
+    TVAE.TVAE(2, 1, device = device).to(device)
+]
+
+multivariate_simul_rev(
     model_list, [model.model_name for model in model_list], 
     K, args.train_N, args.val_N, args.test_N, ratio_list,
     sample_nu_list, sample_mu_list, sample_var_list, 
@@ -166,3 +131,37 @@ multivariate_simul(
     bootstrap_iter = args.boot_iter, gen_N = args.gen_N, MMD_test_N = args.MMD_test_N, patience = args.patience
 )
 
+
+make_reproducibility(args.model_init_seed)
+
+dirname = "final_2"
+model_list = [
+    VAE_st_rev.VAE_st_rev(2,1,20, device=device).to(device)
+]
+
+multivariate_simul_rev(
+    model_list, [model.model_name for model in model_list], 
+    K, args.train_N, args.val_N, args.test_N, ratio_list,
+    sample_nu_list, sample_mu_list, sample_var_list, 
+    dirname, device, args.xmin, args.xmax, args.ymin, args.ymax, args.bins_x, args.bins_y, 
+    args.epochs, args.batch_size, args.lr, args.eps, args.weight_decay, 
+    args.train_data_seed, args.validation_data_seed, args.test_data_seed, 
+    bootstrap_iter = args.boot_iter, gen_N = args.gen_N, MMD_test_N = args.MMD_test_N, patience = args.patience
+)
+
+
+make_reproducibility(args.model_init_seed)
+dirname = "final_3"
+model_list = [
+    Disentangled_VAE.Disentangled_VAE(2,1,nu = 20, device=device, sample_size_for_integral=1).to(device)
+]
+
+multivariate_simul_rev(
+    model_list, [model.model_name for model in model_list], 
+    K, args.train_N, args.val_N, args.test_N, ratio_list,
+    sample_nu_list, sample_mu_list, sample_var_list, 
+    dirname, device, args.xmin, args.xmax, args.ymin, args.ymax, args.bins_x, args.bins_y, 
+    args.epochs, args.batch_size, args.lr, args.eps, args.weight_decay, 
+    args.train_data_seed, args.validation_data_seed, args.test_data_seed, 
+    bootstrap_iter = args.boot_iter, gen_N = args.gen_N, MMD_test_N = args.MMD_test_N, patience = args.patience
+)

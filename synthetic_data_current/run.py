@@ -136,18 +136,17 @@ Best model List
 # ]
 
 # b_1,,2
-model_list = [
-    # GMVAE.GMVAE(recon_sigma = 1, device=device).to(device)
-    # GMVAE.GMVAE(recon_sigma = 1.0, device=device).to(device), 
-    # GMVAE.GMVAE(recon_sigma = 1.5, device=device).to(device), 
-    # GMVAE.GMVAE(recon_sigma = 2.0, device=device).to(device)
-]
+# model_list = [
+#     # GMVAE.GMVAE(recon_sigma = 1, device=device).to(device)
+#     # GMVAE.GMVAE(recon_sigma = 1.0, device=device).to(device), 
+#     # GMVAE.GMVAE(recon_sigma = 1.5, device=device).to(device), 
+#     # GMVAE.GMVAE(recon_sigma = 2.0, device=device).to(device)
+# ]
 
+dirname = "final_gmvae_6"
 model_list = [
-    GMVAE.GMVAE(recon_sigma = 1.0, device=device).to(device), 
-    # GMVAE.GMVAE(recon_sigma = 1.0, device=device).to(device), 
-    # GMVAE.GMVAE(recon_sigma = 1.5, device=device).to(device), 
-    GMVAE.GMVAE(recon_sigma = 0.5, device=device).to(device)
+    GMVAE.GMVAE(recon_sigma = 0.87, device=device).to(device)
+    # GMVAE.GMVAE(recon_sigma = 2.0, device=device).to(device)
 ]
 
 # model_list = [

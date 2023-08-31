@@ -38,4 +38,5 @@
 # python3 run.py --dirname b_3
 # python3 run.py --dirname b_3 --lr 0.01
 # python3 run.py --dirname b_3
-python3 run.py --dirname b_4 --lr 0.01
+# python3 run.py --dirname b_5 --lr 0.01
+python3 run.py --lr 0.01

@@ -19,12 +19,12 @@ from torch.utils.tensorboard import SummaryWriter
 
 from loss import log_t_normalizing_const, gamma_regularizer
 from util import make_result_dir, make_reproducibility, TensorDataset
-from multivariate_sampling import multivariate_sample_generation, multivariate_t_density, multivariate_t_density_contour, multivariate_t_sampling
+from multivariate_sampling import multivariate_sample_generation, multivariate_t_sampling, nonlinear_sampling
 from mmd import make_masking, mmd_linear, mmd_linear_bootstrap_test
 from multivariate_visualize import drawing, drawing_rev
 
 
-def multivariate_simul(
+def multivariate_simul_rev(
     model_list, model_title_list, 
     K, train_N, val_N, test_N, ratio_list, 
     sample_nu_list, sample_mu_list, sample_var_list, 
@@ -42,17 +42,17 @@ def multivariate_simul(
     model_writer_list = [SummaryWriter(dirname + f'/{title}') for title in model_title_list]
 
     # Generate dataset
-    train_data = multivariate_sample_generation(
+    train_data = nonlinear_sampling(
         device, SEED=train_data_seed,
         K=K, N=train_N, ratio_list = ratio_list, mu_list=sample_mu_list, var_list=sample_var_list, nu_list=sample_nu_list
     )
 
-    validation_data = multivariate_sample_generation(
+    validation_data = nonlinear_sampling(
         device, SEED=validation_data_seed,
         K=K, N=val_N, ratio_list = ratio_list, mu_list=sample_mu_list, var_list=sample_var_list, nu_list=sample_nu_list
     )
 
-    test_data = multivariate_sample_generation(
+    test_data = nonlinear_sampling(
         device, SEED=test_data_seed,
         K=K, N=test_N, ratio_list = ratio_list, mu_list=sample_mu_list, var_list=sample_var_list, nu_list=sample_nu_list
     )
@@ -138,6 +138,11 @@ def multivariate_simul(
                 test_data, model_title_list, model_gen_list, 
                 xmin, xmax, ymin, ymax, bins_x, bins_y
             )
+
+            # visualization = drawing_rev(
+            #     test_data, model_title_list, model_gen_list, 
+            #     xmin, xmax, ymin, ymax, bins_x, bins_y
+            # )
 
             # visualization = drawing_rev(
             #     train_data, validation_data, test_data, model_title_list, model_gen_list, 

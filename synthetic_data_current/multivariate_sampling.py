@@ -27,20 +27,12 @@ def multivariate_sample_generation(device, SEED = None,
     shuffled_ind = torch.randperm(result.shape[0])
     return result[shuffled_ind]
 
-def multivariate_t_density(x, nu, mu = torch.zeros(1), var = torch.ones(1,1)) : 
-    d = x.shape[1]
-
-    precision = torch.linalg.inv(var)
-    mahalanobis_dist = torch.sum(torch.matmul(mu - x, precision) * (mu - x), dim = 1)
-
-    log_const_term = log_t_normalizing_const(nu, d)
-    deter_term = torch.linalg.det(var)
-    power_term = -torch.log(1 + mahalanobis_dist / nu) * (nu + d) / 2
-    return torch.exp(log_const_term + power_term) / torch.sqrt(deter_term)
-
-def multivariate_t_density_contour(x, K, sample_nu_list, mu_list, var_list, ratio_list) : 
-    output = 0
-    for ind in range(K) : 
-        output += ratio_list[ind] * multivariate_t_density(x, sample_nu_list[ind], mu_list[ind], var_list[ind])
-    return output
-    
+def nonlinear_sampling(device, SEED = None, K = 1, N = 1000, ratio_list = [1.0], mu_list = [None], var_list = [None], nu_list = [3.0]) : 
+    x = multivariate_sample_generation(device, SEED , K, N, ratio_list, mu_list, var_list, nu_list)
+    y = torch.sin(x * torch.pi)
+    res = torch.cat([x,2 * y], dim = 1)
+    eps = torch.randn_like(res).to(device)
+    # res += eps
+    v = torch.distributions.chi2.Chi2(torch.tensor([15])).sample(sample_shape=[x.shape[0]]).to(device)
+    res += 0.75 * eps * torch.sqrt(15 / v)
+    return res

@@ -20,4 +20,14 @@
 # python3 multivariate_run.py --dirname a_7 --lr 0.01
 # python3 multivariate_run.py --dirname a_8 --lr 0.01
 # python3 multivariate_run.py --dirname a_9 --lr 0.01
-python3 multivariate_run.py --dirname a_10 --lr 0.01
+# python3 multivariate_run.py --dirname a_10 --lr 0.01
+# python3 multivariate_run.py --dirname a_11 --lr 0.01
+# python3 multivariate_run.py --dirname a_12 --lr 0.01
+# python3 multivariate_run.py --dirname a_13 --lr 0.01
+
+# python3 multivariate_run_rev.py --dirname nonlinear_1 --lr 0.01
+# python3 multivariate_run_rev.py --dirname nonlinear_2 --lr 0.01
+# python3 multivariate_run_rev.py --dirname nonlinear_3 --lr 0.01
+# python3 multivariate_run_rev.py --dirname stst --lr 0.01
+python3 multivariate_run_rev.py --lr 0.01
+# python3 multivariate_run_rev.py --dirname nonlinear_t --lr 0.01
