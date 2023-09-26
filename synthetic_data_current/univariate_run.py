@@ -15,22 +15,18 @@ from torchvision import datasets
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+from models import *
+from mmd import  make_masking, mmd_linear, mmd_linear_bootstrap_test
 from loss import log_t_normalizing_const, gamma_regularizer
 from util import make_result_dir, make_reproducibility, TensorDataset
-from sampling import t_sampling, sample_generation, t_density, t_density_contour
-from mmd import  make_masking, mmd_linear, mmd_linear_bootstrap_test
-from visualize import visualize_density
-
-from models import *
-
-from train_verbose import simul_verbose
+from univariate.sampling import t_sampling, sample_generation, t_density, t_density_contour
+from univariate.visualize import visualize_density
+from univariate.train import univariate_simulation
 
 
 parser = argparse.ArgumentParser(description="t3VAE")
-parser.add_argument('--dirname',        type=str,   default='verbose', help='Name of experiments')
+parser.add_argument('--dirname',        type=str,   default='exp', help='Name of experiments')
 
-# parser.add_argument('--n_dim',          type=int,   default=1,      help='data dimension')
-# parser.add_argument('--m_dim',          type=int,   default=1,      help='Latent dimension')
 parser.add_argument('--nu',             type=float, default=5.0,    help='degree of freedom')
 parser.add_argument('--recon_sigma',    type=float, default=0.1,    help='sigma value in decoder')
 parser.add_argument('--reg_weight',     type=float, default=1,    help='weight for regularizer term (beta)')
@@ -59,7 +55,7 @@ parser.add_argument('--var_list',       nargs='+',  type=float,     default=[1.0
 parser.add_argument('--boot_iter',      type=int,   default=999,    help="Number of iterations in bootstrap MMD test")
 parser.add_argument('--gen_N',          type=int,   default=500000,help="Number of generations")
 parser.add_argument('--MMD_test_N',     type=int,   default=100000, help="Number of generations")
-parser.add_argument('--xlim',           type=float, default=20.0,   help="Maximum value of x-axis in log-scale plot")
+parser.add_argument('--xlim',           type=float, default=15.0,   help="Maximum value of x-axis in log-scale plot")
 parser.add_argument('--patience',       type=int,   default=10,     help="Patience for Early stopping")
 
 args = parser.parse_args()
@@ -68,30 +64,36 @@ n_dim = m_dim = 1
 
 mu_list = args.mu_list
 var_list = args.var_list
-
 if mu_list is not None : 
     mu_list = [mu * torch.ones(1) for mu in mu_list]
 if var_list is not None : 
     var_list = [var * torch.ones(1,1) for var in var_list]
 
 device = torch.device(f'cuda:0' if torch.cuda.is_available() else "cpu")
-dirname = args.dirname
+dirname = f'1D_results/{args.dirname}'
 
 make_reproducibility(args.model_init_seed)
 
-# # beta_8
+''' 
+Best model List
+    t3VAE.t3VAE(nu=16, recon_sigma=args.recon_sigma, device=device).to(device),
+    VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device), 
+    betaVAE.betaVAE(reg_weight = 0.75, recon_sigma=args.recon_sigma, device=device).to(device), 
+    TVAE.TVAE(device = device).to(device), 
+    GMVAE.GMVAE(recon_sigma = 0.87, device=device).to(device)
+    ...
+'''
+
 model_list = [
-    t3VAE.t3VAE(nu=8.0, recon_sigma=args.recon_sigma, device=device).to(device),
-    t3VAE.t3VAE(nu=12.0, recon_sigma=args.recon_sigma, device=device).to(device),
-    t3VAE.t3VAE(nu=16.0, recon_sigma=args.recon_sigma, device=device).to(device),
-    t3VAE.t3VAE(nu=20.0, recon_sigma=args.recon_sigma, device=device).to(device),
-    VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device)
+    t3VAE.t3VAE(nu=16, recon_sigma=args.recon_sigma, device=device).to(device),
+    VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device), 
+    betaVAE.betaVAE(reg_weight = 0.75, recon_sigma=args.recon_sigma, device=device).to(device), 
+    TVAE.TVAE(device = device).to(device)
 ]
 
-model_title_list = [model.model_name for model in model_list]
 
-simul_verbose(
-    model_list, model_title_list, 
+univariate_simulation(
+    model_list, [model.model_name for model in model_list], 
     args.K, args.train_N, args.val_N, args.test_N, args.ratio_list,
     args.sample_nu_list, mu_list, var_list, 
     dirname, device, args.xlim, 

@@ -20,9 +20,9 @@ class VAE_st(nn.Module) :
         # define encoder
         self.encoder = nn.Sequential(
             nn.Linear(n_dim, num_layers), 
-            nn.LeakyReLU(), 
+            nn.Tanh(), 
             nn.Linear(num_layers, num_layers), 
-            nn.LeakyReLU()
+            nn.Tanh()
         )
         self.latent_mu = nn.Linear(num_layers, m_dim)
         self.latent_var = nn.Sequential(
@@ -49,34 +49,18 @@ class VAE_st(nn.Module) :
 
         chi_dist = torch.distributions.chi2.Chi2(nu)
         v = chi_dist.rsample(sample_shape=torch.tensor([1])).squeeze(0).to(self.device)
-        # print(f'std shape : {std.shape}')
-        # print(f'eps shape : {eps.shape}')
-        # print(f'nu shape : {nu.shape}')
-        # print(f'v shape : {v.shape}')
 
         '''
-        Note that if we use *.sample method for v, it does not update the gradient for nu. 
-        However, even if we use *.rsample method, I have no idea about whether it gives us right gradient for nu or not. 
-        I will check later...
+        Note that even if we use *.rsample method,
+        It cannot give a gradient descent to the parameter nu, which leads to a wrong backpropagation. 
         '''
         return mu + std * eps * torch.sqrt(nu / v).unsqueeze(1)
     
     def encode(self, x) : 
-
-        np.savetxt(f'x1.csv', x.detach().cpu().numpy(), delimiter=',')
-        np.savetxt(f'weight1.csv', self.encoder[0].weight.detach().cpu().numpy(), delimiter=',')
-        np.savetxt(f'bias1.csv', self.encoder[0].bias.detach().cpu().numpy(), delimiter=',')
-        np.savetxt(f'weight2.csv', self.encoder[2].weight.detach().cpu().numpy(), delimiter=',')
-        np.savetxt(f'bias2.csv', self.encoder[2].bias.detach().cpu().numpy(), delimiter=',')
         x = self.encoder(x)
-        np.savetxt(f'x.csv', x.detach().cpu().numpy(), delimiter=',')
-        # print(f'x : {x[0:5]}')
         mu = self.latent_mu(x)
-        # print(f'mu : {mu[0:5]}')
         var = self.latent_var(x)
-        # print(f'var : {var[0:5]}')
         nu = self.latent_nu(x).flatten() + 3.0
-        # print(f'nu : {nu[0:5]}')
         z = self.encoder_reparameterize(mu, var, nu)
 
         return z, mu, var, nu
