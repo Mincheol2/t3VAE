@@ -8,6 +8,7 @@ import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import matplotlib.colors as colors
 
 from matplotlib import cm
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
@@ -17,14 +18,14 @@ from torchvision import datasets
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+from mmd import make_masking, mmd_linear, mmd_linear_bootstrap_test
 from loss import log_t_normalizing_const, gamma_regularizer
 from util import make_result_dir, make_reproducibility, TensorDataset
-from multivariate_sampling import multivariate_sample_generation, multivariate_t_sampling, nonlinear_sampling
-from mmd import make_masking, mmd_linear, mmd_linear_bootstrap_test
-from multivariate_visualize import drawing, drawing_rev
+from bivariate.sampling import multivariate_sample_generation, multivariate_t_sampling, nonlinear_sampling
+from bivariate.visualize import drawing
 
 
-def multivariate_simul_rev(
+def bivariate_simulation(
     model_list, model_title_list, 
     K, train_N, val_N, test_N, ratio_list, 
     sample_nu_list, sample_mu_list, sample_var_list, 
@@ -61,21 +62,16 @@ def multivariate_simul_rev(
 
     # Model training
 
-    model_best_loss = [10^6 for _ in range(M)]
+    model_best_loss = [1e6 for _ in range(M)]
     model_best_model = copy.deepcopy(model_list)
     model_count = [0 for _ in range(M)]
     model_stop = [False for _ in range(M)]
 
-    opt_list = [
-        optim.Adam(model.parameters(), lr = lr, eps = eps, weight_decay=weight_decay) for model in model_list
-    ]
+    opt_list = [optim.Adam(model.parameters(), lr = lr, eps = eps, weight_decay=weight_decay) for model in model_list]
 
-    train_loader_list = [
-        torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True) for _ in range(M)
-    ]
+    train_loader_list = [torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True) for _ in range(M)]
 
     for epoch in tqdm(range(0, epochs)) : 
-
         if all(model_stop) : 
             break
 
@@ -85,7 +81,6 @@ def multivariate_simul_rev(
                 model_list[m].train()
 
                 denom_train = int(len(train_dataset)/batch_size) + 1
-
                 for batch_idx, data in enumerate(train_loader_list[m]) : 
                     data = data[0].to(device)
                     opt_list[m].zero_grad()
@@ -99,11 +94,11 @@ def multivariate_simul_rev(
 
                     opt_list[m].step()
 
-                # valiation step
+
+                # validation step
                 model_list[m].eval()
                 data = validation_data.to(device)
                 recon_loss, reg_loss, validation_loss= model_list[m](data) # validation
-
 
                 model_writer_list[m].add_scalar("Validation/Reconstruction Error", recon_loss.item(), epoch)
                 model_writer_list[m].add_scalar("Validation/Regularizer", reg_loss.item(), epoch)
@@ -136,18 +131,8 @@ def multivariate_simul_rev(
 
             visualization = drawing(
                 test_data, model_title_list, model_gen_list, 
-                xmin, xmax, ymin, ymax, bins_x, bins_y
+                xmin, xmax, ymin, ymax, bins_x, bins_x, bins_y
             )
-
-            # visualization = drawing_rev(
-            #     test_data, model_title_list, model_gen_list, 
-            #     xmin, xmax, ymin, ymax, bins_x, bins_y
-            # )
-
-            # visualization = drawing_rev(
-            #     train_data, validation_data, test_data, model_title_list, model_gen_list, 
-            #     xmin, xmax, ymin, ymax, bins_x, bins_y
-            # )
 
             generation_writer.add_figure("Generation", visualization, epoch)
             filename = f'{dirname}/generations/epoch{epoch}.png'
