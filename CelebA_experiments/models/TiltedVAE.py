@@ -74,10 +74,11 @@ class TiltedVAE(baseline.VAE_Baseline):
         recon_x = recon_x.view(N,-1)
         
         mu_norm = torch.linalg.norm(mu, dim=1)
+        
         # 2 * Original loss.
         reg_loss = 2 * (1/2 * torch.square(mu_norm - self.mu_star)).mean()
+        recon_loss = self.args.beta_weight * torch.sum((recon_x - x)**2 / (N * self.args.prior_sigma**2))
         
-        recon_loss = 2 * self.args.beta_weight * torch.sum((recon_x - x)**2 / (N * self.args.prior_sigma**2))
         total_loss = reg_loss + recon_loss
         return reg_loss, recon_loss, total_loss
 

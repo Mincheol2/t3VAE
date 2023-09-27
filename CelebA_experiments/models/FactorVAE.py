@@ -50,12 +50,22 @@ class FactorVAE(baseline.VAE_Baseline):
     @torch.enable_grad()
     def loss(self, x, recon_x, z, mu, logvar):
         N = x.shape[0]
+
+        '''
+            Why we multiply 2 on the losses?
+            If we look at the gamma-bound formula: 1/2 * (||x - recon_x ||^2 / recon_sigma**2 + regularizer), 
+            we can see that we omit the constant 1/2 when calculating the total_loss.
+            For comparison, we also multlply 2 with other frameworks (except t3VAE)
+        '''
+
         # Update the Factor VAE
+        
+        # multiply loss by 2
         reg_loss = 2 * self.args.beta_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
         recon_loss = torch.sum((recon_x - x)**2 / (N * self.args.prior_sigma**2))
-    
+
         self.D_z_reserve = self.discriminator(z)
-        vae_tc_loss = (self.D_z_reserve[:, 0] - self.D_z_reserve[:, 1]).mean()
+        vae_tc_loss = 2 * (self.D_z_reserve[:, 0] - self.D_z_reserve[:, 1]).mean()
 
         total_loss = reg_loss + recon_loss + self.gamma * vae_tc_loss
 

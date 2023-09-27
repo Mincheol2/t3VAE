@@ -23,9 +23,14 @@ class TVAE(baseline.VAE_Baseline):
         self.loglambda = 0
         self.lognu = 0
 
-        # parameter layers
-        self.parameter_loglambda_layer = nn.Linear(self.pdim, 1) # scale params
-        self.parameter_lognu_layer = nn.Linear(self.pdim, 1) # degree of freedom
+        # # parameter layers
+        # self.parameter_loglambda_layer = nn.Linear(self.pdim, 1) # scale params
+        # self.parameter_lognu_layer = nn.Linear(self.pdim, 1) # degree of freedom
+
+
+        # parameter layers for univatriate
+        self.parameter_loglambda_layer = nn.Linear(self.pdim, self.args.m_dim) # scale params for each component
+        self.parameter_lognu_layer = nn.Linear(self.pdim, self.args.m_dim) # degree of freedom for each component
 
     
         self.MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.pdim), torch.eye(self.pdim))
@@ -63,35 +68,46 @@ class TVAE(baseline.VAE_Baseline):
         
     def loss(self, x, recon_x, z, mu, logvar):
         N = x.shape[0]
-        reg_loss = self.args.beta_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
+
+        '''
+            Why we multiply 2 on the reg_loss?
+            
+            If we look at the gamma-bound formula: 1/2 * (||x - recon_x ||^2 / recon_sigma**2 + 2 * regularizer), 
+            we can see that we omit the constant 1/2 when calculating the total_loss.
+            For comparison, we also multlply 2 with other frameworks (except t3VAE)
+        '''
+
+        # multiply by 2
+        reg_loss = 2 * self.args.beta_weight * torch.mean(-0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp(),dim=1), dim=0)
         
         lambda_z = self.loglambda.exp()
         nu_z = self.lognu.exp()
+        
 
-        lgamma_term = torch.lgamma((nu_z + self.pdim)/2) - torch.lgamma(nu_z/2)
-        log_term = self.pdim/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
-        lgamma_term = lgamma_term.to(self.DEVICE)
-
-        x_flat = torch.flatten(x,start_dim = 1)
-        locale_mu = recon_x.flatten(start_dim=1)
-
-        x_norm_sq = torch.linalg.norm(x_flat-locale_mu, ord=2, dim=1).pow(2).unsqueeze(1)
-        log_recon = (nu_z + self.pdim)/2 * torch.log(1 + lambda_z / nu_z * x_norm_sq)
-
-        # One dim case
-        # lgamma_term = torch.lgamma((nu_z +1)/2) - torch.lgamma(nu_z/2)
-        # log_term = 1/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
+        # Multivariate
+        # lgamma_term = torch.lgamma((nu_z + self.pdim)/2) - torch.lgamma(nu_z/2)
+        # log_term = self.pdim/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
         # lgamma_term = lgamma_term.to(self.DEVICE)
 
-        # x_flat = x.flatten(start_dim = 1)
+        # x_flat = torch.flatten(x,start_dim = 1)
         # locale_mu = recon_x.flatten(start_dim=1)
 
         # x_norm_sq = torch.linalg.norm(x_flat-locale_mu, ord=2, dim=1).pow(2).unsqueeze(1)
-        # log_recon = (nu_z + 1)/2 * torch.log(1 + lambda_z / nu_z * x_norm_sq)
+        # log_recon = (nu_z + self.pdim)/2 * torch.log(1 + lambda_z / nu_z * x_norm_sq)
 
+        # # One dim case
+        lgamma_term = torch.lgamma((nu_z +1)/2) - torch.lgamma(nu_z/2)
+        log_term = 1/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
+        lgamma_term = lgamma_term.to(self.DEVICE)
 
-        
-        recon_loss = - torch.mean(torch.mean(lgamma_term + log_term - log_recon,dim=1),dim=0)
+        x_flat = x.flatten(start_dim = 1)
+        locale_mu = recon_x.flatten(start_dim=1)
+
+        x_norm_sq = torch.linalg.norm(x_flat-locale_mu, ord=2, dim=1).pow(2).unsqueeze(1)
+        log_recon = (nu_z + 1)/2 * torch.log(1 + lambda_z / nu_z * x_norm_sq)
+
+        # multiply by 2
+        recon_loss = - 2 * torch.mean(torch.sum(lgamma_term + log_term - log_recon,dim=1),dim=0)
 
         total_loss = reg_loss + recon_loss
         return reg_loss, recon_loss, total_loss
