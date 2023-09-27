@@ -86,7 +86,7 @@ class TiltedVAE(baseline.VAE_Baseline):
     def generate(self, N=64):
         
         # 1. generate random vectors on the unit sphere.
-        sample_z = torch.randn(N, model.m_dim).to(model.DEVICE)
+        sample_z = torch.randn(N, self.m_dim).to(self.DEVICE)
         spherical_z = torch.nn.functional.normalize(sample_z,dim=1)
 
         # 2. scale the length by a sample from the distribution to be length
