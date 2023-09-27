@@ -97,7 +97,8 @@ class t3VAE(baseline.VAE_Baseline):
         '''
 
         df = self.args.nu + self.n_dim
-        tau = torch.sqrt(self.tau_sq)
+        
+        tau = torch.sqrt(self.tau_sq).to(self.DEVICE)
         prior_chi_dist = torch.distributions.chi2.Chi2(torch.tensor([df]))
         prior_z = self.MVN_dist.sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
         v = prior_chi_dist.sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
