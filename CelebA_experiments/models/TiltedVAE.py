@@ -83,11 +83,10 @@ class TiltedVAE(baseline.VAE_Baseline):
         return reg_loss, recon_loss, total_loss
 
     
-    def generate(self):
-        nb_of_generations = 144
-
+    def generate(self, N=64):
+        
         # 1. generate random vectors on the unit sphere.
-        sample_z = torch.randn(nb_of_generations, self.qdim)
+        sample_z = torch.randn(N, model.m_dim).to(model.DEVICE)
         spherical_z = torch.nn.functional.normalize(sample_z,dim=1)
 
         # 2. scale the length by a sample from the distribution to be length
@@ -95,7 +94,5 @@ class TiltedVAE(baseline.VAE_Baseline):
         # We approximated \bar{||z||} to mu_star
 
         tilted_prior = (spherical_z * self.mu_star).to(self.DEVICE)
-
         VAE_gen = self.decoder(tilted_prior)
-        VAE_gen = VAE_gen
         return VAE_gen

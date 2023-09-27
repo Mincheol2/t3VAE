@@ -84,8 +84,9 @@ class FactorVAE(baseline.VAE_Baseline):
         return 0.5 * (F.cross_entropy(self.D_z_reserve, false_labels) + F.cross_entropy(D_z_perm, true_labels)).mean()
 
 
-    def generate(self):
-        prior_z = torch.randn(144, self.args.m_dim)
+    def generate(self, N=64):
+        # Univariate t-dist
+        prior_z = torch.randn(N, self.args.m_dim)
         prior_z = self.args.prior_sigma * prior_z
         VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
         VAE_gen = VAE_gen

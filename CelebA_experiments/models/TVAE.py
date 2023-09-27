@@ -11,13 +11,16 @@ from models import baseline
 class TVAE(baseline.VAE_Baseline):
     def __init__(self, image_shape, DEVICE, args):
         super(TVAE, self).__init__(image_shape, DEVICE,args)
-        self.pdim = self.C * self.H * self.W
+        
+        self.n_dim = self.C * self.H * self.W
+        self.m_dim = self.args.m_dim
         '''
             T-VAE : add three-level layers and parameter layers : mu, lambda, nu
             Although the original code use one-dimension prior for each pixel,
             we use Multivariate Gamma prior instead.
             -> Therefore, we learn "one-dimensional" nu and lambda.
         ''' 
+
         n_latent = self.decoder_hiddens[-1] * self.H // 2 * self.W // 2 # 32x32x32
         # init parameters
         self.loglambda = 0
@@ -112,9 +115,8 @@ class TVAE(baseline.VAE_Baseline):
         total_loss = reg_loss + recon_loss
         return reg_loss, recon_loss, total_loss
 
-    def generate(self):
-        prior_z = torch.randn(64, self.args.qdim)
-        prior_z = self.args.recon_sigma * prior_z
-        VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
-        VAE_gen = VAE_gen *0.5 + 0.5
-        return VAE_gen
+    def generate(self, N = 64):
+        prior_z = torch.randn(N, self.m_dim)
+        prior_z = self.args.prior_sigma * prior_z
+        TVAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
+        return TVAE_gen

@@ -72,9 +72,9 @@ class DisentanglementVAE(baseline.VAE_Baseline):
 
         return [reg_loss, recon_loss, total_loss]
 
-    def generate(self):
-        prior_z = torch.randn(64, self.args.m_dim)
-        prior_z = self.args.prior_sigma * prior_z
-        VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
-        VAE_gen = VAE_gen
-        return VAE_gen
+    def generate(self, N=64):
+        # prod of univariate t-dist
+        t_dist = torch.distributions.studentT.StudentT(df=10)
+        prior_t = self.args.prior_sigma * t_dist.sample((N,self.args.m_dim))
+        DVAE_gen = self.decoder(prior_t.to(self.DEVICE)).detach().cpu()
+        return DVAE_gen

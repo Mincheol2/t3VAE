@@ -90,7 +90,7 @@ class t3VAE(baseline.VAE_Baseline):
 
         return reg_loss, recon_loss, total_loss
 
-    def generate(self):
+    def generate(self, N = 64):
         '''
         Instead of t-prior, we use alternative prior p(z) ~ t(z|nu+n_dim,tau^2*I)
         By doing this, we can generate more stable images.
@@ -99,12 +99,11 @@ class t3VAE(baseline.VAE_Baseline):
         df = self.args.nu + self.n_dim
         tau = torch.sqrt(self.tau_sq)
         prior_chi_dist = torch.distributions.chi2.Chi2(torch.tensor([df]))
-        prior_z = self.MVN_dist.sample(sample_shape=torch.tensor([64])).to(self.DEVICE)
-        v = prior_chi_dist.sample(sample_shape=torch.tensor([64])).to(self.DEVICE)
+        prior_z = self.MVN_dist.sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
+        v = prior_chi_dist.sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
         prior_t = self.args.prior_sigma * prior_z * torch.sqrt(df / v)
         prior_t *= tau
         
         imgs = self.decoder(prior_t.to(self.DEVICE)).detach().cpu()
-        imgs = torch.clamp(imgs,min=0,max=1)
 
         return imgs
