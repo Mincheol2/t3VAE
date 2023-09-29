@@ -94,5 +94,5 @@ class TiltedVAE(baseline.VAE_Baseline):
         # We approximated \bar{||z||} to mu_star
 
         tilted_prior = (spherical_z * self.mu_star).to(self.DEVICE)
-        VAE_gen = self.decoder(tilted_prior)
+        VAE_gen = self.decoder(tilted_prior).detach().cpu()
         return VAE_gen

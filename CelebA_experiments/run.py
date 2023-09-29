@@ -69,7 +69,7 @@ def load_model(model_name,img_shape,DEVICE, args):
     
 def make_result_dir(dirname):
     os.makedirs(dirname,exist_ok=True)
-    os.makedirs(dirname + '/reconstructions',exist_ok=True)
+    os.makedirs(dirname + '/imgs',exist_ok=True)
     
 
 def make_reproducibility(seed):
@@ -81,24 +81,6 @@ def make_reproducibility(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
 
-
-def measure_sharpness(imgs):
-    if len(imgs.shape) == 3: #[C, H, W]
-        imgs = imgs.unsqueeze(0)
-
-    N = imgs.shape[0]
-    sharpness = 0 
-    for img in imgs:
-        # 1. convert img to greyscale
-        grey_img = torchvision.transforms.functional.rgb_to_grayscale(img).numpy()
-
-        # 2. convolved with the laplace filter
-        mask = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]])
-        laplacian = cv2.filter2D(grey_img, -1, mask)
-        # 3.compute var of filtered img.
-        sharpness += np.var(laplacian)
-
-    return sharpness / N 
 
 if __name__ == "__main__":
     ## init ##
@@ -144,7 +126,7 @@ if __name__ == "__main__":
     opt = optim.Adam(model.parameters(), lr=args.lr)
 
     # Use discriminator
-    if args.model in ["FactorVAE","ImplicitVAE"]: 
+    if args.model in ["FactorVAE"]: 
         discriminator_opt = optim.Adam(model.discriminator.parameters(), lr=args.lr_D)
     # fid_recon = FrechetInceptionDistance(normalize=True).to(DEVICE)
     
@@ -186,7 +168,7 @@ if __name__ == "__main__":
                     torch.nn.utils.clip_grad_norm_(group['params'], 100, norm_type=2)
             end_time = time.time()
             total_time.append(end_time-start_time)
-            # print("iter time", end_time - start_time)     
+            # print("iter time", end_time - start_time)    
         writer.add_scalar("Train/avg iter time" , np.mean(total_time),epoch)
 
         
@@ -223,7 +205,6 @@ if __name__ == "__main__":
                     writer.add_scalar("Test/Regularizer", reg_loss.item(), current_step)
                     writer.add_scalar("Test/Total Loss" , total_loss.item(), current_step)
 
-                
 
             ## Save the best model ##
             total_loss_final /= cnt
@@ -238,6 +219,11 @@ if __name__ == "__main__":
         real_imgs = images
         break
     recon_imgs, *_ = model.forward(real_imgs[:64].to(DEVICE))     
-    filename = f'{args.dirname}/reconstructions/reconstructions_{epoch}.png'         
+    filename = f'{args.dirname}/imgs/reconstructions_{epoch}.png'         
+    torchvision.utils.save_image(recon_imgs, filename,normalize=True, nrow=8)
+
+
+    gen_imgs = model.generate()   
+    filename = f'{args.dirname}/imgs/reconstructions_{epoch}.png'         
     torchvision.utils.save_image(recon_imgs, filename,normalize=True, nrow=8)
     # writer.close()
