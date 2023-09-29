@@ -11,11 +11,11 @@ USE_CUDA = torch.cuda.is_available()
 device = torch.device(f'cuda:0' if USE_CUDA else "cpu")
 
 parser = argparse.ArgumentParser(description="t3VAE")
-parser.add_argument('--dirname',        type=str,   default='exp', help='Name of experiments')
+parser.add_argument('--dirname',        type=str,   default='results', help='Name of experiments')
 parser.add_argument('--boot_seed',      type=int,   default=10,     help="Random seed for bootstrap MMD test")
 parser.add_argument('--boot_iter',      type=int,   default=999,    help="Number of iterations in bootstrap MMD test")
 parser.add_argument('--MMD_test_N',     type=int,   default=100000, help="Number of generations")
-parser.add_argument('--tail_cut',       type=float, default=5.0,    help="Tail criterion")
+parser.add_argument('--tail_cut',       type=float, default=6.0,    help="Tail criterion")
 
 args = parser.parse_args()
 
@@ -48,16 +48,22 @@ right_results = [
     for m in range(M)
 ]
 
+# print(f'The number of samples (right tail) : {len(right_test_data)}')
+# for m in range(M) : 
+#     print(f'The number of samples from {csv_list[m]} (right tail) : {len(right_sample[m])}')
 for m in range(M) : 
     print(f'p-value for {csv_list[m]} (right tail) : {right_results[m][1]}')
 
 # left tail
-left_test_data = test_data[(test_data < args.tail_cut).flatten()]
-left_sample = [gen[(gen < args.tail_cut).flatten()] for gen in gen_list]
+left_test_data = test_data[(test_data < -args.tail_cut).flatten()]
+left_sample = [gen[(gen < -args.tail_cut).flatten()] for gen in gen_list]
 left_results = [
     mmd_linear_bootstrap_test(left_sample[m], left_test_data, device = device, iteration = args.boot_iter)
     for m in range(M)
 ]
 
+# print(f'The number of samples (left tail) : {len(left_test_data)}')
+# for m in range(M) : 
+#     print(f'The number of samples from {csv_list[m]} (left tail) : {len(left_sample[m])}')
 for m in range(M) : 
     print(f'p-value for {csv_list[m]} (left tail) : {left_results[m][1]}')

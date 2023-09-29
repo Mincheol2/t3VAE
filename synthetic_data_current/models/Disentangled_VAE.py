@@ -8,7 +8,7 @@ from loss import log_t_normalizing_const
 class Disentangled_VAE(nn.Module) : 
     def __init__(self, n_dim=1, m_dim=1, nu=3, recon_sigma=1, reg_weight=1, num_layers=64, device='cpu', sample_size_for_integral = 5):
         super(Disentangled_VAE, self).__init__()
-        self.model_name = f"Disentangled_VAE_nu_{nu}_K_{sample_size_for_integral}"
+        self.model_name = f"Disentangled_VAE_nu_{nu}"
 
         self.n_dim = n_dim
         self.m_dim = m_dim

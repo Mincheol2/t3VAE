@@ -25,7 +25,7 @@ from univariate.train import univariate_simulation
 
 
 parser = argparse.ArgumentParser(description="t3VAE")
-parser.add_argument('--dirname',        type=str,   default='exp', help='Name of experiments')
+parser.add_argument('--dirname',        type=str,   default='results', help='Name of experiments')
 
 parser.add_argument('--nu',             type=float, default=5.0,    help='degree of freedom')
 parser.add_argument('--recon_sigma',    type=float, default=0.1,    help='sigma value in decoder')
@@ -56,7 +56,7 @@ parser.add_argument('--boot_iter',      type=int,   default=999,    help="Number
 parser.add_argument('--gen_N',          type=int,   default=500000,help="Number of generations")
 parser.add_argument('--MMD_test_N',     type=int,   default=100000, help="Number of generations")
 parser.add_argument('--xlim',           type=float, default=15.0,   help="Maximum value of x-axis in log-scale plot")
-parser.add_argument('--patience',       type=int,   default=10,     help="Patience for Early stopping")
+parser.add_argument('--patience',       type=int,   default=15,     help="Patience for Early stopping")
 
 args = parser.parse_args()
 
@@ -73,24 +73,14 @@ device = torch.device(f'cuda:0' if torch.cuda.is_available() else "cpu")
 dirname = f'1D_results/{args.dirname}'
 
 make_reproducibility(args.model_init_seed)
-
-''' 
-Best model List
-    t3VAE.t3VAE(nu=16, recon_sigma=args.recon_sigma, device=device).to(device),
-    VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device), 
-    betaVAE.betaVAE(reg_weight = 0.75, recon_sigma=args.recon_sigma, device=device).to(device), 
-    TVAE.TVAE(device = device).to(device), 
-    GMVAE.GMVAE(recon_sigma = 0.87, device=device).to(device)
-    ...
-'''
-
 model_list = [
-    t3VAE.t3VAE(nu=16, recon_sigma=args.recon_sigma, device=device).to(device),
-    VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device), 
-    betaVAE.betaVAE(reg_weight = 0.75, recon_sigma=args.recon_sigma, device=device).to(device), 
-    TVAE.TVAE(device = device).to(device)
+    TVAE.TVAE(device = device).to(device), 
+    VAE_st.VAE_st(nu = 9.0, recon_sigma=args.recon_sigma, device=device).to(device),
+    VAE_st.VAE_st(nu = 12.0, recon_sigma=args.recon_sigma, device=device).to(device),
+    VAE_st.VAE_st(nu = 15.0, recon_sigma=args.recon_sigma, device=device).to(device),
+    VAE_st.VAE_st(nu = 18.0, recon_sigma=args.recon_sigma, device=device).to(device),
+    VAE_st.VAE_st(nu = 21.0, recon_sigma=args.recon_sigma, device=device).to(device),
 ]
-
 
 univariate_simulation(
     model_list, [model.model_name for model in model_list], 
@@ -99,6 +89,67 @@ univariate_simulation(
     dirname, device, args.xlim, 
     args.epochs, args.batch_size, args.lr, args.eps, args.weight_decay, 
     args.train_data_seed, args.validation_data_seed, args.test_data_seed, 
-    bootstrap_iter = args.boot_iter, gen_N = args.gen_N, MMD_test_N = args.MMD_test_N, patience = args.patience
+    bootstrap_iter = args.boot_iter, gen_N = args.gen_N, MMD_test_N = args.MMD_test_N, patience = args.patience, 
+    exp_number=1
+)
+
+make_reproducibility(args.model_init_seed)
+model_list = [
+    Disentangled_VAE.Disentangled_VAE(nu = 9.0, recon_sigma=args.recon_sigma, device = device, sample_size_for_integral=1).to(device), 
+    Disentangled_VAE.Disentangled_VAE(nu = 12.0, recon_sigma=args.recon_sigma, device = device, sample_size_for_integral=1).to(device), 
+    Disentangled_VAE.Disentangled_VAE(nu = 15.0, recon_sigma=args.recon_sigma, device = device, sample_size_for_integral=1).to(device), 
+    Disentangled_VAE.Disentangled_VAE(nu = 18.0, recon_sigma=args.recon_sigma, device = device, sample_size_for_integral=1).to(device), 
+    Disentangled_VAE.Disentangled_VAE(nu = 21.0, recon_sigma=args.recon_sigma, device = device, sample_size_for_integral=1).to(device)
+]
+
+univariate_simulation(
+    model_list, [model.model_name for model in model_list], 
+    args.K, args.train_N, args.val_N, args.test_N, args.ratio_list,
+    args.sample_nu_list, mu_list, var_list, 
+    dirname, device, args.xlim, 
+    args.epochs, args.batch_size, args.lr, args.eps, args.weight_decay, 
+    args.train_data_seed, args.validation_data_seed, args.test_data_seed, 
+    bootstrap_iter = args.boot_iter, gen_N = args.gen_N, MMD_test_N = args.MMD_test_N, patience = args.patience, 
+    exp_number=2
+)
+
+make_reproducibility(args.model_init_seed)
+model_list = [
+    betaVAE.betaVAE(reg_weight = 0.1, recon_sigma=args.recon_sigma, device=device).to(device), 
+    betaVAE.betaVAE(reg_weight = 0.2, recon_sigma=args.recon_sigma, device=device).to(device), 
+    betaVAE.betaVAE(reg_weight = 0.5, recon_sigma=args.recon_sigma, device=device).to(device), 
+    VAE.VAE(recon_sigma=args.recon_sigma, device=device).to(device), 
+    betaVAE.betaVAE(reg_weight = 2.0, recon_sigma=args.recon_sigma, device=device).to(device)
+]
+
+univariate_simulation(
+    model_list, [model.model_name for model in model_list], 
+    args.K, args.train_N, args.val_N, args.test_N, args.ratio_list,
+    args.sample_nu_list, mu_list, var_list, 
+    dirname, device, args.xlim, 
+    args.epochs, args.batch_size, args.lr, args.eps, args.weight_decay, 
+    args.train_data_seed, args.validation_data_seed, args.test_data_seed, 
+    bootstrap_iter = args.boot_iter, gen_N = args.gen_N, MMD_test_N = args.MMD_test_N, patience = args.patience, 
+    exp_number=3
+)
+
+make_reproducibility(args.model_init_seed)
+model_list = [
+    t3VAE.t3VAE(nu=9.0, recon_sigma=args.recon_sigma, device=device).to(device),
+    t3VAE.t3VAE(nu=12.0, recon_sigma=args.recon_sigma, device=device).to(device),
+    t3VAE.t3VAE(nu=15.0, recon_sigma=args.recon_sigma, device=device).to(device),
+    t3VAE.t3VAE(nu=18.0, recon_sigma=args.recon_sigma, device=device).to(device),
+    t3VAE.t3VAE(nu=21.0, recon_sigma=args.recon_sigma, device=device).to(device)
+]
+
+univariate_simulation(
+    model_list, [model.model_name for model in model_list], 
+    args.K, args.train_N, args.val_N, args.test_N, args.ratio_list,
+    args.sample_nu_list, mu_list, var_list, 
+    dirname, device, args.xlim, 
+    args.epochs, args.batch_size, args.lr, args.eps, args.weight_decay, 
+    args.train_data_seed, args.validation_data_seed, args.test_data_seed, 
+    bootstrap_iter = args.boot_iter, gen_N = args.gen_N, MMD_test_N = args.MMD_test_N, patience = args.patience, 
+    exp_number=4
 )
 

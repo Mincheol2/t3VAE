@@ -6,7 +6,7 @@ from torch.nn import functional as F
 class VAE_st(nn.Module) : 
     def __init__(self, n_dim=1, m_dim=1, nu=3, recon_sigma=1, reg_weight=1, num_layers=64, device='cpu', sample_size_for_integral = 1):
         super(VAE_st, self).__init__()
-        self.model_name = "VAE-st"
+        self.model_name = f'VAE-st_nu_{nu}'
 
         self.n_dim = n_dim
         self.m_dim = m_dim
@@ -101,8 +101,8 @@ class VAE_st(nn.Module) :
 
         return self.decoder_sampling(prior)
     
-    # def reconstruct(self, x) : 
-    #     return self.decoder_sampling(self.encode(x)[0])
+    def reconstruct(self, x) : 
+        return self.decoder_sampling(self.encode(x)[0])
 
     def forward(self, x) : 
         mean_recon = 0

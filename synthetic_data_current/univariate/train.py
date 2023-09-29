@@ -21,14 +21,13 @@ from univariate.sampling import t_sampling, sample_generation, t_density, t_dens
 from univariate.visualize import visualize_density
 
 def univariate_simulation(
-    model_list, model_title_list, 
-    K, train_N, val_N, test_N, ratio_list, 
-    sample_nu_list, sample_mu_list, sample_var_list, 
-    dir_name, device, xlim, 
-    epochs, batch_size, lr, eps, weight_decay, 
-    train_data_seed, validation_data_seed, test_data_seed, 
-    bootstrap_iter = 1999, gen_N = 100000, MMD_test_N = 100000, patience = 10
-) : 
+        model_list, model_title_list, 
+        K, train_N, val_N, test_N, ratio_list, 
+        sample_nu_list, sample_mu_list, sample_var_list, 
+        dir_name, device, xlim, 
+        epochs, batch_size, lr, eps, weight_decay, 
+        train_data_seed, validation_data_seed, test_data_seed, 
+        bootstrap_iter = 1999, gen_N = 100000, MMD_test_N = 100000, patience = 10, exp_number = 1) : 
     M = len(model_list)
 
     dirname = f'./{dir_name}'
@@ -130,8 +129,8 @@ def univariate_simulation(
                 K, sample_nu_list, sample_mu_list, sample_var_list, ratio_list, xlim
             )
 
-            generation_writer.add_figure("Generation", visualization, epoch)
-            visualization.savefig(f'{dirname}/generations/epoch{epoch}.png')
+            generation_writer.add_figure(f"Generation_{exp_number}", visualization, epoch)
+            visualization.savefig(f'{dirname}/generations/exp_{exp_number}_epoch{epoch}.png')
 
             mmd_result = [mmd_linear_bootstrap_test(gen[0:MMD_test_N], test_data[0:MMD_test_N], device = device, iteration = bootstrap_iter) for gen in model_gen_list]
             mmd_stat_list = [result[0] for result in mmd_result]
