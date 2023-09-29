@@ -170,22 +170,6 @@ if __name__ == "__main__":
                 opt.step()
                 discriminator_opt.step()
                 tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} vae_tc={vae_tcloss:.4f} total={total_loss:.4f}')
-            elif args.model == "ImplicitVAE":
-                reg_loss, recon_loss, total_loss = model.loss(x.to(DEVICE), recon_x, z, mu, logvar)
-                total_loss.backward(retain_graph=True)
-                z = z.detach()
-                z_sampled = torch.randn_like(z)
-
-                discriminator_opt.zero_grad()
-                logits_inferred = model.discriminator(z)
-                logits_sampled = model.discriminator(z_sampled)
-                D_loss = model.discriminator.loss(logits_inferred,logits_sampled)
-                D_loss.backward()
-
-                opt.step()
-                discriminator_opt.step()
-                tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} D_loss={D_loss:.4f} total={total_loss:.4f}')
-            
             else:
                 reg_loss, recon_loss, total_loss = model.loss(x.to(DEVICE), recon_x, z, mu, logvar)
                 total_loss.backward()
