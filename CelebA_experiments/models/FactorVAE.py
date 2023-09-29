@@ -89,5 +89,4 @@ class FactorVAE(baseline.VAE_Baseline):
         prior_z = torch.randn(N, self.args.m_dim)
         prior_z = self.args.prior_sigma * prior_z
         VAE_gen = self.decoder(prior_z.to(self.DEVICE)).detach().cpu()
-        VAE_gen = VAE_gen
         return VAE_gen

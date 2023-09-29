@@ -1,21 +1,21 @@
 import numpy as np
 import torch
-import cv2
+from datetime import datetime
 import torchvision
 import os
 import random
 import argparse
 from tqdm import tqdm
+import time
 from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
-from torchmetrics import MultiScaleStructuralSimilarityIndexMeasure
 from torchmetrics.image.fid import FrechetInceptionDistance
 from models import *
 from dataloader import *
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 
-parser = argparse.ArgumentParser(description='gammaAE')
+parser = argparse.ArgumentParser(description='t3VAE')
 parser.add_argument('--model', type=str, default="VAE",
                     help='model name')
 parser.add_argument('--dataset', type=str, default="celebA",
@@ -45,6 +45,10 @@ parser.add_argument('--tilt', type=float, default=40,
 parser.add_argument('--TC_gamma', type=float, default=6.4,
                     help='TC regularizer weight (Only used in FactorVAE)')
 parser.add_argument('--lr_D', default=1e-5, type=float, help='learning rate of the discriminator(Only used in FactorVAE)')
+parser.add_argument('--int_K', type=float, default=1,
+                    help='nb of numerical integral in DisentanglementVAE')
+parser.add_argument('--imb', type=float, default=100,
+                    help='tail imbalance factor(CIFAR)')
 parser.add_argument('--gpu', type=int, default=0,
                     help='gpu number')
 def load_model(model_name,img_shape,DEVICE, args):
@@ -52,18 +56,20 @@ def load_model(model_name,img_shape,DEVICE, args):
        return VAE.VAE(img_shape, DEVICE,args).to(DEVICE)
     elif model_name == 't3VAE':
         return t3VAE.t3VAE(img_shape, DEVICE, args).to(DEVICE)
+    elif model_name == "TVAE":
+        return TVAE.TVAE(img_shape, DEVICE, args).to(DEVICE)
     elif model_name == "TiltedVAE":
         return TiltedVAE.TiltedVAE(img_shape, DEVICE, args).to(DEVICE)
     elif model_name == "FactorVAE":
         return FactorVAE.FactorVAE(img_shape, DEVICE, args).to(DEVICE)
-    elif model_name == "ImplicitVAE":
-        return ImplicitVAE.ImplicitVAE(img_shape, DEVICE, args).to(DEVICE)
+    elif model_name == "DEVAE":
+        return DisentanglementVAE.DisentanglementVAE(img_shape, DEVICE, args).to(DEVICE)
     else:
-        raise Exception("Please use one of the available model type!", ['VAE', 't3VAE', "TtltedVAE", "FactorVAE"])
+        raise Exception("Please use one of the available model type!")
     
 def make_result_dir(dirname):
     os.makedirs(dirname,exist_ok=True)
-    os.makedirs(dirname + '/reconstructions',exist_ok=True)
+    os.makedirs(dirname + '/imgs',exist_ok=True)
     
 
 def make_reproducibility(seed):
@@ -76,49 +82,31 @@ def make_reproducibility(seed):
     torch.backends.cudnn.benchmark = True
 
 
-def measure_sharpness(imgs):
-    if len(imgs.shape) == 3: #[C, H, W]
-        imgs = imgs.unsqueeze(0)
-
-    N = imgs.shape[0]
-    sharpness = 0 
-    for img in imgs:
-        # 1. convert img to greyscale
-        grey_img = torchvision.transforms.functional.rgb_to_grayscale(img).numpy()
-
-        # 2. convolved with the laplace filter
-        mask = np.array([[0, -1, 0], [-1, 4, -1], [0, -1, 0]])
-        laplacian = cv2.filter2D(grey_img, -1, mask)
-        # 3.compute var of filtered img.
-        sharpness += np.var(laplacian)
-
-    return sharpness / N 
-
 if __name__ == "__main__":
     ## init ##
 
-    # os.environ["CUDA_VISIBLE_DEVICES"]="0,1,2,3"
     args = parser.parse_args()
     USE_CUDA = torch.cuda.is_available()
     DEVICE = torch.device(f'cuda:{args.gpu}' if USE_CUDA else "cpu")
 
     make_reproducibility(args.seed)
     if args.dirname == "":
-        args.dirname = './'+args.dataset+ f'_{args.model}_seed:{args.seed}_m_dim:{args.m_dim}'
+        args.dirname = './'+args.dataset+ f'_{args.model}_seed:{args.seed}_{datetime.today().strftime("%Y%m%d%H%M%S")}'
         if args.model == 't3VAE':
             args.dirname += f'nu:{args.nu}'
     
     make_result_dir(args.dirname)
-    # writer = SummaryWriter(args.dirname + '/Tensorboard_results')
-    
-    print(f"Current framework : {args.model}")
+    print(f'Current directory name : {args.dirname}')
+    writer = SummaryWriter(args.dirname + '/Tensorboard_results')
+    # iter_time = open('iteration_check_t3vae.txt', 'w')
+    print(f"Current framework : {args.model}, lr : {args.lr}")
     if args.model == 't3VAE':
         if args.nu <= 2:
             raise Exception("Degree of freedom nu must be larger than 2")
         print(f'nu : {args.nu}')
     
     ## Load Dataset ##
-    dataloader_setup = load_dataset(args.batch_size,args.dataset, args.datapath)
+    dataloader_setup = load_dataset(args.batch_size,args.dataset, args.datapath,args.imb)
     trainloader, testloader, sample_imgs = dataloader_setup.select_dataloader()
     sample_imgs = sample_imgs.to(DEVICE)
     img_shape = sample_imgs.shape # img shape : [B, C, H, W]
@@ -127,10 +115,6 @@ if __name__ == "__main__":
     ## Load Model ##
     model = load_model(args.model,img_shape, DEVICE, args)
 
-    # Use multiple GPUs
-    # if len(args.gpu) > 1:
-        # model = torch.nn.DataParallel(model, device_ids = args.gpu)
-    # model = torch.nn.DataParallel(model, device_ids =[0,1,2,3]).to(DEVICE)
 
     model_best_loss = 1e8
 
@@ -142,7 +126,7 @@ if __name__ == "__main__":
     opt = optim.Adam(model.parameters(), lr=args.lr)
 
     # Use discriminator
-    if args.model in ["FactorVAE","ImplicitVAE"]: 
+    if args.model in ["FactorVAE"]: 
         discriminator_opt = optim.Adam(model.discriminator.parameters(), lr=args.lr_D)
     # fid_recon = FrechetInceptionDistance(normalize=True).to(DEVICE)
     
@@ -152,12 +136,13 @@ if __name__ == "__main__":
         model.train()
         total_loss = []
         tqdm_trainloader = tqdm(trainloader)
+        total_time = []
         for batch_idx, (x, _) in enumerate(tqdm_trainloader):
-            x = x.to(DEVICE)
+            start_time = time.time()
             opt.zero_grad()
-            recon_x, z, mu, logvar = model.forward(x)
+            recon_x, z, mu, logvar = model.forward(x.to(DEVICE))
             if args.model == "FactorVAE":
-                reg_loss, recon_loss, total_loss, vae_tcloss = model.loss(x, recon_x, z, mu, logvar)
+                reg_loss, recon_loss, total_loss, vae_tcloss = model.loss(x.to(DEVICE), recon_x, z, mu, logvar)
                 total_loss.backward(retain_graph=True)
                 z = z.detach()
                 discriminator_opt.zero_grad()
@@ -166,24 +151,8 @@ if __name__ == "__main__":
                 opt.step()
                 discriminator_opt.step()
                 tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} vae_tc={vae_tcloss:.4f} total={total_loss:.4f}')
-            elif args.model == "ImplicitVAE":
-                reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
-                total_loss.backward(retain_graph=True)
-                z = z.detach()
-                z_sampled = torch.randn_like(z)
-
-                discriminator_opt.zero_grad()
-                logits_inferred = model.discriminator(z)
-                logits_sampled = model.discriminator(z_sampled)
-                D_loss = model.discriminator.loss(logits_inferred,logits_sampled)
-                D_loss.backward()
-
-                opt.step()
-                discriminator_opt.step()
-                tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} D_loss={D_loss:.4f} total={total_loss:.4f}')
-            
             else:
-                reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
+                reg_loss, recon_loss, total_loss = model.loss(x.to(DEVICE), recon_x, z, mu, logvar)
                 total_loss.backward()
                 opt.step()
                 tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} total={total_loss:.4f}')
@@ -196,81 +165,64 @@ if __name__ == "__main__":
                 # clip gradients with max_grad_norm = 100
                 for group in opt.param_groups:
                     torch.nn.utils.clip_grad_norm_(group['params'], 100, norm_type=2)
-            
-        # scheduler.step()        
-        
+            end_time = time.time()
+            total_time.append(end_time-start_time)
+            # print("iter time", end_time - start_time)    
+        writer.add_scalar("Train/avg iter time" , np.mean(total_time),epoch)
+
         
         ## Test ##
+        import gc
+        gc.collect()
         model.eval()
+        cnt = 0
+        total_loss_final = 0
         with torch.no_grad():
             tqdm_testloader = tqdm(testloader)
-            total_loss_list = []
+            # total_loss_list = []
             for batch_idx, (x, _) in enumerate(tqdm_testloader):
                 
                 N = x.shape[0]
-                x = x.to(DEVICE)
-                recon_x, z, mu, logvar = model.forward(x)
+                cnt += 1
+                recon_x, z, mu, logvar = model.forward(x.to(DEVICE))
                 if args.model == "FactorVAE":
-                    reg_loss, recon_loss, total_loss, vae_tcloss = model.loss(x, recon_x, z, mu, logvar)
+                    reg_loss, recon_loss, total_loss, vae_tcloss = model.loss(x.to(DEVICE), recon_x, z, mu, logvar)
                     tqdm_testloader.set_description(f'test {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} vae_tc={vae_tcloss:.4f} total={total_loss:.4f}')
                 
-                elif args.model == "ImplicitVAE":
-                    reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
-                
-                    logits_inferred = model.discriminator(z)
-                    logits_sampled = model.discriminator(z_sampled)
-                    D_loss = model.discriminator.loss(logits_inferred,logits_sampled)
-                    tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} D_loss={D_loss:.4f} total={total_loss:.4f}')
-            
                 else:
-                    reg_loss, recon_loss, total_loss = model.loss(x, recon_x, z, mu, logvar)
+                    reg_loss, recon_loss, total_loss = model.loss(x.to(DEVICE), recon_x, z, mu, logvar)
                     tqdm_testloader.set_description(f'test {epoch} :reg={reg_loss:.4f} recon={recon_loss:.4f} total={total_loss:.4f}')
 
-                total_loss_list.append(total_loss.item())
+                total_loss_final += total_loss.item()
                 ### Reconstruction FID update ###
                 # fid_recon.update(x.detach(), real=True)
                 # fid_recon.update(recon_x.detach(), real=False)
 
-                # current_step = batch_idx + epoch * denom_test
-                # if batch_idx % 200 == 0:    
-                #     writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), current_step )
-                #     writer.add_scalar("Test/Regularizer", reg_loss.item(), current_step)
-                #     writer.add_scalar("Test/Total Loss" , total_loss.item(), current_step)
+                current_step = batch_idx + epoch * denom_test
+                if batch_idx % 200 == 0:    
+                    writer.add_scalar("Test/Reconstruction Error", recon_loss.item(), current_step )
+                    writer.add_scalar("Test/Regularizer", reg_loss.item(), current_step)
+                    writer.add_scalar("Test/Total Loss" , total_loss.item(), current_step)
 
-                
-            # ms_ssim_score = torch.tensor(ms_ssim_test).mean()
-            # writer.add_scalar("Test/recon_MS-SSIM", ms_ssim_score, current_step)
 
             ## Save the best model ##
-            total_loss = np.mean(total_loss_list)
-            if total_loss < model_best_loss:
-                model_best_loss = total_loss
+            total_loss_final /= cnt
+            if total_loss_final < model_best_loss:
+                print("Update the best model..!\n")
+                model_best_loss = total_loss_final
                 torch.save(model, f'{args.dirname}/{args.model}_best.pt')
+                    
+               
+    model.eval()
+    for images, _ in testloader:
+        real_imgs = images
+        break
+    recon_imgs, *_ = model.forward(real_imgs[:64].to(DEVICE))     
+    filename = f'{args.dirname}/imgs/reconstructions.png'         
+    torchvision.utils.save_image(recon_imgs, filename,normalize=True, nrow=8)
 
-            # ## FID Score ##
-            # print("caculating fid scores....")
-            # fid_recon_result = fid_recon.compute()
-            # writer.add_scalar("Test/recon_FID", fid_recon_result.item(), current_step)
-            # print(f'FID_RECON:{fid_recon_result}')
-            # fid_recon.reset()
 
-            # ### Reconstruction Images ###
-            # nb_recons = 1
-            # test_imgs, *_ = model.forward(sample_imgs)       
-            # test_imgs = test_imgs.detach().cpu()
-            # writer.add_scalar("Test/Reconstruction Sharpness", measure_sharpness(test_imgs), epoch)
-            
-            # sample_img_board = sample_imgs[:nb_recons]
-            # test_img_board = test_imgs[:nb_recons]
-            # comparison = torch.cat([sample_img_board.cpu() , test_img_board])
-            # grid = torchvision.utils.make_grid(comparison.cpu())
-            # writer.add_image(f"Test image - Above {nb_recons}: Real images, below {nb_recons} : reconstruction images", grid, epoch)
-            
-            # for images, _ in testloader:
-            #     real_imgs = images
-            #     break
-            # recon_imgs, *_ = model.forward(real_imgs[:64].to(DEVICE))     
-            # filename = f'{args.dirname}/reconstructions/reconstructions_{epoch}.png'         
-            # torchvision.utils.save_image(recon_imgs, filename,normalize=True, nrow=8)
-
+    gen_imgs = model.generate()   
+    filename = f'{args.dirname}/imgs/generations.png'         
+    torchvision.utils.save_image(gen_imgs, filename,normalize=True, nrow=8)
     # writer.close()
