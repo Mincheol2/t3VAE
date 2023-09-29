@@ -6,6 +6,7 @@ import os
 import random
 import argparse
 from tqdm import tqdm
+import time
 from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
 from torchmetrics import MultiScaleStructuralSimilarityIndexMeasure
@@ -91,7 +92,7 @@ if __name__ == "__main__":
 
     make_reproducibility(args.seed)
     if args.dirname == "":
-        args.dirname = './'+args.dataset+ f'_{args.model}_seed:{args.seed}_m_dim:{args.m_dim}'
+        args.dirname = './'+args.dataset+ f'_{args.model}_seed:{args.seed}_{time.time()}'
         if args.model == 't3VAE':
             args.dirname += f'nu:{args.nu}'
     
@@ -131,7 +132,6 @@ if __name__ == "__main__":
     # fid_recon = FrechetInceptionDistance(normalize=True).to(DEVICE)
     
     ## Train & Test ##
-    import time
     for epoch in epoch_tqdm:
         ## Train ##
         model.train()
@@ -224,6 +224,6 @@ if __name__ == "__main__":
 
 
     gen_imgs = model.generate()   
-    filename = f'{args.dirname}/imgs/reconstructions_{epoch}.png'         
-    torchvision.utils.save_image(recon_imgs, filename,normalize=True, nrow=8)
+    filename = f'{args.dirname}/imgs/generations_{epoch}.png'         
+    torchvision.utils.save_image(gen_imgs, filename,normalize=True, nrow=8)
     # writer.close()
