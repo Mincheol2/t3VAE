@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-import cv2
+from datetime import datetime
 import torchvision
 import os
 import random
@@ -9,7 +9,6 @@ from tqdm import tqdm
 import time
 from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
-from torchmetrics import MultiScaleStructuralSimilarityIndexMeasure
 from torchmetrics.image.fid import FrechetInceptionDistance
 from models import *
 from dataloader import *
@@ -92,7 +91,7 @@ if __name__ == "__main__":
 
     make_reproducibility(args.seed)
     if args.dirname == "":
-        args.dirname = './'+args.dataset+ f'_{args.model}_seed:{args.seed}_{time.time()}'
+        args.dirname = './'+args.dataset+ f'_{args.model}_seed:{args.seed}_{datetime.today().strftime("%Y%m%d%H%M%S")}'
         if args.model == 't3VAE':
             args.dirname += f'nu:{args.nu}'
     
@@ -219,11 +218,11 @@ if __name__ == "__main__":
         real_imgs = images
         break
     recon_imgs, *_ = model.forward(real_imgs[:64].to(DEVICE))     
-    filename = f'{args.dirname}/imgs/reconstructions_{epoch}.png'         
+    filename = f'{args.dirname}/imgs/reconstructions.png'         
     torchvision.utils.save_image(recon_imgs, filename,normalize=True, nrow=8)
 
 
     gen_imgs = model.generate()   
-    filename = f'{args.dirname}/imgs/generations_{epoch}.png'         
+    filename = f'{args.dirname}/imgs/generations.png'         
     torchvision.utils.save_image(gen_imgs, filename,normalize=True, nrow=8)
     # writer.close()
