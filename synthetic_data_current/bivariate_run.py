@@ -24,14 +24,14 @@ from mmd import make_masking, mmd_linear, mmd_linear_bootstrap_test
 from loss import log_t_normalizing_const, gamma_regularizer
 from util import make_result_dir, make_reproducibility, TensorDataset
 from bivariate.sampling import multivariate_sample_generation, multivariate_t_sampling, nonlinear_sampling
-from bivariate.visualize import drawing
+from bivariate.visualize import draw_heatmap
 from bivariate.train import bivariate_simulation
 
 
-parser = argparse.ArgumentParser(description="t3VAE")
-parser.add_argument('--dirname',        type=str,   default='exp', help='Name of experiments')
+parser=argparse.ArgumentParser(description="t3VAE")
+parser.add_argument('--dirname',        type=str,   default='results', help='Name of experiments')
 
-parser.add_argument('--nu',             type=float, default=40.0,    help='degree of freedom')
+parser.add_argument('--nu',             type=float, default=5.0,    help='degree of freedom')
 parser.add_argument('--recon_sigma',    type=float, default=1.0,    help='sigma value in decoder')
 parser.add_argument('--reg_weight',     type=float, default=1.0,    help='weight for regularizer term (beta)')
 
@@ -47,71 +47,104 @@ parser.add_argument('--validation_data_seed', type=int, default=2,  help="Seed f
 parser.add_argument('--test_data_seed', type=int,   default=3,      help="Seed for sampling test data")
 parser.add_argument('--model_init_seed',type=int,   default=42,     help="Seed for model parameter initialization")
 
-# parser.add_argument('--K',              type=int,   default=2,      help="Number of mixture distribution in data distribution")
 parser.add_argument('--train_N',        type=int,   default=200000, help="Number of sample size of train data")
 parser.add_argument('--val_N',          type=int,   default=200000, help="Number of sample size of train data")
 parser.add_argument('--test_N',         type=int,   default=500000, help="Number of sample size of train data")
-# parser.add_argument('--sample_nu_list', nargs='+',  type=float,     default=[5.0, 5.0],     help='Degree of freedom from each cluster')
-# parser.add_argument('--ratio_list',     nargs='+',  type=float,     default=[0.6, 0.4],     help='Mixture density of each cluster')
-# parser.add_argument('--mu_list',        nargs='+',  type=float,     default=[-2.0, 2.0],    help="Mean parameter for each cluster")
-# parser.add_argument('--var_list',       nargs='+',  type=float,     default=[1.0, 1.0],     help="Dispersion parameter for each cluster")
 
 parser.add_argument('--boot_iter',      type=int,   default=999,    help="Number of iterations in bootstrap MMD test")
 parser.add_argument('--gen_N',          type=int,   default=500000,help="Number of generations")
 parser.add_argument('--MMD_test_N',     type=int,   default=100000, help="Number of generations")
-parser.add_argument('--xmin',           type=float, default=-10.0,   help="Minimum value of x-axis")
-parser.add_argument('--xmax',           type=float, default=15.0,   help="Maximum value of y-axis")
-parser.add_argument('--ymin',           type=float, default=-5.0,   help="Minimum value of x-axis")
-parser.add_argument('--ymax',           type=float, default=5.0,   help="Maximum value of y-axis")
-parser.add_argument('--bins_x',         type=int,   default=30,     help="Number of bins of x-axis")
-parser.add_argument('--bins_y',         type=int,   default=30,     help="Number of bins of y-axis")
+parser.add_argument('--xmin',           type=float, default=20.0,   help="Negation of minimum value of x-axis")
+parser.add_argument('--xmax',           type=float, default=20.0,   help="Maximum value of y-axis")
+parser.add_argument('--ymin',           type=float, default=20.0,   help="Negation of minimum value value of x-axis")
+parser.add_argument('--ymax',           type=float, default=20.0,   help="Maximum value of y-axis")
+parser.add_argument('--bins',           type=int,   default=100,     help="Number of bins of x-axis")
 parser.add_argument('--patience',       type=int,   default=10,     help="Patience for Early stopping")
 
-args = parser.parse_args()
+args=parser.parse_args()
 
-n_dim = 2
-m_dim = 1
+n_dim=2
+m_dim=1
 
-K = 2
-ratio_list = [0.75, 0.25]
-sample_nu_list = [5.0, 10.0]
+K=2
 
-sample_mu_list = [
-    torch.tensor([0.0]), 
-    torch.tensor([7.0])
+ratio_list=[0.7, 0.3]
+
+sample_nu_list=[5.0, 5.0]
+
+sample_mu_list=[
+    torch.tensor([-2.0]), 
+    torch.tensor([2.0])
 ]
 
-sample_var_list = [
-    torch.tensor([[2.0]]), 
-    torch.tensor([[1.0]])
+sample_var_list=[
+    torch.tensor([[4.0]]), 
+    torch.tensor([[4.0]])
 ]
 
-# mu_list = args.mu_list
-# var_list = args.var_list
-# if mu_list is not None : 
-#     mu_list = [mu * torch.ones(1) for mu in mu_list]
-# if var_list is not None : 
-#     var_list = [var * torch.ones(1,1) for var in var_list]
+device=torch.device(f'cuda:0' if torch.cuda.is_available() else "cpu")
+dirname=f'2D_results/{args.dirname}'
 
-device = torch.device(f'cuda:0' if torch.cuda.is_available() else "cpu")
-dirname = f'2D_results/{args.dirname}'
+
 
 make_reproducibility(args.model_init_seed)
-
-model_list = [
-    VAE.VAE(n_dim, m_dim, device = device).to(device),  
-    t3VAE.t3VAE(n_dim, m_dim, nu = args.nu, device = device).to(device),  
-    TVAE.TVAE(n_dim, m_dim, device = device).to(device)
+model_list=[
+    t3VAE.t3VAE(n_dim, m_dim, nu=30.0, recon_sigma=args.recon_sigma, device=device).to(device), 
+    t3VAE.t3VAE(n_dim, m_dim, nu=40.0, recon_sigma=args.recon_sigma, device=device).to(device), 
+    t3VAE.t3VAE(n_dim, m_dim, nu=50.0, recon_sigma=args.recon_sigma, device=device).to(device), 
+    t3VAE.t3VAE(n_dim, m_dim, nu=60.0, recon_sigma=args.recon_sigma, device=device).to(device), 
+    t3VAE.t3VAE(n_dim, m_dim, nu=70.0, recon_sigma=args.recon_sigma, device=device).to(device)
 ]
+bivariate_simulation(
+    model_list, [model.model_name for model in model_list], 
+    K, args.train_N, args.val_N, args.test_N, ratio_list,
+    sample_nu_list, sample_mu_list, sample_var_list, 
+    dirname, device, -args.xmin, args.xmax, -args.ymin, args.ymax, args.bins, 
+    args.epochs, args.batch_size, args.lr, args.eps, args.weight_decay, 
+    args.train_data_seed, args.validation_data_seed, args.test_data_seed, 
+    bootstrap_iter=args.boot_iter, gen_N=args.gen_N, MMD_test_N=args.MMD_test_N, patience=args.patience, 
+    exp_number=1
+)
 
+make_reproducibility(args.model_init_seed)
+model_list=[
+    TVAE.TVAE(n_dim, m_dim, device=device).to(device), 
+    VAE_st.VAE_st(n_dim, m_dim, nu=3.0, recon_sigma=args.recon_sigma, device=device).to(device), 
+    VAE_st.VAE_st(n_dim, m_dim, nu=5.0, recon_sigma=args.recon_sigma, device=device).to(device), 
+    VAE_st.VAE_st(n_dim, m_dim, nu=7.0, recon_sigma=args.recon_sigma, device=device).to(device), 
+    VAE_st.VAE_st(n_dim, m_dim, nu=9.0, recon_sigma=args.recon_sigma, device=device).to(device), 
+    Disentangled_VAE.Disentangled_VAE(n_dim, m_dim, nu=3, recon_sigma=args.recon_sigma, device=device, sample_size_for_integral=1).to(device),
+    Disentangled_VAE.Disentangled_VAE(n_dim, m_dim, nu=5, recon_sigma=args.recon_sigma, device=device, sample_size_for_integral=1).to(device),
+    Disentangled_VAE.Disentangled_VAE(n_dim, m_dim, nu=7, recon_sigma=args.recon_sigma, device=device, sample_size_for_integral=1).to(device), 
+    Disentangled_VAE.Disentangled_VAE(n_dim, m_dim, nu=9, recon_sigma=args.recon_sigma, device=device, sample_size_for_integral=1).to(device), 
+]
 
 bivariate_simulation(
     model_list, [model.model_name for model in model_list], 
     K, args.train_N, args.val_N, args.test_N, ratio_list,
     sample_nu_list, sample_mu_list, sample_var_list, 
-    dirname, device, args.xmin, args.xmax, args.ymin, args.ymax, args.bins_x, args.bins_y, 
+    dirname, device, -args.xmin, args.xmax, -args.ymin, args.ymax, args.bins, 
     args.epochs, args.batch_size, args.lr, args.eps, args.weight_decay, 
     args.train_data_seed, args.validation_data_seed, args.test_data_seed, 
-    bootstrap_iter = args.boot_iter, gen_N = args.gen_N, MMD_test_N = args.MMD_test_N, patience = args.patience
+    bootstrap_iter=args.boot_iter, gen_N=args.gen_N, MMD_test_N=args.MMD_test_N, patience=args.patience, 
+    exp_number=2
 )
 
+make_reproducibility(args.model_init_seed)
+model_list=[
+    betaVAE.betaVAE(n_dim, m_dim, recon_sigma=args.recon_sigma, reg_weight=0.1, device=device).to(device), 
+    betaVAE.betaVAE(n_dim, m_dim, recon_sigma=args.recon_sigma, reg_weight=0.2, device=device).to(device), 
+    betaVAE.betaVAE(n_dim, m_dim, recon_sigma=args.recon_sigma, reg_weight=0.5, device=device).to(device), 
+    VAE.VAE(n_dim, m_dim, recon_sigma=args.recon_sigma, device=device).to(device),  
+]
+
+bivariate_simulation(
+    model_list, [model.model_name for model in model_list], 
+    K, args.train_N, args.val_N, args.test_N, ratio_list,
+    sample_nu_list, sample_mu_list, sample_var_list, 
+    dirname, device, -args.xmin, args.xmax, -args.ymin, args.ymax, args.bins,
+    args.epochs, args.batch_size, args.lr, args.eps, args.weight_decay, 
+    args.train_data_seed, args.validation_data_seed, args.test_data_seed, 
+    bootstrap_iter=args.boot_iter, gen_N=args.gen_N, MMD_test_N=args.MMD_test_N, patience=args.patience, 
+    exp_number=3
+)

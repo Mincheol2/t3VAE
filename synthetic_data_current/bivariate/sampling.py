@@ -29,10 +29,9 @@ def multivariate_sample_generation(device, SEED = None,
 
 def nonlinear_sampling(device, SEED = None, K = 1, N = 1000, ratio_list = [1.0], mu_list = [None], var_list = [None], nu_list = [3.0]) : 
     x = multivariate_sample_generation(device, SEED , K, N, ratio_list, mu_list, var_list, nu_list)
-    y = torch.sin(x * torch.pi)
-    res = torch.cat([x,2 * y], dim = 1)
+    y = x + 2*torch.sin(x * torch.pi / 4)
+    res = torch.cat([x,y], dim = 1)
     eps = torch.randn_like(res).to(device)
-    # res += eps
-    v = torch.distributions.chi2.Chi2(torch.tensor([15])).sample(sample_shape=[x.shape[0]]).to(device)
-    res += 0.75 * eps * torch.sqrt(15 / v)
+    v = torch.distributions.chi2.Chi2(torch.tensor([6])).sample(sample_shape=[x.shape[0]]).to(device)
+    res += eps * torch.sqrt(6 / v)
     return res

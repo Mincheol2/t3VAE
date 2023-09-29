@@ -22,17 +22,17 @@ from mmd import make_masking, mmd_linear, mmd_linear_bootstrap_test
 from loss import log_t_normalizing_const, gamma_regularizer
 from util import make_result_dir, make_reproducibility, TensorDataset
 from bivariate.sampling import multivariate_sample_generation, multivariate_t_sampling, nonlinear_sampling
-from bivariate.visualize import drawing
+from bivariate.visualize import draw_heatmap
 
 
 def bivariate_simulation(
     model_list, model_title_list, 
     K, train_N, val_N, test_N, ratio_list, 
     sample_nu_list, sample_mu_list, sample_var_list, 
-    dir_name, device, xmin, xmax, ymin, ymax, bins_x, bins_y, 
+    dir_name, device, xmin, xmax, ymin, ymax, bins, 
     epochs, batch_size, lr, eps, weight_decay, 
     train_data_seed, validation_data_seed, test_data_seed, 
-    bootstrap_iter = 1999, gen_N = 100000, MMD_test_N = 100000, patience = 10
+    bootstrap_iter = 1999, gen_N = 100000, MMD_test_N = 100000, patience = 10, exp_number = 1
 ) : 
     M = len(model_list)
 
@@ -129,22 +129,13 @@ def bivariate_simulation(
             # Generation
             model_gen_list = [model.generate(gen_N).detach() for model in model_best_model]
 
-            visualization = drawing(
-                test_data, model_title_list, model_gen_list, 
-                xmin, xmax, ymin, ymax, bins_x, bins_x, bins_y
+            heatmap = draw_heatmap(
+                test_data, model_gen_list, model_title_list, 
+                [xmin, xmax], [ymin, ymax], bins
             )
-
-            generation_writer.add_figure("Generation", visualization, epoch)
-            filename = f'{dirname}/generations/epoch{epoch}.png'
-            visualization.savefig(filename)
-
-            mmd_result = [mmd_linear_bootstrap_test(gen[0:MMD_test_N], test_data[0:MMD_test_N], device = device, iteration = bootstrap_iter) for gen in model_gen_list]
-            mmd_stat_list = [result[0] for result in mmd_result]
-            mmd_p_value_list = [result[1] for result in mmd_result]
-
-            for m in range(M) : 
-                model_writer_list[m].add_scalar("Test/MMD score", mmd_stat_list[m], epoch)
-                model_writer_list[m].add_scalar("Test/MMD p-value", mmd_p_value_list[m], epoch)
+            generation_writer.add_figure(f"Heat map_{exp_number}", heatmap, epoch)
+            filename = f'{dirname}/generations/exp_{exp_number}_heatmap_epoch{epoch}.png'
+            heatmap.savefig(filename)
 
     np.savetxt(f'{dirname}/test_data.csv', test_data.cpu().numpy(), delimiter=',')
     [np.savetxt(f'{dirname}/{model_title_list[m]}.csv', model_gen_list[m].cpu().numpy(), delimiter = ',') for m in range(M)]
