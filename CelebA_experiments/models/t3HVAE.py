@@ -68,11 +68,8 @@ class t3HVAE(t3VAE.t3VAE):
 
         self.log_C_1_over_2 = 0
         self.log_C_1_over_2 += np.log(self.nu + M_plus_n) + (2 + self.gamma_exponent * m2) * log_tau_sq / 2
-        print(self.log_C_1_over_2)
         self.log_C_1_over_2 += m2 /2 * self.gamma_exponent * np.log(1 + M_plus_n / self.nu)
-        print(self.log_C_1_over_2)
         self.log_C_1_over_2 += np.log(1 + m2 / (self.nu + M_plus_n - 2)) + np.log(self.nu)
-        print(self.log_C_1_over_2)
 
     def encoder(self, x):
         x = self.cnn_layers(x)

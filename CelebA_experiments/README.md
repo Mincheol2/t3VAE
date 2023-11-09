@@ -2,7 +2,7 @@
 
 ## Basic Usage
 
-This model covers multiple types of VAE framework, including $t^3$ VAE, Guassian VAE, $\beta$-VAE , tilted VAE, and Factor VAE
+This model covers multiple types of VAE framework, including $t^3$ VAE, Guassian VAE, $\beta$-VAE, Student-t VAE, DEVAE, tilted VAE, and Factor VAE
 
 The specific type of model can be determined by varying the argument "--model" or other hyperparamters.(e.g. "--recon_sigma" or "--reg_weight")
 
@@ -65,11 +65,3 @@ python run.py --model FactorVAE --TC_gamma 6.4
 ```
 python test.py --model path [best_model path]
 ```
-
-## Latent interpolation
-
-- You can make interpolation images from **interpolation.ipynb**.
-
-### An example of interpolation
-
-<img src=./INTERPOL_TEST_example.png width="50%" height="50%">
