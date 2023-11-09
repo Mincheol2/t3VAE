@@ -12,11 +12,11 @@ class VAE_Baseline(nn.Module):
         self.scheduler = None
         ### Encoder layers ##
         
-        encoder_hiddens = [128, 256, 512, 1024, 2048]
-        layers = []
+        self.encoder_hiddens = [128, 256, 512, 1024, 2048]
+        self.layers = []
         input_ch = self.C
-        for dim in encoder_hiddens:
-            layers.append(
+        for dim in self.encoder_hiddens:
+            self.layers.append(
                 nn.Sequential(
                     nn.Conv2d(input_ch, dim,
                               kernel_size= 3, stride= 2, padding  = 1),
@@ -25,16 +25,16 @@ class VAE_Baseline(nn.Module):
             )
             input_ch = dim
 
-        self.cnn_layers = nn.Sequential(*layers)
+        self.cnn_layers = nn.Sequential(*self.layers)
         
-        n = len(encoder_hiddens)
-        self.cnn_lineardim = encoder_hiddens[-1]* math.ceil(self.H / 2**n) * math.ceil(self.W / 2**n)
+        n = len(self.encoder_hiddens)
+        self.cnn_lineardim = self.encoder_hiddens[-1]* math.ceil(self.H / 2**n) * math.ceil(self.W / 2**n)
 
         self.mu_layer = nn.Linear(self.cnn_lineardim , args.m_dim)
         self.logvar_layer = nn.Linear(self.cnn_lineardim , args.m_dim)
         
         ## Decoder layers ##
-        self.decoder_hiddens = encoder_hiddens[::-1]
+        self.decoder_hiddens = self.encoder_hiddens[::-1]
         self.n = len(self.decoder_hiddens)
         self.linear = nn.Sequential(
                         nn.Linear(args.m_dim, self.cnn_lineardim),

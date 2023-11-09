@@ -9,6 +9,7 @@ class t3VAE(baseline.VAE_Baseline):
         super(t3VAE, self).__init__(image_shape, DEVICE, args)
         self.n_dim = self.C * self.H * self.W
         self.m_dim = self.args.m_dim
+        self.nu_prime = self.args.nu + self.n_dim
             
         self.gamma = -2 / (self.args.nu + self.n_dim + self.m_dim)
 
@@ -28,11 +29,10 @@ class t3VAE(baseline.VAE_Baseline):
 
         self.const_2bar1 = const_2bar1_term_1 * const_2bar1_term_2_log.exp()
         log_tau = 2 / (self.args.nu + self.n_dim - 2) * log_tau_base
-        self.tau_sq = log_tau.exp()
+        self.tau_sq = (self.args.nu / self.nu_prime) * log_tau.exp()
 
         
         ## For generating t samples
-        self.nu_prime = self.args.nu + self.n_dim
         self.MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.args.m_dim), torch.eye(self.args.m_dim))
         self.chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.nu_prime]))
         
@@ -82,8 +82,8 @@ class t3VAE(baseline.VAE_Baseline):
         mu_norm_sq = torch.linalg.norm(mu, ord=2, dim=1).pow(2)
         trace_var = self.args.nu / (self.args.nu + self.n_dim - 2) * torch.sum(logvar.exp(),dim=1)
         log_det_var = -self.gamma / (2+2*self.gamma) * torch.sum(logvar,dim=1)
-        reg_loss = torch.mean(mu_norm_sq + trace_var - self.args.nu * self.const_2bar1 * log_det_var.exp(), dim=0) + self.args.nu * self.tau_sq
-        # reg_loss = self.args.beta_weight * reg_loss
+        reg_loss = torch.mean(mu_norm_sq + trace_var - self.args.nu * self.const_2bar1 * log_det_var.exp(), dim=0) + self.nu_prime * self.tau_sq
+        reg_loss = self.args.beta_weight * reg_loss
         ## recon loss (same as VAE) ##
         recon_loss = torch.sum((recon_x - x)**2 / (N * self.args.prior_sigma**2))
         total_loss = reg_loss + recon_loss
@@ -96,13 +96,11 @@ class t3VAE(baseline.VAE_Baseline):
         By doing this, we can generate more stable images.
         '''
 
-        df = self.args.nu + self.n_dim
-        
         tau = torch.sqrt(self.tau_sq).to(self.DEVICE)
-        prior_chi_dist = torch.distributions.chi2.Chi2(torch.tensor([df]))
+        prior_chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.nu_prime]))
         prior_z = self.MVN_dist.sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
         v = prior_chi_dist.sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
-        prior_t = self.args.prior_sigma * prior_z * torch.sqrt(df / v)
+        prior_t = self.args.prior_sigma * prior_z * torch.sqrt(self.nu_prime / v)
         prior_t *= tau
         
         imgs = self.decoder(prior_t.to(self.DEVICE)).detach().cpu()

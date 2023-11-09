@@ -64,6 +64,9 @@ def load_model(model_name,img_shape,DEVICE, args):
         return FactorVAE.FactorVAE(img_shape, DEVICE, args).to(DEVICE)
     elif model_name == "DEVAE":
         return DisentanglementVAE.DisentanglementVAE(img_shape, DEVICE, args).to(DEVICE)
+    elif model_name == "t3HVAE":
+        return t3HVAE.t3HVAE(img_shape, DEVICE, args).to(DEVICE)
+    
     else:
         raise Exception("Please use one of the available model type!")
     
@@ -131,16 +134,22 @@ if __name__ == "__main__":
     # fid_recon = FrechetInceptionDistance(normalize=True).to(DEVICE)
     
     ## Train & Test ##
+    print(model.DEVICE)
     for epoch in epoch_tqdm:
+        # start_time = time.time()
         ## Train ##
         model.train()
         total_loss = []
         tqdm_trainloader = tqdm(trainloader)
         total_time = []
         for batch_idx, (x, _) in enumerate(tqdm_trainloader):
-            start_time = time.time()
             opt.zero_grad()
-            recon_x, z, mu, logvar = model.forward(x.to(DEVICE))
+            if args.model == "t3HVAE":
+                recon_x, z_list, mu_list, logvar_list = model.forward(x.to(DEVICE))
+            else:
+                recon_x, z, mu, logvar = model.forward(x.to(DEVICE))
+
+            
             if args.model == "FactorVAE":
                 reg_loss, recon_loss, total_loss, vae_tcloss = model.loss(x.to(DEVICE), recon_x, z, mu, logvar)
                 total_loss.backward(retain_graph=True)
@@ -151,6 +160,13 @@ if __name__ == "__main__":
                 opt.step()
                 discriminator_opt.step()
                 tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} vae_tc={vae_tcloss:.4f} total={total_loss:.4f}')
+            
+            elif args.model == "t3HVAE":
+                reg_loss, reg_loss2, recon_loss, total_loss = model.loss(x.to(DEVICE), recon_x, z_list, mu_list, logvar_list)
+                total_loss.backward()
+                opt.step()
+                tqdm_trainloader.set_description(f'train {epoch} : reg1={reg_loss:.4f} reg2={reg_loss2:.4f} recon={recon_loss:.4f} total={total_loss:.4f}')
+            
             else:
                 reg_loss, recon_loss, total_loss = model.loss(x.to(DEVICE), recon_x, z, mu, logvar)
                 total_loss.backward()
@@ -165,10 +181,10 @@ if __name__ == "__main__":
                 # clip gradients with max_grad_norm = 100
                 for group in opt.param_groups:
                     torch.nn.utils.clip_grad_norm_(group['params'], 100, norm_type=2)
-            end_time = time.time()
-            total_time.append(end_time-start_time)
-            # print("iter time", end_time - start_time)    
-        writer.add_scalar("Train/avg iter time" , np.mean(total_time),epoch)
+        # end_time = time.time()
+        #     total_time.append(end_time-start_time)
+        #     print("iter time", end_time - start_time)    
+        # writer.add_scalar("Train/avg iter time" , np.mean(total_time),epoch)
 
         
         ## Test ##
@@ -184,11 +200,17 @@ if __name__ == "__main__":
                 
                 N = x.shape[0]
                 cnt += 1
-                recon_x, z, mu, logvar = model.forward(x.to(DEVICE))
+                if args.model == "t3HVAE":
+                    recon_x, z_list, mu_list, logvar_list = model.forward(x.to(DEVICE))
+                else:
+                    recon_x, z, mu, logvar = model.forward(x.to(DEVICE))
                 if args.model == "FactorVAE":
                     reg_loss, recon_loss, total_loss, vae_tcloss = model.loss(x.to(DEVICE), recon_x, z, mu, logvar)
                     tqdm_testloader.set_description(f'test {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} vae_tc={vae_tcloss:.4f} total={total_loss:.4f}')
-                
+                elif args.model == "t3HVAE":
+                    reg_loss, reg_loss2, recon_loss, total_loss = model.loss(x.to(DEVICE), recon_x, z_list, mu_list, logvar_list)
+                    tqdm_trainloader.set_description(f'train {epoch} : reg1={reg_loss:.4f} reg2={reg_loss2:.4f} recon={recon_loss:.4f} total={total_loss:.4f}')
+            
                 else:
                     reg_loss, recon_loss, total_loss = model.loss(x.to(DEVICE), recon_x, z, mu, logvar)
                     tqdm_testloader.set_description(f'test {epoch} :reg={reg_loss:.4f} recon={recon_loss:.4f} total={total_loss:.4f}')
