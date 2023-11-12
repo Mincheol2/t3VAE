@@ -13,11 +13,8 @@ class t3HVAE(t3VAE.t3VAE):
             nom = torch.lgamma(torch.tensor((nu+d)/2))
             denom = torch.lgamma(torch.tensor(nu/2)) + d/2 * (np.log(nu) + np.log(np.pi))
             return nom - denom
-        self.m1 = args.m_dim
-        self.m2 = self.m1 / 2
-        self.gamma = -2 / (self.args.nu + self.n_dim + self.m1 + self.m2)
-        self.nu = args.nu
 
+        self.nu = args.nu
         self.L = 2 # L-level t3HVAE model
 
         # Hierarchical latent layers.
@@ -29,11 +26,12 @@ class t3HVAE(t3VAE.t3VAE):
         
         # For simplicity, fix all recon_sigma to 1.
 
+        h_latent_dim = args.m_dim
         input_dim = self.cnn_lineardim
 
 
         # 1. Construct ith MLP layer
-        h_latent_dim = args.m_dim
+
         for i in range(self.L):
             self.h_latent_dim_list.append(h_latent_dim)
             self.mu_layers.append(nn.Sequential(nn.Linear(input_dim, h_latent_dim),
@@ -55,20 +53,23 @@ class t3HVAE(t3VAE.t3VAE):
         )
 
         
-        # 2. define Constants 
+        # 2. define Cants 
         
         # L=2 case
-        M_plus_n = (input_dim - self.m2) + self.n_dim  # m1 + n
+        m2 = self.h_latent_dim_list[-1]
+        M_plus_n = (input_dim - m2) + self.n_dim  # m1 + n
+        log_tau_base = log_t_normalizing_C(self.nu, M_plus_n ) - np.log(M_plus_n + self.nu - 2) + np.log(self.nu-2)
+        
+        log_tau_sq = 2 / (self.nu + M_plus_n - 2) * log_tau_base
+        self.tau_sq = self.nu / (self.nu + M_plus_n) * log_tau_sq.exp()
 
         # Derive C1/C2 from tau_sq
         self.gamma_exponent = self.gamma / (1+self.gamma)
 
         self.log_C_1_over_2 = 0
-        self.log_C_1_over_2 += - self.gamma_exponent * log_t_normalizing_C(self.nu, M_plus_n)
-        self.log_C_1_over_2 += np.log(self.nu + M_plus_n + self.m2 - 2)
-        self.log_C_1_over_2 += - self.gamma_exponent * np.log(self.nu - 2)
-        self.log_C_1_over_2 += - 1 / (self.gamma + 1) * np.log(self.nu + M_plus_n - 2)
-        self.log_C_1_over_2 += np.log(self.nu)
+        self.log_C_1_over_2 += np.log(self.nu + M_plus_n) + (2 + self.gamma_exponent * m2) * log_tau_sq / 2
+        self.log_C_1_over_2 += m2 /2 * self.gamma_exponent * np.log(1 + M_plus_n / self.nu)
+        self.log_C_1_over_2 += np.log(1 + m2 / (self.nu + M_plus_n - 2)) + np.log(self.nu)
 
     def encoder(self, x):
         x = self.cnn_layers(x)
@@ -129,6 +130,8 @@ class t3HVAE(t3VAE.t3VAE):
 
     def loss(self, x, recon_x, z_list, mu_list, logvar_list):
         N = x.shape[0]
+        #TODO : L >= 3?
+
 
         ## gamma regularizers ##
         trace_denom = self.nu + self.n_dim - 2
@@ -137,11 +140,12 @@ class t3HVAE(t3VAE.t3VAE):
         # for i in range(self.L):
         
         # regularizer for q(z_1|x)
-        mu_norm_sq = torch.linalg.norm(mu_list[0], ord=2, dim=1).pow(2)
+        mu_norm_sq = torch.linalg.norm(mu_list[0]-0, ord=2, dim=1).pow(2)
         trace_var = self.nu / trace_denom * torch.sum(logvar_list[0].exp(),dim=1)
-        log_det_var = torch.sum(logvar_list[0],dim=1)
+        
+        log_det_var = torch.sum(logvar_list[0],dim=1)  # log(|Lamma(x)|)
 
-        reg_loss = torch.mean(mu_norm_sq + trace_var + self.gamma / 2 * self.log_C_1_over_2.exp() * log_det_var, dim=0)
+        reg_loss = torch.mean(mu_norm_sq + trace_var + self.gamma / 2 * self.log_C_1_over_2.exp() * log_det_var, dim=0) + self.nu_prime * self.tau_sq
 
         trace_denom += self.h_latent_dim_list[0]
                 
@@ -166,12 +170,12 @@ class t3HVAE(t3VAE.t3VAE):
         prior_chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.nu]))
         prior_z = self.MVN_dist.sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
         v = prior_chi_dist.sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
-        prior_t = prior_z * torch.sqrt(self.nu / v)
+        prior_t = self.args.prior_sigma * prior_z * torch.sqrt(self.nu / v)
         prev_t_samples = []
         for i in range(1, self.L+1):
             if i != 1:
                 prev_t_concat = torch.concat(prev_t_samples,dim=1)
-                input_t = torch.concat([prev_t_concat, prior_t], dim=1)
+                input_t = torch.concat(torch.concat([prev_t_concat, prior_t], dim=1))
             else:
                 input_t = prior_t
             
