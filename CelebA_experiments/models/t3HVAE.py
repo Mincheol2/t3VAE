@@ -16,7 +16,7 @@ class t3HVAE(t3VAE.t3VAE):
         self.m1 = args.m_dim
         self.m2 = self.m1 / 2
         self.gamma = -2 / (self.args.nu + self.n_dim + self.m1 + self.m2)
-        nu = args.nu
+        self.nu = args.nu
 
         self.L = 2 # L-level t3HVAE model
 
@@ -60,19 +60,27 @@ class t3HVAE(t3VAE.t3VAE):
         self.M_plus_n = (input_dim - self.m2) + self.n_dim  # m1 + n
 
         # compute C1/C2 and taus (for the alternative priors)
-        self.log_C_1_over_2 = - self.gamma_exponent * (log_t_normalizing_C(self.nu, self.M_plus_n) + np.log(nu + self.M_plus_n + self.m2 - 2) + np.log(nu - 2))
-        self.log_C_1_over_2 += - 1 / (self.gamma + 1) * np.log(nu + self.M_plus_n - 2) + np.log(self.nu)
-        self.log_tau_2 = log_t_normalizing_C(self.nu, self.M_plus_n) - np.log(self.M_plus_n + nu - 2) + np.log(nu - 2)
-        self.log_tau_2 /= (nu + self.M_plus_n - 2)
+        self.log_C_1_over_2 = - self.gamma_exponent * (log_t_normalizing_C(self.nu, self.M_plus_n) + np.log(self.nu + self.M_plus_n + self.m2 - 2) + np.log(self.nu - 2))
+        self.log_C_1_over_2 += - 1 / (self.gamma + 1) * np.log(self.nu + self.M_plus_n - 2) + np.log(self.nu)
+        
+        self.log_tau_1 = log_t_normalizing_C(self.nu, self.M_plus_n) - np.log(self.M_plus_n + self.nu - 2) + np.log(self.nu - 2)
+        self.log_tau_1 -= (np.log(self.nu + self.M_plus_n- 2) -  np.log(self.nu + self.n_dim - 2))/self.gamma
+        self.log_tau_1 /= (self.nu + self.M_plus_n - 2)
+        self.log_tau_1 += (np.log(self.nu) - np.log(self.nu + self.n_dim)) / 2
+        
+        self.log_tau_2 = log_t_normalizing_C(self.nu, self.M_plus_n) - np.log(self.M_plus_n + self.nu - 2) + np.log(self.nu - 2)
+        self.log_tau_2 /= (self.nu + self.M_plus_n - 2)
+        self.log_tau_2 += (np.log(self.nu) - np.log(self.nu + self.M_plus_n)) / 2
 
         # define samplers for t
         self.MVN_dists = []
         self.chi_dists = []
-        self.MVN_dist[0] = torch.distributions.MultivariateNormal(torch.zeros(self.args.m_dim), torch.eye(self.args.m_dim))
-        self.chi_dist[0] = torch.distributions.chi2.Chi2(torch.tensor([self.nu + self.n_dim]))
-        self.MVN_dist[1] = torch.distributions.MultivariateNormal(torch.zeros(self.args.m_dim), torch.eye(self.args.m_dim))
-        self.chi_dist[1] = torch.distributions.chi2.Chi2(torch.tensor([self.nu + self.M_plus_nu]))
-
+        for i in range(2):
+            MVN_dim = self.h_latent_dim_list[i]
+            chi_dim = self.nu+self.n_dim if i == 0 else self.nu + self.M_plus_n
+            self.MVN_dists.append(torch.distributions.MultivariateNormal(torch.zeros(MVN_dim), torch.eye(MVN_dim)))
+            self.chi_dists.append(torch.distributions.chi2.Chi2(torch.tensor([chi_dim])))
+        
 
     def encoder(self, x):
         x = self.cnn_layers(x)
@@ -81,12 +89,11 @@ class t3HVAE(t3VAE.t3VAE):
         logvar_list = []
         z_list = []
 
-        # L = 1
         for L in range(1,3):
             input_x = x if L == 1 else torch.concat([z, x], dim=1)
             mu = self.mu_layers[L-1](input_x)
             logvar = self.logvar_layers[L-1](input_x)
-            z = self.reparameterize(mu, logvar, 1)
+            z = self.reparameterize(mu, logvar, L)
             mu_list.append(mu)
             logvar_list.append(logvar)
             z_list.append(z)
@@ -109,7 +116,7 @@ class t3HVAE(t3VAE.t3VAE):
 
     def reparameterize(self, mu, logvar, L):
         '''
-            t-reparametrization trick (L = hierarchy paramter)
+            t-reparametrization trick (L = hierarchy parameter)
 
             Let nu_prime = nu + n_dim
             1. Generate v ~ chiq(nu_prime) and eps ~ N(0, I), independently.
@@ -122,6 +129,7 @@ class t3HVAE(t3VAE.t3VAE):
         std = torch.exp(0.5 * logvar)
         std = torch.tensor(self.nu / nu_prime).sqrt() * std
         v = self.chi_dists[L-1].sample(sample_shape=torch.tensor([mu.shape[0]])).to(self.DEVICE)
+        
         return mu + std * eps * torch.sqrt(nu_prime / v)
 
     def loss(self, x, recon_x, z_list, mu_list, logvar_list):
@@ -162,14 +170,14 @@ class t3HVAE(t3VAE.t3VAE):
 
         t_samples = []
         # L = 1
-        mu_0 = torch.zeros(N)
-        logvar_0 = torch.ones(N)
-        prior_t = self.reparameterize(self, mu_0, logvar_0, L=1)
+        mu_0 = torch.zeros(N).to(self.DEVICE)
+        logvar_0 = torch.exp(2* self.log_tau_1)*torch.ones(N).to(self.DEVICE)
+        prior_t = self.reparameterize(mu_0, logvar_0, 1)
         t_samples.append(prior_t)
         
         mu_1 = self.prior_layers[0](prior_t)
-        logvar_1 = torch.exp(2* self.log_tau_2)*torch.ones(N)
-        prior_t2 = self.reparameterize(self, mu_1, logvar_1, L=2)
+        logvar_1 = torch.exp(2* self.log_tau_2)*torch.ones(N//2).to(self.DEVICE)
+        prior_t2 = self.reparameterize(mu_1, logvar_1, 2)
         t_samples.append(prior_t2)
 
         
