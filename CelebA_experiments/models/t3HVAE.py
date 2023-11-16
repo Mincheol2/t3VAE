@@ -14,7 +14,7 @@ class t3HVAE(t3VAE.t3VAE):
             denom = torch.lgamma(torch.tensor(nu/2)) + d/2 * (np.log(nu) + np.log(np.pi))
             return nom - denom
         self.m1 = args.m_dim
-        self.m2 = self.m1 / 2
+        self.m2 = self.m1 // 2
         self.gamma = -2 / (self.args.nu + self.n_dim + self.m1 + self.m2)
         self.nu = args.nu
 
@@ -28,10 +28,9 @@ class t3HVAE(t3VAE.t3VAE):
 
         
         # For simplicity, fix all recon_sigma to 1.
-
         input_dim = self.cnn_lineardim
 
-        # 1. Construct ith MLP layer
+        # Construct ith MLP layer
         h_latent_dim = args.m_dim
         for i in range(self.L):
             self.h_latent_dim_list.append(h_latent_dim)
@@ -157,7 +156,6 @@ class t3HVAE(t3VAE.t3VAE):
         trace_var = self.nu / trace_denom * torch.sum(logvar_list[1].exp(),dim=1)
         log_det_var = - self.gamma_exponent / 2 * torch.sum(logvar_list[1],dim=1)
         reg_loss2 = torch.mean(mu_norm_sq + trace_var - (self.log_C_1_over_2 + log_det_var).exp(), dim=0)
-
         ## recon loss (same as VAE) ##
         recon_loss = torch.sum((recon_x - x)**2 / N)
         total_loss = recon_loss + reg_loss + reg_loss2
@@ -170,13 +168,13 @@ class t3HVAE(t3VAE.t3VAE):
 
         t_samples = []
         # L = 1
-        mu_0 = torch.zeros(N).to(self.DEVICE)
-        logvar_0 = torch.exp(2* self.log_tau_1)*torch.ones(N).to(self.DEVICE)
+        mu_0 = torch.zeros((N,self.m1)).to(self.DEVICE)
+        logvar_0 = (2* self.log_tau_1)*torch.ones((N,self.m1)).to(self.DEVICE)
         prior_t = self.reparameterize(mu_0, logvar_0, 1)
         t_samples.append(prior_t)
         
         mu_1 = self.prior_layers[0](prior_t)
-        logvar_1 = torch.exp(2* self.log_tau_2)*torch.ones(N//2).to(self.DEVICE)
+        logvar_1 = (2* self.log_tau_2)*torch.ones((N, self.m2)).to(self.DEVICE)
         prior_t2 = self.reparameterize(mu_1, logvar_1, 2)
         t_samples.append(prior_t2)
 
