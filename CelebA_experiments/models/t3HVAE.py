@@ -104,18 +104,18 @@ class t3HVAE(t3VAE.t3VAE):
             t-reparametrization trick (L = hierarchy parameter)
 
             Let nu_prime = nu + n_dim
-            1. Generate v ~ chiq(nu_prime) and eps ~ N(0, I), independently.
-            2. Caculate x = mu + std * eps / (sqrt(v/nu_prime)), where std = sqrt(nu/(nu_prime) * var)
+            1. Generate v ~ chiq(nu_prime) and prior_z ~ N(0, I), independently.
+            2. Caculate x = mu + std * prior_z / (sqrt(v/nu_prime)), where std = sqrt(nu/(nu_prime) * var)
         '''
         nu_prime = self.nu + self.n_dim + (L-1)*self.m1 # L=1 -> nu+n // L=2 -> nu+m1+n
 
         # Student T dist : [B, z_dim]
-        eps = self.MVN_dists[L-1].sample(sample_shape=torch.tensor([mu.shape[0]])).to(self.DEVICE)
+        prior_z = self.MVN_dists[L-1].sample(sample_shape=torch.tensor([mu.shape[0]])).to(self.DEVICE)
         std = torch.exp(0.5 * logvar)
         std = torch.tensor(self.nu / nu_prime).sqrt() * std
         v = self.chi_dists[L-1].sample(sample_shape=torch.tensor([mu.shape[0]])).to(self.DEVICE)
         
-        return mu + std * eps * torch.sqrt(nu_prime / v)
+        return mu + std * prior_z * torch.sqrt(nu_prime / v)
 
     def loss(self, x, recon_x, z1, mu1, mu2, logvar1, logvar2):
         N = x.shape[0]
@@ -153,19 +153,15 @@ class t3HVAE(t3VAE.t3VAE):
         '''
 
         # L = 1
-        nu_prime = self.nu
-        mu_1 = torch.zeros((N,self.m1)).to(self.DEVICE)
-        logvar_1 = torch.zeros((N,self.m1)).to(self.DEVICE)
-        eps = self.MVN_dists[0].sample(sample_shape=torch.tensor([mu_1.shape[0]])).to(self.DEVICE)
-        std = torch.exp(0.5 * logvar_1)
-        std = torch.tensor(self.nu / nu_prime).sqrt() * std
-        v = self.chi_dists[0].sample(sample_shape=torch.tensor([mu_1.shape[0]])).to(self.DEVICE)
+        nu_prime = self.nu + self.n_dim
+        prior_z = self.MVN_dists[0].sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
+        v = self.chi_dists[0].sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
         
-        prior_t1 = mu_1 + std * eps * torch.sqrt(nu_prime / v)
+        prior_t1 = prior_z * torch.sqrt(nu_prime / v)
 
         
         mu_2 = self.priormu_layer(prior_t1)
-        logvar_2 = (2* self.log_tau_2)*torch.ones((N, self.m2)).to(self.DEVICE)
+        logvar_2 = (self.log_tau_2)*torch.ones((N, self.m2)).to(self.DEVICE)
         prior_t2 = self.reparameterize(mu_2, logvar_2, 2)
 
         
