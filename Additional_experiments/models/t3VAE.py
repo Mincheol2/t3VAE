@@ -5,10 +5,9 @@ import math
 from models import baseline
 
 class t3VAE(baseline.VAE_Baseline):
-    def __init__(self, image_shape, DEVICE, args):
-        super(t3VAE, self).__init__(image_shape, DEVICE, args)
-        self.n_dim = self.C * self.H * self.W
-        self.m_dim = self.args.m_dim
+    def __init__(self, DEVICE, args):
+        super(t3VAE, self).__init__(DEVICE, args)
+
         self.nu_prime = self.args.nu + self.n_dim
             
         self.gamma = -2 / (self.args.nu + self.n_dim + self.m_dim)
@@ -37,20 +36,16 @@ class t3VAE(baseline.VAE_Baseline):
         self.chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.nu_prime]))
         
     def encoder(self, x):
-        x = self.cnn_layers(x)
-        x = torch.flatten(x, start_dim = 1)
+        x = x.reshape(-1,self.args.n_dim)
+        x = self.encoder_net(x)
         mu = self.mu_layer(x)
         logvar = self.logvar_layer(x)
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
         
     def decoder(self, z):
-        z = self.linear(z)
-        z = z.reshape(-1,self.decoder_hiddens[0],math.ceil(self.H / 2**self.n),math.ceil(self.W / 2**self.n))
-        z = self.tp_cnn_layers(z)
-        z = self.final_layer(z)
-    
-        return z
+        x = self.decoder_net(z)
+        return x
     
     def reparameterize(self, mu, logvar):
         '''
@@ -95,7 +90,6 @@ class t3VAE(baseline.VAE_Baseline):
         Instead of t-prior, we use alternative prior p(z) ~ t(z|nu+n_dim,tau^2*I)
         By doing this, we can generate more stable images.
         '''
-
         tau = torch.sqrt(self.tau_sq).to(self.DEVICE)
         prior_chi_dist = torch.distributions.chi2.Chi2(torch.tensor([self.nu_prime]))
         prior_z = self.MVN_dist.sample(sample_shape=torch.tensor([N])).to(self.DEVICE)

@@ -9,8 +9,8 @@ import math
 from models import baseline
 
 class TVAE(baseline.VAE_Baseline):
-    def __init__(self, image_shape, DEVICE, args):
-        super(TVAE, self).__init__(image_shape, DEVICE,args)
+    def __init__(self,  DEVICE, args):
+        super(TVAE, self).__init__( DEVICE,args)
         
         self.n_dim = self.C * self.H * self.W
         self.m_dim = self.args.m_dim

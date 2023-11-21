@@ -4,8 +4,8 @@ import math
 from models import baseline
 
 class VAE(baseline.VAE_Baseline):
-    def __init__(self, image_shape, DEVICE, args):
-        super(VAE, self).__init__(image_shape, DEVICE,args)
+    def __init__(self,  DEVICE, args):
+        super(VAE, self).__init__( DEVICE,args)
            
     def encoder(self, x):
         x = self.cnn_layers(x)
