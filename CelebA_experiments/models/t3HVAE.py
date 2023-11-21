@@ -14,7 +14,7 @@ class t3HVAE(t3VAE.t3VAE):
             denom = torch.lgamma(torch.tensor(nu/2)) + d/2 * (np.log(nu) + np.log(np.pi))
             return nom - denom
         self.m1 = args.m_dim
-        self.m2 = self.m1 // 2
+        self.m2 = self.m1
         self.h_latent_dim_list = [self.m1, self.m2]
         self.gamma = -2 / (self.args.nu + self.n_dim + self.m1 + self.m2)
         self.nu = args.nu
@@ -41,16 +41,17 @@ class t3HVAE(t3VAE.t3VAE):
         # 2. define Constants 
 
         self.gamma_exponent = self.gamma / (1+self.gamma)
-        self.M_plus_n = (input_dim - self.m2) + self.n_dim  # m1 + n
+        self.M_plus_n = self.m1 + self.n_dim  # m1 + n
 
         # compute C1/C2 and taus (for the alternative priors)
         self.log_nu_C1overC2 = - self.gamma_exponent * (log_t_normalizing_C(self.nu, self.M_plus_n) + np.log(self.nu - 2))
         self.log_nu_C1overC2 += - 1 / (self.gamma + 1) * (np.log(self.nu + self.M_plus_n - 2) ) + np.log(self.nu)
-        self.log_nu_C1overC2 -= np.log(self.nu + self.M_plus_n + self.m2 - 2)
+        self.log_nu_C1overC2 += np.log(self.nu + self.M_plus_n + self.m2 - 2)
+        
         
         self.log_tau_1 = log_t_normalizing_C(self.nu, self.M_plus_n) - np.log(self.M_plus_n + self.nu - 2) + np.log(self.nu - 2)
         self.log_tau_1 -= (np.log(self.nu + self.M_plus_n- 2) -  np.log(self.nu + self.n_dim - 2))/self.gamma
-        self.log_tau_1 /= (self.nu + self.M_plus_n - 2)
+        self.log_tau_1 /= (self.nu + self.m2 + self.n_dim - 2)
         self.log_tau_1 += (np.log(self.nu) - np.log(self.nu + self.n_dim)) / 2
         
         self.log_tau_2 = log_t_normalizing_C(self.nu, self.M_plus_n) - np.log(self.M_plus_n + self.nu - 2) + np.log(self.nu - 2)
@@ -129,8 +130,12 @@ class t3HVAE(t3VAE.t3VAE):
         # regularizer for q(z_1|x)
         mu_norm_sq = torch.linalg.norm(mu1, ord=2, dim=1).pow(2)
         trace_var = self.nu / trace_denom * torch.sum(logvar1.exp(),dim=1)
-        log_det_var = torch.sum(logvar1,dim=1)
-        reg_loss = torch.mean(mu_norm_sq + trace_var + self.gamma / 2 * self.log_nu_C1overC2.exp() * log_det_var, dim=0)
+        # log_det_var = torch.sum(logvar1,dim=1)
+        # reg_loss = torch.mean(mu_norm_sq + trace_var + self.gamma / 2 * self.log_nu_C1overC2.exp() * log_det_var, dim=0)
+
+        # consistency
+        log_det_var = - self.gamma_exponent / 2 * torch.sum(logvar1,dim=1)
+        reg_loss = torch.mean(mu_norm_sq + trace_var - (1+self.gamma) * (self.log_nu_C1overC2 + log_det_var).exp(), dim=0)
 
         trace_denom += self.m1
                 
@@ -152,19 +157,24 @@ class t3HVAE(t3VAE.t3VAE):
         There are two alternative t-priors to generate.
         '''
 
-        # L = 1
         nu_prime = self.nu + self.n_dim
         prior_z = self.MVN_dists[0].sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
-        v = self.chi_dists[0].sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
-        
+        v =  self.chi_dists[0].sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
         prior_t1 = prior_z * torch.sqrt(nu_prime / v)
 
+        prior_t1 *= self.log_tau_1.exp()
+        
         
         mu_2 = self.priormu_layer(prior_t1)
-        logvar_2 = (self.log_tau_2)*torch.ones((N, self.m2)).to(self.DEVICE)
-        prior_t2 = self.reparameterize(mu_2, logvar_2, 2)
+        nu_prime = self.nu + self.n_dim + self.m1
+        prior_z = self.MVN_dists[1].sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
+        v = self.chi_dists[1].sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
+        prior_t2 = mu_2 + prior_z * torch.sqrt(nu_prime  / v)
+        prior_t2 *=  self.log_tau_2.exp()
+
 
         
-        imgs = self.decoder(prior_t1,prior_t2).detach().cpu()
+        
+        imgs = self.decoder(prior_t1, prior_t2).detach().cpu()
 
         return imgs
