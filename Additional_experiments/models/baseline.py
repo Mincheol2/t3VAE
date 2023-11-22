@@ -1,6 +1,4 @@
 import torch.nn as nn
-import math
-
 class VAE_Baseline(nn.Module):
     def __init__(self, DEVICE, args):
         super().__init__()
@@ -23,7 +21,7 @@ class VAE_Baseline(nn.Module):
         # Decoder
         self.decoder_net = nn.Sequential(
             nn.Linear(self.m_dim, self.num_layers), 
-            nn.LeakyReLU(), 
+            nn.LeakyReLU(),
             nn.Linear(self.num_layers, self.n_dim)
         )
 

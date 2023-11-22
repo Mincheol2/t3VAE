@@ -1,6 +1,5 @@
 import numpy as np
 import torch
-import torchvision
 import torch.nn as nn
 import torch.optim as optim
 from torch.nn import functional as F
@@ -12,7 +11,7 @@ class TVAE(baseline.VAE_Baseline):
     def __init__(self,  DEVICE, args):
         super(TVAE, self).__init__( DEVICE,args)
         
-        self.n_dim = self.C * self.H * self.W
+        self.n_dim = self.args.n_dim
         self.m_dim = self.args.m_dim
         '''
             T-VAE : add three-level layers and parameter layers : mu, lambda, nu
@@ -20,44 +19,38 @@ class TVAE(baseline.VAE_Baseline):
             we use Multivariate Gamma prior instead.
             -> Therefore, we learn "one-dimensional" nu and lambda.
         ''' 
-
-        n_latent = self.decoder_hiddens[-1] * self.H // 2 * self.W // 2 # 32x32x32
         # init parameters
         self.loglambda = 0
         self.lognu = 0
 
         # # parameter layers
-        # self.parameter_loglambda_layer = nn.Linear(self.pdim, 1) # scale params
-        # self.parameter_lognu_layer = nn.Linear(self.pdim, 1) # degree of freedom
+        # self.parameter_loglambda_layer = nn.Linear(self.n_dim, 1) # scale params
+        # self.parameter_lognu_layer = nn.Linear(self.n_dim, 1) # degree of freedom
 
 
         # parameter layers for univatriate
-        self.parameter_loglambda_layer = nn.Linear(self.pdim, self.args.m_dim) # scale params for each component
-        self.parameter_lognu_layer = nn.Linear(self.pdim, self.args.m_dim) # degree of freedom for each component
+        self.parameter_loglambda_layer = nn.Linear(self.n_dim, self.args.m_dim) # scale params for each component
+        self.parameter_lognu_layer = nn.Linear(self.n_dim, self.args.m_dim) # degree of freedom for each component
 
     
-        self.MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.pdim), torch.eye(self.pdim))
+        self.MVN_dist = torch.distributions.MultivariateNormal(torch.zeros(self.n_dim), torch.eye(self.n_dim))
 
     def encoder(self, x):
-        x = self.cnn_layers(x)
-        x = torch.flatten(x, start_dim = 1)
+        x = x.reshape(-1,self.args.n_dim)
+        x = self.encoder_net(x)
         mu = self.mu_layer(x)
         logvar = self.logvar_layer(x)
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
         
     def decoder(self, z):
-        z = self.linear(z)
-        z = z.reshape(-1,self.decoder_hiddens[0],math.ceil(self.H / 2**self.n),math.ceil(self.W / 2**self.n))
-        z = self.tp_cnn_layers(z)
-        recon_mu = self.final_layer(z)
+        x = self.decoder_net(z)
         
         ## parameter layers ##
-        z = z.flatten(start_dim=1)
-        self.loglambda = self.parameter_loglambda_layer(recon_mu.reshape(-1,self.pdim)) # [B, 1]
-        self.lognu = self.parameter_lognu_layer(recon_mu.reshape(-1,self.pdim))  # [B, 1]
+        self.loglambda = self.parameter_loglambda_layer(x) # [B, 1]
+        self.lognu = self.parameter_lognu_layer(x)  # [B, 1]
          
-        return recon_mu
+        return x
     
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar) # diagonal mat
@@ -88,25 +81,23 @@ class TVAE(baseline.VAE_Baseline):
         
 
         # Multivariate
-        # lgamma_term = torch.lgamma((nu_z + self.pdim)/2) - torch.lgamma(nu_z/2)
-        # log_term = self.pdim/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
+        # lgamma_term = torch.lgamma((nu_z + self.n_dim)/2) - torch.lgamma(nu_z/2)
+        # log_term = self.n_dim/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
         # lgamma_term = lgamma_term.to(self.DEVICE)
 
         # x_flat = torch.flatten(x,start_dim = 1)
         # locale_mu = recon_x.flatten(start_dim=1)
 
         # x_norm_sq = torch.linalg.norm(x_flat-locale_mu, ord=2, dim=1).pow(2).unsqueeze(1)
-        # log_recon = (nu_z + self.pdim)/2 * torch.log(1 + lambda_z / nu_z * x_norm_sq)
+        # log_recon = (nu_z + self.n_dim)/2 * torch.log(1 + lambda_z / nu_z * x_norm_sq)
 
-        # # One dim case
+        # One dim case
         lgamma_term = torch.lgamma((nu_z +1)/2) - torch.lgamma(nu_z/2)
         log_term = 1/2 * (self.loglambda - self.lognu - torch.log(torch.tensor([np.pi]).to(self.DEVICE)))
         lgamma_term = lgamma_term.to(self.DEVICE)
 
-        x_flat = x.flatten(start_dim = 1)
-        locale_mu = recon_x.flatten(start_dim=1)
 
-        x_norm_sq = torch.linalg.norm(x_flat-locale_mu, ord=2, dim=1).pow(2).unsqueeze(1)
+        x_norm_sq = torch.linalg.norm(x-recon_x, ord=2, dim=1).pow(2).unsqueeze(1)
         log_recon = (nu_z + 1)/2 * torch.log(1 + lambda_z / nu_z * x_norm_sq)
 
         # multiply by 2

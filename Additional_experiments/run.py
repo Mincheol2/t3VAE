@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader, random_split
 parser = argparse.ArgumentParser(description='t3VAE')
 parser.add_argument('--model', type=str, default="VAE",
                     help='model name')
-parser.add_argument('--dataset', type=str, default="snp",
+parser.add_argument('--dataset', type=str, default="traffic",
                     help='Dataset name')
 parser.add_argument('--datapath', type=str, default="/data_intern2",
                     help='Dataset path')
@@ -51,17 +51,6 @@ def load_model(model_name,DEVICE, args):
         return t3VAE.t3VAE(DEVICE, args).to(DEVICE)
     elif model_name == "TVAE":
         return TVAE.TVAE(DEVICE, args).to(DEVICE)
-    elif model_name == "TiltedVAE":
-        return TiltedVAE.TiltedVAE(DEVICE, args).to(DEVICE)
-    elif model_name == "FactorVAE":
-        return FactorVAE.FactorVAE(DEVICE, args).to(DEVICE)
-    elif model_name == "DEVAE":
-        return DisentanglementVAE.DisentanglementVAE(DEVICE, args).to(DEVICE)
-    elif model_name == "t3HVAE":
-        return t3HVAE.t3HVAE(DEVICE, args).to(DEVICE)
-    elif model_name == "HVAE":
-        return HVAE.HVAE(DEVICE, args).to(DEVICE)
-    
     else:
         raise Exception("Please use one of the available model type!")
     
@@ -92,6 +81,36 @@ class Custom_Dataset(torch.utils.data.Dataset):
         data = torch.tensor(self.file_list[index],dtype=torch.float32)
         return data, 0 # We don't use any label now.
 
+def load_dataset(dataset_name):
+    if 'snp' in dataset_name:
+        dataset = Custom_Dataset(f"data/snp.npy")
+        dataset_size = len(dataset)
+        train_size = int(dataset_size * 0.4)
+        validation_size = int(dataset_size * 0.1)
+        test_size = dataset_size - train_size - validation_size
+
+        train_set,val_set, test_set = random_split(dataset, [train_size, validation_size, test_size])
+
+        trainloader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
+        validationloader = DataLoader(val_set, batch_size=args.batch_size, shuffle=True)
+        testloader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False)    
+    elif 'traffic' in dataset_name:
+        train_dataset = Custom_Dataset(f"data/traffic_train.npy")
+        test_set = Custom_Dataset(f"data/traffic_test.npy")
+
+        dataset_size = len(train_dataset)
+        train_size = int(dataset_size * 0.5)
+        validation_size = dataset_size - train_size
+
+        train_set,val_set = random_split(train_dataset, [train_size, validation_size])
+
+        trainloader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
+        validationloader = DataLoader(val_set, batch_size=args.batch_size, shuffle=True)
+        testloader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False)    
+    
+    return trainloader, validationloader, testloader
+
+
 if __name__ == "__main__":
     ## init ##
 
@@ -117,17 +136,7 @@ if __name__ == "__main__":
         print(f'nu : {args.nu}')
     
     ## Load Dataset ##
-    dataset = Custom_Dataset(f"data/{args.dataset}.npy")
-    dataset_size = len(dataset)
-    train_size = int(dataset_size * 0.4)
-    validation_size = int(dataset_size * 0.1)
-    test_size = dataset_size - train_size - validation_size
-
-    train_set,val_set, test_set = random_split(dataset, [train_size, validation_size, test_size])
-
-    trainloader = DataLoader(train_set, batch_size=args.batch_size, shuffle=True)
-    validationloader = DataLoader(val_set, batch_size=args.batch_size, shuffle=True)
-    testloader = DataLoader(test_set, batch_size=args.batch_size, shuffle=False)    
+    trainloader, validationloader, testloader = load_dataset(args.dataset)
     
     ## Load Model ##
     model = load_model(args.model, DEVICE, args)
@@ -214,8 +223,21 @@ if __name__ == "__main__":
                     writer.add_scalar("Test/Total Loss" , total_loss.item(), current_step)
             if epoch % 5 == 0:
                 plt.clf()
-                plt.plot(torch.concat(x_list).cpu().numpy(), label='origin', alpha=0.5)
-                plt.plot(torch.concat(recon_x_list).cpu().numpy(), label='recon', alpha=0.5)
+                if 'traffic' in args.dataset:
+                    lower_bound = 0
+                    upper_bound = 4
+                    nums = 20
+                    cdf_range = np.logspace(lower_bound,upper_bound,nums)
+                    cdf_data = list(map(lambda y: np.mean(y<x),cdf_range))
+                    cdf_data_recon = list(map(lambda y: np.mean(y<recon_x),cdf_range))
+                    
+                    plt.loglog(cdf_range, cdf_data, label='origin', alpha=0.5)
+                    plt.loglog(cdf_range, cdf_data_recon, label='recon', alpha=0.5)
+
+                else:
+                    plt.plot(torch.concat(x_list).cpu().numpy(), label='origin', alpha=0.5)
+                    plt.plot(torch.concat(recon_x_list).cpu().numpy(), label='recon', alpha=0.5)
+                
                 plt.legend()
                 plt.title(f"nu {args.nu}, lr {args.lr}")
                 plt.savefig(args.dirname + f'/imgs/test_{epoch}.png')

@@ -8,19 +8,16 @@ class VAE(baseline.VAE_Baseline):
         super(VAE, self).__init__( DEVICE,args)
            
     def encoder(self, x):
-        x = self.cnn_layers(x)
-        x = torch.flatten(x, start_dim = 1)
+        x = x.reshape(-1,self.args.n_dim)
+        x = self.encoder_net(x)
         mu = self.mu_layer(x)
         logvar = self.logvar_layer(x)
         z = self.reparameterize(mu, logvar)
-        return [z, mu, logvar]
-    
+        return z, mu, logvar
+        
     def decoder(self, z):
-        z = self.linear(z)
-        z = z.reshape(-1,self.decoder_hiddens[0],math.ceil(self.H / 2**self.n),math.ceil(self.W / 2**self.n))
-        z = self.tp_cnn_layers(z)
-        z = self.final_layer(z)
-        return z
+        x = self.decoder_net(z)
+        return x
     
     def reparameterize(self, mu, logvar):
         std = torch.exp(0.5 * logvar) # diagonal mat
