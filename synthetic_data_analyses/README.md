@@ -1,4 +1,4 @@
-# $t^3$ VAE - univariate and bivariate synthetic data analysis
+# $t^3$ VAE - univariate and bivariate synthetic data analyses
 
 This subfolder contains the Pytorch implementation of the synthetic data analyses in Section 4.1. 
 
