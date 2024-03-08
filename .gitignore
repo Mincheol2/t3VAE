@@ -132,10 +132,3 @@ dmypy.json
 .pyre/
 *.png
 
-
-# Result files
-synthetic_data_past/results/
-synthetic_data_current/old_results/
-synthetic_data_current/1D_results/
-synthetic_data_current/2D_results/
-synthetic_data_current/old/
