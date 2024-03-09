@@ -34,7 +34,6 @@ class IMBALANCECIFAR10(datasets.CIFAR10):
         new_targets = []
         targets_np = np.array(self.targets, dtype=np.int64)
         classes = np.unique(targets_np)
-        # np.random.shuffle(classes)
         self.num_per_cls_dict = dict()
         for the_class, the_img_num in zip(classes, img_num_per_cls):
             self.num_per_cls_dict[the_class] = the_img_num
@@ -56,9 +55,6 @@ class IMBALANCECIFAR10(datasets.CIFAR10):
         return cls_num_list
 
 class IMBALANCECIFAR100(IMBALANCECIFAR10):
-    """`CIFAR100 <https://www.cs.toronto.edu/~kriz/cifar.html>`_ Dataset.
-    This is a subclass of the `CIFAR10` Dataset.
-    """
     base_folder = 'cifar-100-python'
     url = "https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz"
     filename = "cifar-100-python.tar.gz"
