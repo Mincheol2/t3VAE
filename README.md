@@ -2,7 +2,7 @@
 
 Pytorch implementation of $t^3$-Variational Autoencoder: Learning Heavy-tailed Data with Student's t and Power Divergence [[arxiv]](https://arxiv.org/abs/2312.01133)
 
-![CelebA_imgs](github_images/CelebA_imgs.png)
+![Synthetic_dist](github_images/Synthetic_dist.png)
 
 ![CelebA_imgs](github_images/CelebA_imgs.png)
 
@@ -13,14 +13,20 @@ $t^3$VAE demonstrates superior generation of low-density regions when trained on
 
 ## Contents
 
-In this repository, you can reproduce all experiments from the original paper.
+In this repository, all experiments from the original paper can be reproduced.
 
-**constants.ipynb** : Plots the graph of (1) dependency of regularization on $\Sigma_{\phi}(x)$, (2) the
+### constants.ipynb
+
+Plots the graph of (1) dependency of regularization on $\Sigma_{\phi}(x)$, (2) the
 alternative prior scale $\tau$ against $\nu$, (3) the regularizer coefficient $\alpha$ against $\nu$.
 
-**image_analyses** : Experiements on high-dimensional images
+### image_analyses
 
-**synthetic_data_anlyses** : Experiements on heavy-tailed bimodal distributions
+Experiements on high-dimensional images
+
+### synthetic_data_anlyses 
+
+Experiements on heavy-tailed bimodal distributions
 
 ## Requirements
 
