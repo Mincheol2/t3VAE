@@ -1,6 +1,6 @@
 # $t^3$ VAE - Learning High-Dimensional Images
 
-This repository contains different types of VAE frameworks for conducting experiments on image datasets such as CIFAR and CelebA.  The models included in the repository are:
+This subfolder contains different types of VAE frameworks for conducting experiments on image datasets such as CIFAR and CelebA (in section 4.2). The models included in the repository are:
 
 - $t^3$ VAE
 - Guassian VAE
