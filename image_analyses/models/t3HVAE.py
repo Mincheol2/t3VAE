@@ -171,10 +171,6 @@ class t3HVAE(t3VAE.t3VAE):
         v = self.chi_dists[1].sample(sample_shape=torch.tensor([N])).to(self.DEVICE)
         prior_t2 = mu_2 + prior_z * torch.sqrt(nu_prime  / v)
         prior_t2 *=  self.log_tau_2.exp()
-
-
-        
-        
         imgs = self.decoder(prior_t1, prior_t2).detach().cpu()
 
         return imgs

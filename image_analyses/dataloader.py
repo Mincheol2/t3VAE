@@ -108,8 +108,7 @@ class load_dataset():
         )
         self.batch_size = batch_size
         self.dataset = dataset
-        # self.path = dataset_path
-        self.path = '/data_intern'
+        self.path = './'
         self.imb_factor = imb_factor
 
     def load_celeb_dataset(self,dataset_path):
@@ -199,6 +198,11 @@ class load_dataset():
     def select_dataloader(self):
         if 'celeb' in self.dataset:
             trainloader, testloader, tensorboard_imgs = self.load_celeb_dataset(self.path)
+            tensorboard_imgs = None
+            for images, _ in trainloader:
+                tensorboard_imgs = images
+                break
+
         elif 'cifar' in self.dataset:
             if 'imb' in self.dataset:
                 if '100' in self.dataset:
@@ -216,36 +220,7 @@ class load_dataset():
                 )
                 trainloader = datasets.CIFAR10(self.path, train=True, transform=cifar_transform, download = True)
                 testloader = datasets.CIFAR10(self.path, train=False, transform=cifar_transform, download = True)
-                tensorboard_imgs = None
-                for images, _ in trainloader:
-                    tensorboard_imgs = images
-                    break
 
-            mnist_transform = transforms.Compose(
-            [            
-            transforms.Resize(32),
-            transforms.ToTensor(),
-            ]
-            )
-            ## Imbalanced MNIST ##
-            train_mnist = datasets.MNIST('/data_intern', train=True, transform=mnist_transform, download=True)
-            noise_data = np.random.random((64,28,28))
-            noise_label = np.ones(64) * 10
-
-            train_mnist.data = np.concatenate([train_mnist.data, noise_data])
-            train_mnist.targets = np.concatenate([train_mnist.targets, noise_label])
-
-            trainloader = torch.utils.data.DataLoader(dataset=train_mnist,
-                                            batch_size=self.batch_size,
-                                            shuffle=True)
-
-
-
-            test_mnist = datasets.MNIST('/data_intern', train=False, transform=mnist_transform, download=True)
-
-            testloader = torch.utils.data.DataLoader(dataset=test_mnist,
-                                            batch_size=self.batch_size,
-                                            shuffle=True)
 
             tensorboard_imgs = None
             for images, _ in trainloader:

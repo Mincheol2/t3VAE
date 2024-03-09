@@ -3,7 +3,6 @@ import torch
 from datetime import datetime
 import torchvision
 import os
-import gc
 import random
 import argparse
 from tqdm import tqdm
@@ -18,7 +17,7 @@ parser.add_argument('--model', type=str, default="VAE",
                     help='model name')
 parser.add_argument('--dataset', type=str, default="celebA",
                     help='Dataset name')
-parser.add_argument('--datapath', type=str, default="/data_intern",
+parser.add_argument('--datapath', type=str, default="./",
                     help='Dataset path')
 parser.add_argument('--dirname', type=str, default="",
                     help='directory name')
@@ -131,10 +130,7 @@ if __name__ == "__main__":
 
 
     ## Train & Test ##
-    model.generate()
     for epoch in epoch_tqdm:
-    
-
         ## Train ##
         model.train()
         total_loss = []
@@ -159,7 +155,7 @@ if __name__ == "__main__":
                 discriminator_opt.step()
                 tqdm_trainloader.set_description(f'train {epoch} : reg={reg_loss:.4f} recon={recon_loss:.4f} vae_tc={vae_tcloss:.4f} total={total_loss:.4f}')
             
-            elif "HVAE" in  args.model:
+            elif "HVAE" in args.model:
                 reg_loss, reg_loss2, recon_loss, total_loss = model.loss(x.to(DEVICE), recon_x, z1, mu1, mu2, logvar1, logvar2)
                 total_loss.backward()
                 opt.step()
@@ -181,7 +177,6 @@ if __name__ == "__main__":
                     torch.nn.utils.clip_grad_norm_(group['params'], 100, norm_type=2)
         
         ## Test ##
-        gc.collect()
         model.eval()
         cnt = 0
         total_loss_final = 0 

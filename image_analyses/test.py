@@ -15,9 +15,9 @@ parser.add_argument('--dirname', type=str, default="",
                     help='directory name')
 parser.add_argument('--seed', type=int, default=2023,
                     help='set seed number')
-parser.add_argument('--model_path', type=str, default="exp_env/HVAE_lr8e5/HVAE_best.pt",
+parser.add_argument('--model_path', type=str, default="",
                     help='model path')
-parser.add_argument('--datapath', type=str, default="/data_intern2",
+parser.add_argument('--datapath', type=str, default="./",
                     help='Dataset path')
     
 def make_result_dir(dirname):
@@ -89,7 +89,6 @@ if __name__ == "__main__":
         f.write(f'FID_RECON:{fid_recon_result}\n')
         j = 1
         for i in range(40):
-            # for j in range(2):
             fid_recon = FrechetInceptionDistance(normalize=True).to(DEVICE)
             indice = torch.where(testset.attr[:,i] == 1)[0]
             if i == 39:
