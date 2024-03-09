@@ -1,10 +1,16 @@
 # $t^3$ VAE - Learning High-Dimensional Images
 
+This repository contains different types of VAE frameworks for conducting experiments on image datasets such as CIFAR and CelebA.  The models included in the repository are:
+
+- $t^3$ VAE
+- Guassian VAE
+- $\beta$-VAE
+- [Student-t VAE](https://github.com/takahashihiroshi/t_vae)
+- [DEVAE](https://github.com/iffsid/disentangling-disentanglement)
+- [tilted VAE](https://github.com/anonconfsubaccount/tilted_prior)
+- FactorVAE
+
 ## Basic Usage
-
-This repository includes multiple types of VAE framework:
-
-$t^3$ VAE, Guassian VAE, $\beta$-VAE, Student-t VAE, DEVAE, tilted VAE, and Factor VAE
 
 The specific type of model can be determined by varying the argument "--model" or other hyperparamters.(e.g. "--recon_sigma" or "--reg_weight")
 
@@ -46,8 +52,8 @@ python run.py --model FactorVAE --TC_gamma 6.4
 | ------------- | ------------------------------------------------------------ | --------- |
 | model       | Model type                                                 | VAE     |
 | datapath    | Dataset path                                               |         |
-| epoch       | Latent variable dimension                                  | 50      |
-| batch_size  | Latent variable dimension                                  | 64      |
+| epoch       | the number of epoch                                        | 50      |
+| batch_size  | Batch size                                                 | 64      |
 | lr          | Learning rate                                              | 1e-4    |
 | m_dim       | Latent variable dimension                                  | 64      |
 | nu          | Hyperparatmer for γ-divergence (Only used in $t^3$ VAE)  |         |
