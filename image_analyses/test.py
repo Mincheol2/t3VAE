@@ -1,7 +1,5 @@
 import numpy as np
 import torch
-import cv2
-import torchvision
 import os
 import random
 import argparse
@@ -105,8 +103,6 @@ if __name__ == "__main__":
                 recon_x, *_ = model.forward(x)
                 fid_recon.update(x, real=True)
                 fid_recon.update(recon_x, real=False)
-            # filename = f'recon_class_{i}.png'
-            # torchvision.utils.save_image(recon_x, filename, normalize=True, nrow=4)
             fid_recon_result = fid_recon.compute()
             
             print("caculating recon fid scores....")

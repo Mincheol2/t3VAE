@@ -7,13 +7,10 @@ import gc
 import random
 import argparse
 from tqdm import tqdm
-import time
 from torch.utils.tensorboard import SummaryWriter
 import torch.optim as optim
-from torchmetrics.image.fid import FrechetInceptionDistance
 from models import *
 from dataloader import *
-from torch.nn.parallel import DistributedDataParallel as DDP
 
 
 parser = argparse.ArgumentParser(description='t3VAE')
@@ -52,6 +49,7 @@ parser.add_argument('--imb', type=float, default=100,
                     help='tail imbalance factor(CIFAR)')
 parser.add_argument('--gpu', type=int, default=0,
                     help='gpu number')
+
 def load_model(model_name,img_shape,DEVICE, args):
     if model_name == 'VAE':
        return VAE.VAE(img_shape, DEVICE,args).to(DEVICE)
@@ -89,8 +87,6 @@ def make_reproducibility(seed):
 
 
 if __name__ == "__main__":
-    ## init ##
-
     args = parser.parse_args()
     USE_CUDA = torch.cuda.is_available()
     DEVICE = torch.device(f'cuda:{args.gpu}' if USE_CUDA else "cpu")
@@ -104,7 +100,7 @@ if __name__ == "__main__":
     make_result_dir(args.dirname)
     print(f'Current directory name : {args.dirname}')
     writer = SummaryWriter(args.dirname + '/Tensorboard_results')
-    # iter_time = open('iteration_check_t3vae.txt', 'w')
+
     print(f"Current framework : {args.model}, lr : {args.lr}")
     if args.model == 't3VAE':
         if args.nu <= 2:
@@ -120,8 +116,6 @@ if __name__ == "__main__":
     
     ## Load Model ##
     model = load_model(args.model,img_shape, DEVICE, args)
-
-
     model_best_loss = 1e8
 
     epoch_tqdm = tqdm(range(0, args.epoch))
@@ -134,8 +128,8 @@ if __name__ == "__main__":
     # Use discriminator
     if args.model in ["FactorVAE"]: 
         discriminator_opt = optim.Adam(model.discriminator.parameters(), lr=args.lr_D)
-    # fid_recon = FrechetInceptionDistance(normalize=True).to(DEVICE)
-    
+
+
     ## Train & Test ##
     model.generate()
     for epoch in epoch_tqdm:
@@ -185,11 +179,6 @@ if __name__ == "__main__":
                 # clip gradients with max_grad_norm = 100
                 for group in opt.param_groups:
                     torch.nn.utils.clip_grad_norm_(group['params'], 100, norm_type=2)
-        # end_time = time.time()
-        #     total_time.append(end_time-start_time)
-        #     print("iter time", end_time - start_time)    
-        # writer.add_scalar("Train/avg iter time" , np.mean(total_time),epoch)
-
         
         ## Test ##
         gc.collect()
@@ -220,9 +209,6 @@ if __name__ == "__main__":
                     tqdm_testloader.set_description(f'test {epoch} :reg={reg_loss:.4f} recon={recon_loss:.4f} total={total_loss:.4f}')
 
                 total_loss_final += total_loss.item()
-                ### Reconstruction FID update ###
-                # fid_recon.update(x.detach(), real=True)
-                # fid_recon.update(recon_x.detach(), real=False)
 
                 current_step = batch_idx + epoch * denom_test
                 if batch_idx % 200 == 0:    
@@ -263,4 +249,4 @@ if __name__ == "__main__":
     gen_imgs = model.generate()   
     filename = f'{args.dirname}/imgs/generations.png'         
     torchvision.utils.save_image(gen_imgs, filename,normalize=True, nrow=8)
-    # writer.close()
+    writer.close()

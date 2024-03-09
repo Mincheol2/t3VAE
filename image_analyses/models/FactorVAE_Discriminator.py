@@ -1,5 +1,4 @@
 import torch.nn as nn
-from torch.nn import functional as F
 
 class Discriminator(nn.Module):
     def __init__(self, m_dim=64, hidden_dims=2000):
