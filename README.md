@@ -17,7 +17,7 @@ In this repository, all experiments from the original paper can be reproduced.
 
 ### constants.ipynb
 
-Plots the graph of (1) dependency of regularization on $\Sigma_{\phi}(x)$, (2) the
+The graph of (1) dependency of regularization on $\Sigma_{\phi}(x)$, (2) the
 alternative prior scale $\tau$ against $\nu$, (3) the regularizer coefficient $\alpha$ against $\nu$.
 
 ### image_analyses
