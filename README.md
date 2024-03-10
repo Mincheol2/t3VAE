@@ -38,10 +38,10 @@ pip install -r requirements.txt
 
 ```
 @inproceedings{
-kim2024tvariational,
-title={\$t{\textasciicircum}3\$-Variational Autoencoder: Learning Heavy-tailed Data with Student's t and Power Divergence},
-author={Juno Kim and Jaehyuk Kwon and Mincheol Cho and Hyunjong Lee and Joong-Ho Won},
-booktitle={The Twelfth International Conference on Learning Representations},
-year={2024},
+  kim2024tvariational,
+  title={\$t{\textasciicircum}3\$-Variational Autoencoder: Learning Heavy-tailed Data with Student's t and Power Divergence},
+  author={Juno Kim and Jaehyuk Kwon and Mincheol Cho and Hyunjong Lee and Joong-Ho Won},
+  booktitle={The Twelfth International Conference on Learning Representations},
+  year={2024},
 }
 ```
